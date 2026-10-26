@@ -1,0 +1,37 @@
+instance_id,instance,risk_id,risk,risk_type,provenance,evidence_basis,evidence,evidence_n,instance_grounding
+I01,Incompatible Strategies,FM1,Miscoordination,Failure mode,Hammond Table 1,Case study,CS1;AIV-06;AIV-04,3,0.4
+I02,Credit Assignment,FM1,Miscoordination,Failure mode,Hammond Table 1,Cited empirical work,,0,0.0
+I03,Limited Interactions,FM1,Miscoordination,Failure mode,Hammond Table 1,Cited empirical work,,0,0.0
+I04,Social Dilemmas,FM2,Conflict,Failure mode,Hammond Table 1,Case study,CS2;CS6;CS9,3,0.7
+I05,Military Domains,FM2,Conflict,Failure mode,Hammond Table 1,Case study,CS3,1,0.8
+I06,Coercion and Extortion,FM2,Conflict,Failure mode,Hammond Table 1,Theoretical,CS11,1,0.4
+I07,Markets,FM3,Collusion,Failure mode,Hammond Table 1,Case study,CS4,1,0.8
+I08,Steganography,FM3,Collusion,Failure mode,Hammond Table 1,Case study,CS5,1,0.7
+I09,Communication Constraints,RF1,Information Asymmetries,Risk factor,Hammond Table 1,Cited empirical work,CS1;AIV-06,2,0.4
+I10,Bargaining,RF1,Information Asymmetries,Risk factor,Hammond Table 1,Theoretical,,0,0.0
+I11,Deception,RF1,Information Asymmetries,Risk factor,Hammond Table 1,Case study,CS6;CS7;AIV-07;AIV-05;AIR-2025-0149,5,0.7
+I12,Error Propagation,RF2,Network Effects,Risk factor,Hammond Table 1,Case study,CS7;CS8;CS10;AIV-07;AIR-2026-0193;AIV-01,6,0.9
+I13,Network Rewiring,RF2,Network Effects,Risk factor,Hammond Table 1,Theoretical,AIR-2026-0189;LW-05;AIR-2025-0068,3,0.5
+I14,Homogeneity and Correlated Failures,RF2,Network Effects,Risk factor,Hammond Table 1,Theoretical,LW-01,1,0.9
+I15,Undesirable Dispositions from Competition,RF3,Selection Pressures,Risk factor,Hammond Table 1,Case study,CS1;CS2;CS4;CS9,4,0.8
+I16,Undesirable Dispositions from Human Data,RF3,Selection Pressures,Risk factor,Hammond Table 1,Case study,,0,0.0
+I17,Undesirable Capabilities,RF3,Selection Pressures,Risk factor,Hammond Table 1,Cited empirical work,,0,0.0
+I18,Feedback Loops,RF4,Destabilising Dynamics,Risk factor,Hammond Table 1,Case study,CS3;CS10,2,0.9
+I19,Cyclic Behaviour,RF4,Destabilising Dynamics,Risk factor,Hammond Table 1,Theoretical,,0,0.0
+I20,Chaos,RF4,Destabilising Dynamics,Risk factor,Hammond Table 1,Theoretical,,0,0.0
+I21,Phase Transitions,RF4,Destabilising Dynamics,Risk factor,Hammond Table 1,Theoretical,,0,0.0
+I22,Distributional Shift,RF4,Destabilising Dynamics,Risk factor,Hammond Table 1,Theoretical,,0,0.0
+I23,Inefficient Outcomes,RF5,Commitment and Trust,Risk factor,Hammond Table 1,Theoretical,CS2;CS9;AIV-06,3,0.7
+I24,Threats and Extortion,RF5,Commitment and Trust,Risk factor,Hammond Table 1,Case study,CS11,1,0.4
+I25,Rigidity and Mistaken Commitments,RF5,Commitment and Trust,Risk factor,Hammond Table 1,Case study,CS11;AIV-05,2,0.4
+I26,Emergent Capabilities,RF6,Emergent Agency,Risk factor,Hammond Table 1,Theoretical,CS4;CS12;AIR-2026-0183;LW-01;AIR-2026-0219;AIR-2025-0019,6,0.9
+I27,Emergent Goals,RF6,Emergent Agency,Risk factor,Hammond Table 1,Theoretical,LW-05,1,0.5
+I28,Swarm Attacks,RF7,Multi-Agent Security,Risk factor,Hammond Table 1,Theoretical,AIR-2026-0189;AIR-2026-0183;LW-01;AIR-2026-0194;LW-02;AIR-2026-0219;AIR-2025-0019,7,0.9
+I29,Heterogeneous Attacks,RF7,Multi-Agent Security,Risk factor,Hammond Table 1,Case study,CS12,1,0.5
+I30,Social Engineering at Scale,RF7,Multi-Agent Security,Risk factor,Hammond Table 1,Theoretical,AIR-2025-0027,1,0.8
+I31,Vulnerable AI Agents,RF7,Multi-Agent Security,Risk factor,Hammond Table 1,Case study,CS13;AIR-2026-0180;AIR-2026-0101;AIR-2026-0029;AIR-2025-0177;AIR-2025-0149;AIR-2025-0136;AIR-2025-0070,8,0.7
+I32,Cascading Security Failures,RF7,Multi-Agent Security,Risk factor,Hammond Table 1,Case study,CS8;AIR-2026-0193;AIR-2025-0068,3,0.9
+I33,Undetectable Threats,RF7,Multi-Agent Security,Risk factor,Hammond Table 1,Cited empirical work,CS5,1,0.7
+I34,Shared False Beliefs,FM1,Miscoordination,Failure mode,Ours,Incident evidence,AIV-07;AIV-01;AIV-02,3,0.5
+I35,Defeating Oversight and Evaluation,FM3,Collusion,Failure mode,Ours,Incident evidence,AIR-2026-0183;LW-01;LW-02;AIR-2026-0219,4,0.9
+I36,Informational Cascades,RF2,Network Effects,Risk factor,Ours,Incident evidence,AIV-03,1,0.4

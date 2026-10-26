@@ -9,6 +9,7 @@ Read `docs/project_outline.md` first: it gives the goal, the three layers (ontol
 - `data/*.csv` is the source of truth. Edit only these.
 - `build/build_xlsx.py` validates the data and writes `out/`: one workbook, `risk_index.csv` and `associations.csv`. Never edit `out/` by hand.
 - Case studies and incidents share the workbook's Evidence sheet, told apart by `evidence_class`. Every score runs over the whole inventory.
+- Instances are the link layer: evidence attaches to an instance, each instance belongs to one risk. Never infer an FM–RF link from two tags on one row.
 - `docs/methodology.md` holds the definitions, evidence rubric and scoring rules. Read it before classifying or scoring.
 - `RESOURCES.md` lists curated sources. `OPEN.md` lists open decisions and next tasks.
 
@@ -26,3 +27,5 @@ Read `docs/project_outline.md` first: it gives the goal, the three layers (ontol
 - IDs must match a prefix in `data/id_prefixes.csv`. To add a new source collection, add its prefix there first.
 - `type` is one of: Observed in real world · Synthetic evidence · Observed in lab · Theoretical.
 - Grounding score = highest `evidence_score` / 10 across all evidence tagged with the risk, case studies and incidents alike. Do not sum or average.
+- Every scored evidence row needs at least one instance. `failure_modes` and `risk_factors` are derived from it; the build fails if a hand-written tag disagrees.
+- FM–RF associations come only from Hammond et al., with `basis` recording which.

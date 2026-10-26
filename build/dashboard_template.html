@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mind the Interagent Gap</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb; --plane: #f9f9f7;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --hairline: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --ord-1: #86b6ef; --ord-2: #2a78d6; --ord-label-2: #ffffff; --ord-label-1: #0b0b0b;
+  --seq-100: #cde2fb; --seq-250: #86b6ef; --seq-350: #5598e7;
+  --seq-450: #2a78d6; --seq-550: #1c5cab; --seq-650: #104281;
+  --wash: rgba(137,135,129,0.14); --ours: #eb6834;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --plane: #0d0d0d;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --hairline: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --ord-1: #184f95; --ord-2: #3987e5; --ord-label-2: #ffffff; --ord-label-1: #f0efec;
+    --seq-100: #104281; --seq-250: #184f95; --seq-350: #256abf;
+    --seq-450: #3987e5; --seq-550: #6da7ec; --seq-650: #9ec5f4;
+    --wash: rgba(137,135,129,0.20); --ours: #d95926;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-1: #1a1a19; --plane: #0d0d0d;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --hairline: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --ord-1: #184f95; --ord-2: #3987e5; --ord-label-2: #ffffff; --ord-label-1: #f0efec;
+  --seq-100: #104281; --seq-250: #184f95; --seq-350: #256abf;
+  --seq-450: #3987e5; --seq-550: #6da7ec; --seq-650: #9ec5f4;
+  --wash: rgba(137,135,129,0.20); --ours: #d95926;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--plane); color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 40px 16px 72px; }
+h1 { font-size: 27px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+.sub { color: var(--ink-2); margin: 0 0 20px; max-width: 66ch; }
+.kpis { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.kpi { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 10px;
+  padding: 10px 14px; min-width: 100px; }
+.kpi b { display: block; font-size: 22px; font-weight: 600; }
+.kpi span { color: var(--ink-2); font-size: 12.5px; }
+nav.toc { margin: 22px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap;
+  gap: 6px 18px; font-size: 13.5px; }
+nav.toc a { color: var(--s1); text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+.layer { margin: 46px 0 0; padding-top: 10px; border-top: 2px solid var(--axis);
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+section { margin-top: 26px; }
+h2 { font-size: 19px; margin: 0 0 4px; letter-spacing: -0.005em; }
+h2 .q { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+.lede { color: var(--ink-2); margin: 0 0 16px; max-width: 76ch; font-size: 14px; }
+.card { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 12px; padding: 18px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.04em; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.group td { background: var(--wash); font-weight: 600; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--ink-2); }
+.rid { font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+.def { color: var(--ink-2); max-width: 42ch; }
+.bar-cell { display: flex; align-items: center; gap: 9px; }
+.bar-track { position: relative; width: 80px; height: 9px; background: var(--wash);
+  border-radius: 2px; flex: none; }
+.bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--s1); border-radius: 0 4px 4px 0; }
+.gv { font-variant-numeric: tabular-nums; font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12px;
+  color: var(--ink-2); border: 1px solid var(--hairline); border-radius: 999px;
+  padding: 1px 8px 1px 6px; background: var(--plane); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.t0 { background: var(--s1); } .dot.t1 { background: var(--s2); } .dot.t2 { background: var(--s3); }
+.chip.none { color: var(--muted); font-style: italic; }
+.tag { display: inline-block; font-size: 11.5px; border: 1px solid var(--hairline); border-radius: 4px;
+  padding: 0 5px; margin: 0 3px 3px 0; color: var(--ink-2); white-space: nowrap; }
+.tag.fm { border-color: var(--s1); } .tag.ours { border-color: var(--ours); color: var(--ours); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0; font-size: 12.5px;
+  color: var(--ink-2); align-items: center; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.legend .swatch { width: 14px; height: 10px; border-radius: 2px; flex: none; }
+.legend .stroke { width: 16px; height: 0; border-top: 2px solid var(--s1); flex: none; }
+
+/* RF -> FM flow */
+.fmcard { border: 1px solid var(--hairline); border-radius: 10px; padding: 14px 16px;
+  background: var(--surface-1); margin-bottom: 12px; }
+.fmhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+.fmhead b { font-size: 16px; }
+.fmhead .own { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-2); }
+.fmown { height: 10px; background: var(--wash); border-radius: 2px; position: relative; margin: 8px 0 12px; }
+.fmown i { position: absolute; inset: 0 auto 0 0; background: var(--s1); border-radius: 0 4px 4px 0; display: block; }
+.inflow { display: grid; grid-template-columns: minmax(130px,auto) 1fr auto auto; gap: 5px 10px;
+  align-items: center; font-size: 13px; }
+.inflow .nm { color: var(--ink-2); }
+.inflow .trk { position: relative; height: 7px; background: var(--wash); border-radius: 2px; }
+.inflow .trk i { position: absolute; inset: 0 auto 0 0; background: var(--seq-350);
+  border-radius: 0 4px 4px 0; display: block; }
+.inflow .vv { font-variant-numeric: tabular-nums; }
+.inflow .bs { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.inflow .bs.cotag { color: var(--ours); }
+
+/* heat + e-breakdown */
+.heat td.h { text-align: center; font-variant-numeric: tabular-nums; }
+.heat td.h span { display: inline-block; min-width: 30px; padding: 3px 0; border-radius: 3px; }
+.ebd { display: inline-flex; gap: 2px; }
+.ebd i { width: 15px; height: 15px; border-radius: 3px; display: grid; place-items: center;
+  font-size: 10px; font-style: normal; font-variant-numeric: tabular-nums; background: var(--wash);
+  color: var(--muted); }
+.ebd i.v1 { background: var(--ord-1); color: var(--ord-label-1); }
+.ebd i.v2 { background: var(--ord-2); color: var(--ord-label-2); }
+
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 4px 22px; }
+.panel { padding: 10px 0 12px; border-bottom: 1px solid var(--grid); }
+.panel h3 { font-size: 13px; margin: 0 0 1px; font-weight: 600; }
+.panel .meta { font-size: 11.5px; color: var(--muted); margin: 0 0 6px; font-variant-numeric: tabular-nums; }
+.panel svg { display: block; width: 100%; height: auto; overflow: visible; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 14px; font-size: 13px; }
+.filters label { color: var(--ink-2); }
+select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface-1);
+  border: 1px solid var(--hairline); border-radius: 7px; padding: 5px 8px; }
+#count { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+a.src { color: var(--s1); text-decoration: none; }
+a.src:hover { text-decoration: underline; }
+.ev-title { color: var(--ink-2); max-width: 46ch; font-size: 12.5px; }
+.band { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.band.unscored { color: var(--muted); font-style: italic; }
+.notes { columns: 2; column-gap: 28px; font-size: 13.5px; color: var(--ink-2); }
+.notes li { margin: 0 0 9px; break-inside: avoid; }
+.notes ul { margin: 0; padding-left: 18px; }
+.cols { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); gap: 18px; align-items: start; }
+@media (max-width: 760px) { .notes { columns: 1; } .cols { grid-template-columns: minmax(0,1fr); }
+  .inflow { grid-template-columns: 1fr auto; } .inflow .trk { display: none; } }
+.caveat { border-left: 2px solid var(--s2); padding-left: 12px; margin: 14px 0 0; font-size: 13.5px;
+  color: var(--ink-2); }
+.caveat.quiet { border-color: var(--axis); }
+.foot { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--grid); color: var(--muted);
+  font-size: 12.5px; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em;
+  background: var(--wash); padding: 0 4px; border-radius: 3px; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--ink); }
+th.sortable::after { content: "\2195"; opacity: .33; margin-left: 5px; font-size: 11px; }
+th.sortable[aria-sort="ascending"]::after { content: "\2191"; opacity: 1; }
+th.sortable[aria-sort="descending"]::after { content: "\2193"; opacity: 1; }
+th.sortable:focus-visible { outline: 2px solid var(--s1); outline-offset: -2px; }
+input[type="search"], input[type="text"] { font: inherit; font-size: 13px; color: var(--ink);
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 7px;
+  padding: 5px 9px; min-width: 0; }
+input[type="search"] { width: 15rem; max-width: 100%; }
+input[type="text"].ids { width: 11rem; }
+input::placeholder { color: var(--muted); }
+.filters .reset { font: inherit; font-size: 12.5px; color: var(--s1); background: none;
+  border: 0; padding: 4px 2px; cursor: pointer; text-decoration: underline; }
+.filters .scope { color: var(--muted); font-size: 11.5px; width: 100%; margin: -2px 0 0; }
+.empty { color: var(--muted); font-style: italic; padding: 14px 10px; }
+
+#tip { position: fixed; z-index: 9; pointer-events: none; opacity: 0; transition: opacity .09s;
+  max-width: 300px; background: var(--surface-1); color: var(--ink); border: 1px solid var(--hairline);
+  border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.4;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.13); }
+#tip b { font-size: 13.5px; }
+#tip .t-sub { color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Mind the Interagent Gap</h1>
+  <p class="sub">An evidence-graded index of multi-agent AI risks. Failure modes stand on their own
+  evidence; risk factors are the mechanisms that can amplify them. Every piece of evidence reaches a
+  risk through exactly one instance, so no claim is ever inferred from two tags co-occurring.</p>
+  <ul class="kpis" id="kpis"></ul>
+  <nav><ul class="toc">
+    <li><a href="#risks">The risks</a></li>
+    <li><a href="#flow">Factors → failure modes</a></li>
+    <li><a href="#backing">What backs them</a></li>
+    <li><a href="#time">Over time</a></li>
+    <li><a href="#instances">Instance layer</a></li>
+    <li><a href="#events">Events → instances</a></li>
+    <li><a href="#method">Methodology</a></li>
+  </ul></nav>
+</header>
+
+<p class="layer">Layer 1 · the ontology</p>
+
+<section id="risks">
+  <h2>The risks, and how well each is grounded</h2>
+  <p class="lede">Three failure modes — what goes wrong — and seven risk factors — what makes it more
+  likely. <b>Grounding</b> is the strongest single piece of evidence for that risk, 0–10 on the rubric,
+  rescaled to 0–1. It is a maximum, so read it beside <b>n</b>: a 0.9 on two rows is not a
+  well-studied risk.</p>
+  <div class="filters" id="risk-filters"></div>
+  <div class="card scroll">
+    <table id="risk-table"><thead></thead><tbody></tbody></table>
+  </div>
+  <div class="legend">
+    <span class="key"><span class="swatch" style="background:var(--s1)"></span> grounding, 0–1</span>
+    <span class="key"><span class="dot t0"></span> real world</span>
+    <span class="key"><span class="dot t1"></span> synthetic</span>
+    <span class="key"><span class="dot t2"></span> lab</span>
+    <span class="key">Coverage and validity of evaluation methods: <b>not yet assessed</b></span>
+  </div>
+</section>
+
+<section id="flow">
+  <h2>How risk factors relate to failure modes</h2>
+  <p class="lede">A failure mode is <b>autonomous</b>: it is grounded only by evidence of that failure
+  occurring. A linked risk factor can <b>amplify</b> it — the bars below show each factor's own
+  grounding routed along a link the authors assert. That routed figure is a mechanism the authors
+  claim, <i>not</i> evidence that this factor produced this failure in any observed event.</p>
+  <div id="flow-cards"></div>
+  <div class="legend">
+    <span class="key"><span class="swatch" style="background:var(--s1)"></span> failure mode's own grounding</span>
+    <span class="key"><span class="swatch" style="background:var(--seq-350)"></span> risk factor's grounding, routed in</span>
+    <span class="key">basis: <b>prose</b> = the authors argue it · <b style="color:var(--ours)">Table 3 co-tag</b> = one of their case studies sits under both</span>
+  </div>
+  <p class="caveat" id="unlinked-note"></p>
+</section>
+
+<section id="backing">
+  <h2>How observed events back the failure modes and risk factors</h2>
+  <p class="lede">Evidence rows per risk and tier, and how the inventory routes into the ontology.</p>
+  <div class="cols">
+    <div class="card scroll">
+      <table class="heat" id="heat"><thead></thead><tbody></tbody></table>
+      <p class="scope" style="color:var(--muted);font-size:11.5px;margin:8px 0 0">Click a column heading to sort.</p>
+      <div class="legend"><span class="key">Darker is more rows. Numbers always shown.</span></div>
+    </div>
+    <div class="card">
+      <div id="routing"></div>
+      <p class="caveat quiet">Failure modes carry far less evidence than risk factors, and that is the
+      territory rather than a gap in the mapping: the authors' own Table 3 leaves 5 of 13 case studies
+      with a risk factor and no failure mode at all. Multi-Agent Security dominates because vendor
+      disclosure pipelines are productive, not because it is the most common failure.</p>
+    </div>
+  </div>
+</section>
+
+<section id="time">
+  <h2>How evidence compounds over time</h2>
+  <p class="lede">One panel per risk. All 13 case studies predate April 2025, so the band at the left
+  edge is the paper's baseline and the plotted window is the incident inventory. Each panel holds
+  <b>two separate plots</b> on a shared time axis — a count on its own scale above, grounding on its
+  own 0–1 scale below. They are never overlaid on one axis.</p>
+  <div class="card">
+    <div class="panels" id="panels"></div>
+    <div class="legend">
+      <span class="key"><span class="swatch" style="background:var(--wash)"></span> cumulative evidence count</span>
+      <span class="key"><span class="stroke"></span> grounding, steps when stronger evidence lands</span>
+      <span class="key"><span class="dot t0"></span> real world</span>
+      <span class="key"><span class="dot t1"></span> synthetic</span>
+      <span class="key"><span class="dot t2"></span> lab</span>
+      <span class="key">hollow marker = month-only date</span>
+    </div>
+  </div>
+</section>
+
+<p class="layer">Layer 2 · instances, the link between evidence and risk</p>
+
+<section id="instances">
+  <h2>The instance layer</h2>
+  <p class="lede">Each instance belongs to exactly one risk. Evidence attaches here, which is why a
+  single event can never imply a relationship between two risks. Instances marked
+  <span class="tag ours">ours</span> were authored because the inventory found behaviour the paper's
+  Table 1 does not instantiate.</p>
+  <div class="filters" id="inst-filters"></div>
+  <div class="card scroll">
+    <table id="inst-table"><thead></thead><tbody></tbody></table>
+  </div>
+</section>
+
+<section id="events">
+  <h2>How events map to instances</h2>
+  <p class="lede">Every piece of evidence: the instances assigned to it, how many, its tier, and the
+  score breakdown across the five rubric criteria. Each criterion scores 0–2 and they sum to the
+  0–10 evidence score.</p>
+  <div class="filters" id="ev-filters"></div>
+  <div class="card scroll">
+    <table id="ev-table"><thead></thead><tbody></tbody></table>
+  </div>
+  <div class="legend" id="e-legend"></div>
+</section>
+
+<p class="layer">Method</p>
+
+<section id="method">
+  <h2>Methodology, sources and assumptions</h2>
+  <p class="lede">Full detail in <code>docs/methodology.md</code>. Every number here is computed by
+  <code>build/build_xlsx.py</code> from <code>data/*.csv</code>, which is the source of truth.</p>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px;font-size:14px">Evidence score — five criteria, 0–2 each, summed to 0–10</h3>
+    <div class="scroll"><table id="rubric"><thead><tr>
+      <th>Criterion</th><th>2</th><th>1</th><th>0</th></tr></thead><tbody></tbody></table></div>
+    <p class="lede" style="margin:12px 0 0">Bands: Strong 9–10 · Moderate 6–8 · Limited 3–5 · Weak 0–2.
+    Theoretical rows are not scored.</p>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 style="margin:0 0 10px;font-size:14px">Evidence tiers</h3>
+    <div class="scroll"><table id="types"><tbody></tbody></table></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 style="margin:0 0 10px;font-size:14px">The model, and what follows from it</h3>
+    <div class="notes"><ul>
+      <li><b>Instances are the link layer.</b> Evidence attaches to an instance, and each instance
+      belongs to exactly one risk. A row reaching both a failure mode and a risk factor does so
+      through two separate instances — two independent claims, never evidence that the two are
+      related.</li>
+      <li><b>Failure modes are autonomous.</b> A failure mode's grounding comes only from evidence of
+      that failure. Risk-factor grounding is <i>routed</i> into it along links the authors assert, and
+      shown separately so the two are never added together.</li>
+      <li><b>Links come only from the authors.</b> Either they argue it in prose, or one of their own
+      Table 3 case studies sits under both ends. Links are never inferred from our own tags
+      co-occurring.</li>
+      <li><b>Analogy references do not carry evidence.</b> The paper cites the 2010 Flash Crash when
+      discussing social dilemmas, military domains and markets. Table 3 does not tick those risks for
+      it, so it does not ground them — otherwise a non-AI 2010 event would ground Conflict and
+      Collusion at 0.9.</li>
+      <li><b>Inclusion test.</b> An event is in scope only if the behaviour arises from interaction
+      between two or more AI agents, one agent acting on another included.</li>
+      <li><b>Grounding is a maximum, not a sum.</b> Corroboration is already priced inside each row as
+      E4, so summing would let weak rows outrank one strong study. The cost: one strong row fully
+      grounds a risk, so always read <b>n</b> alongside.</li>
+      <li><b>E1 is read mechanically off the tier</b> (real world 2, synthetic 1, lab 0), so the score
+      is not independent of the tier.</li>
+      <li><b>Real-world rows cannot earn E2 = 2.</b> No controlled comparison exists for a live swarm,
+      so observed events cap at 9 however well documented. Only ablations break that ceiling.</li>
+      <li><b>Collusion's real-world evidence is substantially one campaign.</b> Several rows describe
+      the same OpenAI events; whether they are one incident or several is an open decision.</li>
+      <li><b>The lab rows clustered at 3/10 share one unverified profile.</b> None has been
+      spot-checked for corroboration or venue, so treat those scores as a floor.</li>
+      <li><b>No coverage or validity figure appears anywhere on this page.</b> The inventory of
+      evaluation methods and the coverage mapping are not built. Nothing here says a risk is
+      unmeasured — only that it is, or is not, evidenced.</li>
+    </ul></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 style="margin:0 0 10px;font-size:14px">Data sources</h3>
+    <div class="scroll"><table id="sources"><thead><tr>
+      <th>Prefix</th><th>Collection</th><th>Notes</th></tr></thead><tbody></tbody></table></div>
+    <p class="lede" style="margin:12px 0 0">Ontology: Hammond et al. (2025), <i>Multi-Agent Risks from
+    Advanced AI</i>, Cooperative AI Foundation Technical Report #1,
+    <a class="src" href="https://arxiv.org/abs/2502.14143">arXiv:2502.14143</a> — failure modes and
+    risk factors, Table 1 instances, Table 3 case studies. Curated links in <code>RESOURCES.md</code>;
+    external validation in <code>docs/validation_2026-10-26.md</code>; the mapping and its judgement
+    calls in <code>docs/mapping_2026-10-26.md</code>; open decisions in <code>OPEN.md</code>. The Agent
+    Incident Registry asks users to contact Enkrypt AI before reusing its dataset.</p>
+  </div>
+</section>
+
+<p class="foot" id="foot"></p>
+</div>
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const D = __DATA__;
+const $ = (s, r) => (r || document).querySelector(s);
+const el = (t, cls, txt) => { const n = document.createElement(t); if (cls) n.className = cls;
+  if (txt !== undefined && txt !== null) n.textContent = String(txt); return n; };
+const TIER_I = t => D.tiers.indexOf(t);
+const SHORT = { "Observed in real world": "real world", "Synthetic evidence": "synthetic",
+                "Observed in lab": "lab", "Theoretical": "theoretical" };
+const fmtDate = (s, p) => p === 3 ? s : p === 2 ? s + " (month)" : s + " (year)";
+
+const tip = $("#tip");
+function showTip(e, lines) {
+  tip.textContent = "";
+  lines.filter(Boolean).forEach((l, i) => {
+    const d = el("div", i === 0 ? null : "t-sub");
+    if (i === 0) d.appendChild(el("b", null, l)); else d.textContent = l;
+    tip.appendChild(d);
+  });
+  tip.style.opacity = 1; moveTip(e);
+}
+function moveTip(e) {
+  const pad = 14, r = tip.getBoundingClientRect();
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.style.opacity = 0; };
+function hover(node, lines) {
+  node.addEventListener("pointerenter", e => showTip(e, lines()));
+  node.addEventListener("pointermove", moveTip);
+  node.addEventListener("pointerleave", hideTip);
+  node.tabIndex = 0;
+  node.addEventListener("focus", () => { const r = node.getBoundingClientRect();
+    showTip({ clientX: r.left + r.width / 2, clientY: r.bottom }, lines()); });
+  node.addEventListener("blur", hideTip);
+}
+const bar = (frac, cls) => { const t = el("div", cls || "bar-track"), f = el("div", "bar-fill");
+  f.style.width = (frac * 100) + "%"; t.appendChild(f); return t; };
+
+/* ---------- header ---------- */
+const kpi = (v, l) => { const li = el("li", "kpi"); li.appendChild(el("b", null, v));
+  li.appendChild(el("span", null, l)); return li; };
+$("#kpis").append(
+  kpi(D.counts.risks, "risks"),
+  kpi(D.counts.instances, "instances"),
+  kpi(D.counts.ours, "authored by us"),
+  kpi(D.counts.evidence, "pieces of evidence"),
+  kpi(D.counts.incidents, "observed incidents"),
+  kpi(D.counts.links, "author-asserted links"));
+$("#foot").textContent = "Generated by build/build_xlsx.py from data/*.csv — do not edit by hand. "
+  + "Latest evidence: " + D.latest + ". The inventory of evaluation methods and the coverage mapping "
+  + "are not yet built.";
+
+/* ---------- generic table: search, id filter, selects, click-to-sort ---------- */
+const norm = t => String(t == null ? "" : t).toLowerCase();
+const tokens = t => norm(t).split(/[\s,;]+/).filter(Boolean);
+
+function sortableTable(cfg) {
+  /* cfg: {table, controls, rows, cols, searchKeys, idKeys, selects, groupBy, defaultSort, noun} */
+  const tbl = $(cfg.table), thead = $("thead", tbl), tbody = $("tbody", tbl);
+  const state = { sort: cfg.defaultSort || null, dir: 1, q: "", ids: "", sel: {} };
+
+  /* --- controls row --- */
+  const bar = $(cfg.controls);
+  const mkLabel = (forId, text) => { const l = el("label", null, text); l.setAttribute("for", forId);
+    return l; };
+  const search = el("input"); search.setAttribute("type", "search");
+  search.setAttribute("id", cfg.controls.slice(1) + "-q");
+  search.setAttribute("placeholder", cfg.searchPlaceholder || "name or description\u2026");
+  search.setAttribute("aria-label", "Search " + cfg.noun);
+  bar.appendChild(mkLabel(search.getAttribute("id"), "Search"));
+  bar.appendChild(search);
+
+  const idbox = el("input", "ids"); idbox.setAttribute("type", "text");
+  idbox.setAttribute("id", cfg.controls.slice(1) + "-ids");
+  idbox.setAttribute("placeholder", cfg.idPlaceholder || "e.g. LW-01, I34");
+  idbox.setAttribute("aria-label", "Filter " + cfg.noun + " by id");
+  bar.appendChild(mkLabel(idbox.getAttribute("id"), "IDs"));
+  bar.appendChild(idbox);
+
+  (cfg.selects || []).forEach(sp => {
+    const sl = el("select"); sl.setAttribute("id", cfg.controls.slice(1) + "-" + sp.key);
+    sp.options.forEach(([v, t]) => { const o = el("option", null, t); o.value = v; sl.appendChild(o); });
+    bar.appendChild(mkLabel(sl.getAttribute("id"), sp.label));
+    bar.appendChild(sl);
+    sl.addEventListener("change", () => { state.sel[sp.key] = sl.value; render(); });
+    state.sel[sp.key] = "";
+    sp.node = sl;
+  });
+
+  const reset = el("button", "reset", "reset");
+  reset.setAttribute("type", "button");
+  bar.appendChild(reset);
+  const count = el("span");
+  count.setAttribute("id", cfg.controls.slice(1) + "-count");
+  count.style.color = "var(--muted)"; count.style.fontSize = "12.5px";
+  count.style.fontVariantNumeric = "tabular-nums";
+  bar.appendChild(count);
+  const scope = el("p", "scope", "Search and filters apply to this table only.");
+  bar.appendChild(scope);
+
+  search.addEventListener("input", () => { state.q = search.value; render(); });
+  idbox.addEventListener("input", () => { state.ids = idbox.value; render(); });
+  reset.addEventListener("click", () => {
+    search.value = ""; idbox.value = ""; state.q = ""; state.ids = "";
+    (cfg.selects || []).forEach(sp => { sp.node.value = ""; state.sel[sp.key] = ""; });
+    state.sort = cfg.defaultSort || null; state.dir = 1; render();
+  });
+
+  /* --- header --- */
+  const hr = el("tr");
+  cfg.cols.forEach(c => {
+    const th = el("th", c.num ? "num" : null, c.label);
+    if (c.sort !== false) {
+      th.classList.add("sortable");
+      th.tabIndex = 0;
+      th.setAttribute("role", "button");
+      const go = () => {
+        state.dir = state.sort === c.key ? -state.dir : (c.desc ? -1 : 1);
+        state.sort = c.key; render();
+      };
+      th.addEventListener("click", go);
+      th.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    }
+    c._th = th;
+    hr.appendChild(th);
+  });
+  thead.appendChild(hr);
+
+  /* --- render --- */
+  function matches(row) {
+    if (state.q) {
+      const hay = norm((cfg.searchKeys || []).map(k => k(row)).join(" \u2022 "));
+      if (!tokens(state.q).every(t => hay.includes(t))) return false;
+    }
+    if (state.ids) {
+      const mine = (cfg.idKeys || []).flatMap(k => k(row)).map(norm);
+      if (!tokens(state.ids).some(t => mine.some(m => m.startsWith(t)))) return false;
+    }
+    return (cfg.selects || []).every(sp => !state.sel[sp.key] || sp.test(row, state.sel[sp.key]));
+  }
+  function render() {
+    cfg.cols.forEach(c => c._th.setAttribute("aria-sort",
+      state.sort === c.key ? (state.dir > 0 ? "ascending" : "descending") : "none"));
+    let rows = cfg.rows().filter(matches);
+    const col = cfg.cols.find(c => c.key === state.sort);
+    if (col) {
+      const v = r => { const x = (col.val || col.get)(r); return x == null ? "" : x; };
+      rows = rows.slice().sort((p, q) => {
+        const A = v(p), B = v(q);
+        const c = (typeof A === "number" && typeof B === "number")
+          ? A - B : String(A).localeCompare(String(B), undefined, { numeric: true });
+        return c * state.dir;
+      });
+    }
+    tbody.textContent = "";
+    const emit = list => list.forEach(r => {
+      const tr = el("tr");
+      cfg.cols.forEach(c => {
+        const td = el("td", c.cls || (c.num ? "num" : null));
+        c.cell(r, td);
+        tr.appendChild(td);
+      });
+      if (cfg.onRow) cfg.onRow(r, tr);
+      tbody.appendChild(tr);
+    });
+    if (cfg.groupBy) {
+      cfg.groupBy.forEach(([val, label]) => {
+        const grp = rows.filter(r => r.kind === val);
+        if (!grp.length) return;
+        const g = el("tr", "group"), gc = el("td", null, label);
+        gc.colSpan = cfg.cols.length; g.appendChild(gc); tbody.appendChild(g);
+        emit(grp);
+      });
+    } else emit(rows);
+    if (!rows.length) {
+      const tr = el("tr"), td = el("td", "empty", "No " + cfg.noun + " match these filters.");
+      td.colSpan = cfg.cols.length; tr.appendChild(td); tbody.appendChild(tr);
+    }
+    count.textContent = rows.length + " of " + cfg.rows().length + " " + cfg.noun;
+  }
+  render();
+  return { render, state, setSelect: (k, v) => {
+    const sp = (cfg.selects || []).find(x => x.key === k);
+    if (sp) { sp.node.value = v; state.sel[k] = v; render(); } } };
+}
+
+/* ---------- risks ---------- */
+const tierChip = (t, label) => { const ch = el("span", "chip");
+  ch.appendChild(el("span", "dot t" + TIER_I(t)));
+  ch.appendChild(el("span", null, label === undefined ? SHORT[t] : label)); return ch; };
+
+const riskTable = sortableTable({
+  table: "#risk-table", controls: "#risk-filters", noun: "risks",
+  searchPlaceholder: "risk name or definition\u2026",
+  idPlaceholder: "e.g. FM3, RF7",
+  rows: () => D.risks,
+  searchKeys: [r => r.risk, r => r.definition, r => r.id],
+  idKeys: [r => [r.id], r => r.instances_used],
+  groupBy: [["Failure mode", "Failure modes \u2014 autonomous, grounded by evidence of the failure itself"],
+            ["Risk factor", "Risk factors \u2014 mechanisms that can amplify a failure mode"]],
+  defaultSort: "id",
+  cols: [
+    { key: "id", label: "Risk", get: r => r.id,
+      cell: (r, td) => { td.appendChild(el("span", "rid", r.id + " "));
+        td.appendChild(el("b", null, r.risk)); } },
+    { key: "definition", label: "Definition", cls: "def", get: r => r.definition,
+      cell: (r, td) => { td.textContent = r.definition; } },
+    { key: "grounding", label: "Grounding", get: r => r.grounding, desc: true,
+      cell: (r, td) => { const cell = el("div", "bar-cell");
+        cell.appendChild(bar(r.grounding)); cell.appendChild(el("span", "gv", r.grounding.toFixed(1)));
+        td.appendChild(cell);
+        hover(td, () => [r.grounding.toFixed(1) + " grounding",
+          r.band + " band, from " + r.n + " row" + (r.n === 1 ? "" : "s"),
+          r.top_id ? "strongest: " + r.top_id + " at " + r.top_score + "/10" : null]); } },
+    { key: "n", label: "n", num: true, get: r => r.n, desc: true,
+      cell: (r, td) => { td.textContent = r.n; } },
+    { key: "tier", label: "Strongest tier", get: r => r.tier_top ? TIER_I(r.tier_top) : 9,
+      cell: (r, td) => td.appendChild(r.tier_top ? tierChip(r.tier_top) : el("span", "chip none", "none")) },
+    { key: "inst", label: "Instances used", num: true,
+      get: r => r.instances_used.length, desc: true,
+      cell: (r, td) => { td.textContent = r.instances_used.length + " of " + r.instances_total;
+        hover(td, () => ["instances carrying evidence", r.instances_used.join(", ") || "none"]); } },
+    { key: "top", label: "Top evidence", cls: "rid", get: r => r.top_score == null ? -1 : r.top_score,
+      desc: true,
+      cell: (r, td) => { td.textContent = r.top_id ? r.top_id + " \u00b7 " + r.top_score + "/10" : "\u2014"; } },
+  ],
+  onRow: (r, tr) => { tr.style.cursor = "pointer";
+    tr.addEventListener("click", e => { if (e.target.closest("a")) return;
+      evTable.setSelect("risk", r.id);
+      $("#events").scrollIntoView({ behavior: "smooth", block: "start" }); }); },
+});
+
+/* ---------- RF -> FM flow ---------- */
+const fc = $("#flow-cards");
+D.flow.forEach(f => {
+  const c = el("div", "fmcard");
+  const h = el("div", "fmhead");
+  h.appendChild(el("span", "rid", f.fm + " "));
+  h.appendChild(el("b", null, f.fm_name));
+  h.appendChild(el("span", "own", "own grounding " + f.own.toFixed(1) + " · " + f.own_n + " rows"));
+  c.appendChild(h);
+  const own = el("div", "fmown"); const oi = el("i"); oi.style.width = (f.own * 100) + "%";
+  own.appendChild(oi); c.appendChild(own);
+  hover(own, () => [f.own.toFixed(1) + " own grounding", f.fm_name + ", from " + f.own_n + " rows"]);
+  const g = el("div", "inflow");
+  f.incoming.forEach(z => {
+    const nm = el("div", "nm"); nm.appendChild(el("span", "rid", z.rf + " "));
+    nm.appendChild(document.createTextNode(z.rf_name));
+    const trk = el("div", "trk"); const i = el("i"); i.style.width = (z.grounding * 100) + "%";
+    trk.appendChild(i);
+    const vv = el("div", "vv", z.grounding.toFixed(1));
+    const bs = el("div", "bs" + (z.basis === "Paper prose" ? "" : " cotag"),
+      z.basis === "Paper prose" ? "prose" : "Table 3 co-tag");
+    [nm, trk, vv, bs].forEach(n => g.appendChild(n));
+    [nm, trk, vv, bs].forEach(n => hover(n, () => [
+      z.rf_name + " → " + f.fm_name,
+      z.grounding.toFixed(1) + " routed in, from " + z.n + " rows tagged with the factor",
+      "link basis: " + z.basis,
+      z.text_reference || null]));
+  });
+  c.appendChild(g);
+  fc.appendChild(c);
+});
+$("#unlinked-note").textContent = D.unlinked_rf.length
+  ? "Risk factors linked to no failure mode: " + D.unlinked_rf.map(r => r.id + " " + r.name).join(", ")
+    + ". The model requires every risk factor to reach at least one failure mode, so the build fails if this list is non-empty."
+  : "Every risk factor reaches at least one failure mode, which the build enforces. "
+    + (21 - D.counts.links) + " of the 21 possible pairs are never asserted by the authors — the paper "
+    + "states the categories are “neither exhaustive nor mutually exclusive”, so a missing pair "
+    + "carries no information.";
+
+/* ---------- backing: heat + routing ---------- */
+const maxCell = Math.max(...D.risks.flatMap(r => D.tiers.map(t => r.tiers[t])));
+const STEPS = ["--seq-100", "--seq-250", "--seq-350", "--seq-450", "--seq-550", "--seq-650"];
+const heatCols = [{ key: "id", label: "Risk", get: r => r.id,
+  cell: (r, td) => { td.appendChild(el("span", "rid", r.id + " "));
+    td.appendChild(document.createTextNode(r.risk)); } }];
+D.tiers.forEach(t => heatCols.push({
+  key: "t" + TIER_I(t), label: SHORT[t], num: true, cls: "h", get: r => r.tiers[t], desc: true,
+  cell: (r, td) => {
+    const v = r.tiers[t], sp = el("span", null, v || "\u2013");
+    if (v) { const k = Math.min(STEPS.length - 1, Math.ceil(v / maxCell * STEPS.length) - 1);
+      sp.style.background = "var(" + STEPS[k] + ")"; sp.style.color = k >= 3 ? "#fff" : "var(--ink)";
+    } else sp.style.color = "var(--muted)";
+    td.appendChild(sp);
+    hover(td, () => [v + " row" + (v === 1 ? "" : "s"), r.risk + " \u00b7 " + SHORT[t]]); } }));
+heatCols.push({ key: "total", label: "total", num: true, get: r => r.n, desc: true,
+  cell: (r, td) => { td.textContent = r.n; } });
+
+const heatHead = el("tr");
+heatCols.forEach(c => {
+  const th = el("th", c.num ? "num" : null, c.label);
+  th.classList.add("sortable"); th.tabIndex = 0; th.setAttribute("role", "button");
+  c._th = th; heatHead.appendChild(th);
+});
+$("#heat thead").appendChild(heatHead);
+const heatBody = $("#heat tbody");
+let heatSort = "id", heatDir = 1;
+function renderHeat() {
+  heatCols.forEach(c => c._th.setAttribute("aria-sort",
+    heatSort === c.key ? (heatDir > 0 ? "ascending" : "descending") : "none"));
+  const col = heatCols.find(c => c.key === heatSort);
+  const rows = D.risks.slice().sort((p, q) => {
+    const A = col.get(p), B = col.get(q);
+    return (typeof A === "number" ? A - B : String(A).localeCompare(String(B))) * heatDir; });
+  heatBody.textContent = "";
+  rows.forEach(r => { const tr = el("tr");
+    heatCols.forEach(c => { const td = el("td", c.cls || (c.num ? "num" : null));
+      c.cell(r, td); tr.appendChild(td); });
+    tr.style.cursor = "pointer";
+    tr.addEventListener("click", () => { evTable.setSelect("risk", r.id);
+      $("#events").scrollIntoView({ behavior: "smooth", block: "start" }); });
+    heatBody.appendChild(tr); });
+}
+heatCols.forEach(c => {
+  const go = () => { heatDir = heatSort === c.key ? -heatDir : (c.desc ? -1 : 1);
+    heatSort = c.key; renderHeat(); };
+  c._th.addEventListener("click", go);
+  c._th.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+});
+renderHeat();
+
+const RT = D.routing, rt = $("#routing");
+const rrow = (n, text) => { const d = el("div"); d.style.display = "flex"; d.style.gap = "12px";
+  d.style.alignItems = "baseline"; d.style.padding = "4px 0";
+  d.style.borderBottom = "1px solid var(--grid)";
+  const b = el("b", null, n); b.style.fontSize = "17px"; b.style.minWidth = "3.4em";
+  b.style.textAlign = "right"; b.style.fontVariantNumeric = "tabular-nums";
+  d.appendChild(b); const sp = el("span", null, text); sp.style.color = "var(--ink-2)";
+  sp.style.fontSize = "13.5px"; d.appendChild(sp); rt.appendChild(d); };
+rrow(RT.total, "pieces of evidence");
+rrow(RT.routed, "reach a risk through at least one instance");
+rrow(RT.unrouted, "reach no risk" + (RT.unrouted ? ": " + RT.unrouted_ids.join(", ") : ""));
+rrow(RT.instances_used + " / " + RT.instances_total, "instances carry evidence");
+
+/* ---------- accumulation: two stacked plots, separate scales, shared x ---------- */
+const W = 320, PADL = 26, PADR = 10, H_N = 36, H_G = 30, GAPT = 14, H = H_N + GAPT + H_G + 16;
+const t0 = Date.parse(D.window_start), t1 = Date.parse(D.window_end);
+const maxN = Math.max(...D.risks.map(r => r.n));
+const sx = d => PADL + (Date.parse(d) - t0) / (t1 - t0) * (W - PADL - PADR);
+const sv = (t, a) => { const n = document.createElementNS("http://www.w3.org/2000/svg", t);
+  for (const k in a) n.setAttribute(k, a[k]); return n; };
+const pane = $("#panels");
+D.risks.forEach(r => {
+  const p = el("div", "panel"), h3 = el("h3");
+  h3.appendChild(el("span", "rid", r.id + " ")); h3.appendChild(document.createTextNode(r.risk));
+  p.appendChild(h3);
+  const inWin = r.series.points.length - 1;
+  p.appendChild(el("p", "meta", "grounding " + r.grounding.toFixed(1) + " · " + r.n + " rows · "
+    + r.series.baseline_n + " before the window · " + inWin + " in it"));
+  const svg = sv("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+    "aria-label": r.risk + ": " + r.n + " rows, grounding " + r.grounding.toFixed(1) });
+  if (r.series.baseline_n)
+    svg.appendChild(sv("rect", { x: 0, y: 0, width: PADL - 4, height: H_N + GAPT + H_G, fill: "var(--wash)" }));
+  const yN = v => H_N - (maxN ? v / maxN * (H_N - 4) : 0);
+  svg.appendChild(sv("line", { x1: PADL - 4, y1: H_N, x2: W, y2: H_N, stroke: "var(--axis)", "stroke-width": 1 }));
+  const pts = r.series.points;
+  let dA = "M " + sx(pts[0].date) + " " + yN(pts[0].n);
+  pts.forEach((q, i) => { if (i) dA += " L " + sx(q.date) + " " + yN(pts[i - 1].n)
+    + " L " + sx(q.date) + " " + yN(q.n); });
+  dA += " L " + sx(D.window_end) + " " + yN(pts[pts.length - 1].n);
+  svg.appendChild(sv("path", { d: dA + " L " + sx(D.window_end) + " " + H_N + " L "
+    + sx(pts[0].date) + " " + H_N + " Z", fill: "var(--wash)" }));
+  svg.appendChild(sv("path", { d: dA, fill: "none", stroke: "var(--axis)", "stroke-width": 1 }));
+  const ln = sv("text", { x: 0, y: 9, fill: "var(--muted)", "font-size": 9 });
+  ln.textContent = "n " + maxN; svg.appendChild(ln);
+  const gTop = H_N + GAPT, yG = v => gTop + (1 - v) * H_G;
+  svg.appendChild(sv("line", { x1: PADL - 4, y1: yG(0), x2: W, y2: yG(0), stroke: "var(--axis)", "stroke-width": 1 }));
+  svg.appendChild(sv("line", { x1: PADL - 4, y1: yG(1), x2: W, y2: yG(1), stroke: "var(--grid)", "stroke-width": 1 }));
+  let dG = "M " + sx(pts[0].date) + " " + yG(pts[0].g);
+  pts.forEach((q, i) => { if (i) dG += " L " + sx(q.date) + " " + yG(pts[i - 1].g)
+    + " L " + sx(q.date) + " " + yG(q.g); });
+  dG += " L " + sx(D.window_end) + " " + yG(pts[pts.length - 1].g);
+  svg.appendChild(sv("path", { d: dG, fill: "none", stroke: "var(--s1)", "stroke-width": 2,
+    "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  ["1.0", "0"].forEach((t, i) => { const tx = sv("text", { x: 0, y: i ? yG(0) + 3 : yG(1) + 3,
+    fill: "var(--muted)", "font-size": 9 }); tx.textContent = t; svg.appendChild(tx); });
+  pts.slice(1).forEach(q => {
+    const cx = sx(q.date), cy = yG(0) + 8, col = "var(--s" + (TIER_I(q.tier) + 1) + ")";
+    svg.appendChild(sv("circle", { cx, cy, r: 4,
+      fill: q.precision === 3 ? col : "var(--surface-1)", stroke: col, "stroke-width": 2 }));
+    const hit = sv("circle", { cx, cy, r: 12, fill: "transparent" });
+    hover(hit, () => [q.id, fmtDate(q.date, q.precision) + " · " + SHORT[q.tier],
+      "evidence " + q.n + " for this risk · grounding now " + q.g.toFixed(1)]);
+    svg.appendChild(hit);
+  });
+  [["2025-07-01", "2025"], ["2026-01-01", "2026"], ["2026-07-01", "mid-26"]].forEach(([d, lab]) => {
+    const tx = sv("text", { x: sx(d), y: H - 1, fill: "var(--muted)", "font-size": 9,
+      "text-anchor": "middle" }); tx.textContent = lab; svg.appendChild(tx); });
+  if (r.series.baseline_n) { const bl = sv("text", { x: 0, y: H - 1, fill: "var(--muted)", "font-size": 8.5 });
+    bl.textContent = "pre"; svg.appendChild(bl); }
+  p.appendChild(svg); pane.appendChild(p);
+});
+
+/* ---------- instance layer ---------- */
+const instTable = sortableTable({
+  table: "#inst-table", controls: "#inst-filters", noun: "instances",
+  searchPlaceholder: "instance name or description\u2026",
+  idPlaceholder: "e.g. I34, LW-01",
+  rows: () => D.instances,
+  searchKeys: [i => i.name, i => i.summary, i => i.id, i => i.risk_name],
+  idKeys: [i => [i.id], i => i.evidence, i => [i.risk]],
+  defaultSort: "id",
+  selects: [
+    { key: "risk", label: "Risk",
+      options: [["", "all risks"]].concat(D.risks.map(r => [r.id, r.id + " " + r.risk])),
+      test: (i, v) => i.risk === v },
+    { key: "prov", label: "Provenance",
+      options: [["", "all"], ["Hammond Table 1", "Hammond Table 1"], ["Ours", "authored by us"]],
+      test: (i, v) => i.provenance === v },
+    { key: "ev", label: "Show",
+      options: [["", "all instances"], ["y", "with evidence"], ["n", "empty"]],
+      test: (i, v) => v === "y" ? i.n > 0 : i.n === 0 },
+  ],
+  cols: [
+    { key: "id", label: "Instance", get: i => i.id,
+      cell: (i, td) => { td.appendChild(el("span", "rid", i.id + " "));
+        td.appendChild(el("b", null, i.name));
+        hover(td, () => [i.id + " " + i.name, i.summary]); } },
+    { key: "risk", label: "Parent risk", get: i => i.risk,
+      cell: (i, td) => { td.appendChild(el("span", "rid", i.risk + " "));
+        td.appendChild(document.createTextNode(i.risk_name)); } },
+    { key: "prov", label: "Provenance", get: i => i.provenance,
+      cell: (i, td) => td.appendChild(el("span", "tag" + (i.provenance === "Ours" ? " ours" : ""),
+        i.provenance === "Ours" ? "ours" : "Hammond")) },
+    { key: "grounding", label: "Grounding", get: i => i.grounding, desc: true,
+      cell: (i, td) => { const cell = el("div", "bar-cell"); cell.appendChild(bar(i.grounding));
+        cell.appendChild(el("span", "gv", i.grounding.toFixed(1))); td.appendChild(cell); } },
+    { key: "n", label: "n", num: true, get: i => i.n, desc: true,
+      cell: (i, td) => { td.textContent = i.n; } },
+    { key: "tiers", label: "Tiers", sort: false, get: () => "",
+      cell: (i, td) => { D.tiers.forEach(t => { if (i.tiers[t])
+          td.appendChild(tierChip(t, i.tiers[t] + " " + SHORT[t])); });
+        if (!i.n) td.appendChild(el("span", "chip none", "no evidence")); } },
+    { key: "evidence", label: "Evidence", cls: "ev-title", get: i => i.evidence.join(", "),
+      cell: (i, td) => { td.textContent = i.evidence.join(", ") || "\u2014"; } },
+  ],
+});
+
+/* ---------- events -> instances ---------- */
+const evTable = sortableTable({
+  table: "#ev-table", controls: "#ev-filters", noun: "rows",
+  searchPlaceholder: "what happened, notes or source\u2026",
+  idPlaceholder: "e.g. LW-01, I35",
+  rows: () => D.evidence,
+  searchKeys: [x => x.title, x => x.notes, x => x.source, x => x.id,
+               x => x.instances.map(i => i.name).join(" ")],
+  idKeys: [x => [x.id], x => x.instances.map(i => i.id), x => x.fm_ids.concat(x.rf_ids)],
+  defaultSort: "date",
+  selects: [
+    { key: "risk", label: "Risk",
+      options: [["", "all risks"]].concat(D.risks.map(r => [r.id, r.id + " " + r.risk])),
+      test: (x, v) => x.fm_ids.includes(v) || x.rf_ids.includes(v) },
+    { key: "tier", label: "Tier",
+      options: [["", "all tiers"]].concat(D.tiers.map(t => [t, SHORT[t]])),
+      test: (x, v) => x.type === v },
+    { key: "cls", label: "Class",
+      options: [["", "all"], ["Case study", "case studies"], ["Incident", "incidents"]],
+      test: (x, v) => x.cls === v },
+  ],
+  cols: [
+    { key: "id", label: "ID", cls: "rid", get: x => x.id,
+      cell: (x, td) => { td.appendChild(document.createTextNode(x.id + " "));
+        td.appendChild(el("span", "tag", x.cls === "Case study" ? "paper" : "inv")); } },
+    { key: "date", label: "Date", cls: "rid", get: x => x.date, desc: true,
+      cell: (x, td) => { td.textContent = fmtDate(x.date, x.precision); } },
+    { key: "tier", label: "Tier", get: x => TIER_I(x.type),
+      cell: (x, td) => td.appendChild(tierChip(x.type)) },
+    { key: "title", label: "What happened", cls: "ev-title", get: x => x.title,
+      cell: (x, td) => { td.textContent = x.title;
+        if (x.notes) hover(td, () => [x.id, x.notes]); } },
+    { key: "instances", label: "Instances", get: x => x.instances.map(i => i.id).join(","),
+      cell: (x, td) => { x.instances.forEach(i => {
+          const t = el("span", "tag" + (i.kind === "Failure mode" ? " fm" : "")
+            + (i.provenance === "Ours" ? " ours" : ""), i.id + " " + i.name);
+          hover(t, () => [i.id + " " + i.name, i.risk + " " + i.risk_name + " \u00b7 " + i.kind,
+            i.provenance === "Ours" ? "instance authored by us" : "Hammond Table 1"]);
+          td.appendChild(t); });
+        if (!x.instances.length) td.appendChild(el("span", "chip none", "none")); } },
+    { key: "icount", label: "#", num: true, get: x => x.instances.length, desc: true,
+      cell: (x, td) => { td.textContent = x.instances.length || "\u2013"; } },
+    { key: "e", label: "E1\u2013E5", sort: false, get: () => "",
+      cell: (x, td) => { const bd = el("span", "ebd");
+        x.e.forEach((v, k) => { const i = el("i", v ? "v" + v : null, v === null ? "" : v);
+          hover(i, () => [D.e_labels[k], v === null ? "unscored" : v + " of 2"]); bd.appendChild(i); });
+        td.appendChild(bd); } },
+    { key: "score", label: "Score", num: true, get: x => x.score == null ? -1 : x.score, desc: true,
+      cell: (x, td) => { td.className = "num band" + (x.score === null ? " unscored" : "");
+        td.textContent = x.score === null ? "unscored" : x.score + "/10";
+        if (x.score !== null) hover(td, () => [x.score + "/10 \u2014 " + x.band,
+          x.e.map((v, k) => "E" + (k + 1) + " " + v).join(" \u00b7 ")]); } },
+    { key: "source", label: "Source", get: x => x.source,
+      cell: (x, td) => { if (x.url) { const a2 = el("a", "src", x.source); a2.href = x.url;
+          a2.rel = "noreferrer"; td.appendChild(a2); }
+        else td.appendChild(document.createTextNode(x.source)); } },
+  ],
+});
+
+const eg = $("#e-legend");
+[["", "0 \u2014 criterion not met"], ["v1", "1"], ["v2", "2"]].forEach(([c, label]) => {
+  const k = el("span", "key"), b2 = el("span", "ebd"), i = el("i", c || null, c ? c.slice(1) : "0");
+  b2.appendChild(i); k.appendChild(b2); k.appendChild(el("span", null, label)); eg.appendChild(k); });
+D.e_labels.forEach((l, k) => eg.appendChild(el("span", "key", "E" + (k + 1) + " " + l.slice(3))));
+
+/* ---------- methodology tables ---------- */
+const rub = $("#rubric tbody");
+D.rubric.forEach(row => { const tr = el("tr");
+  row.forEach((c, i) => tr.appendChild(el("td", i === 0 ? null : "def", c))); rub.appendChild(tr); });
+const ty = $("#types tbody");
+D.type_defs.forEach(([k, v]) => { const tr = el("tr"); const a = el("td");
+  a.appendChild(el("b", null, k)); tr.appendChild(a);
+  tr.appendChild(el("td", "def", v)); ty.appendChild(tr); });
+const so = $("#sources tbody");
+D.sources.forEach(([p, c, d]) => { const tr = el("tr"); tr.appendChild(el("td", "rid", p));
+  tr.appendChild(el("td", null, c)); tr.appendChild(el("td", "def", d)); so.appendChild(tr); });
+</script>
+</body>
+</html>

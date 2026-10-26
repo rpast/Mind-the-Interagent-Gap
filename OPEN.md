@@ -7,9 +7,9 @@
 2. **Synthetic evidence scope.** It now covers the former "Observed in simulation" rows (CS1, CS2, CS3, CS6, CS8, CS9) and AI Village. Should lab probes where agents talk to each other (CS5 steganography) count as synthetic?
 3. ~~**Should scored incidents feed grounding?**~~ **Resolved 2026-10-26: yes.** Grounding and every `evidence_score_max` run over the whole evidence inventory. Incidents link directly to failure modes and risk factors; they are deliberately not linked to instances, which are too granular for this scope. See `docs/methodology.md`.
 4. **OpenAI swarm granularity.** Record as one campaign or keep separate rows? Rows: AIR-2026-0183, AIR-2026-0219, LW-01, LW-02, LW-03, LW-04.
-5. **"See also" references to CS10** (Flash Crash) raise Social Dilemmas, Military Domains and Markets to 9. Split analogy references into their own field?
+5. ~~**"See also" references to CS10**~~ **Resolved 2026-10-26:** Table 3 is authoritative for a case study's risks, so an evidence→instance link is only valid where the instance's risk is ticked there. The Flash Crash no longer grounds Conflict or Collusion.
 6. **Rubric.** E1 overlaps `type`. Decide whether to keep it, and whether theoretical rows get their own rubric.
-7. **Text-only associations.** Keep the three FM–RF links that have no case study: FM1–RF4, FM2–RF7, FM3–RF2.
+7. **Prose-only associations.** FM1–RF4 and FM2–RF7 are asserted in the text with nothing evidencing either end-pair. FM3–RF2 is no longer in this set. Keep, or mark provisional? Associations now record `basis`, so the distinction is at least visible.
 
 ### Data tasks
 8. ~~Map all AIR, LW and AIV incidents to failure modes and risk factors, and score them on E1–E5.~~ **Done 2026-10-26**, see `docs/mapping_2026-10-26.md`. LW-03 and LW-04 are left unscored pending a scope decision.
