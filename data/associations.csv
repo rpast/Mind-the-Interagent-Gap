@@ -1,7 +1,9 @@
 fm_id,rf_id,text_reference
 FM1,RF1,"info asymmetries can cause miscoordination (§1.1, §3); Credit Assignment & Communication Constraints cross-ref §2.1/§3.1."
+FM1,RF2,
 FM1,RF3,
 FM1,RF4,Credit Assignment cross-refs §3.4 (distributional shift).
+FM1,RF5,
 FM2,RF1,Bargaining under asymmetric info → costly conflict (§3.1).
 FM2,RF3,Cooperative Dispositions direction cross-refs §3.3 (conflict-prone dispositions from data/training).
 FM2,RF4,conflicts can escalate via destabilising dynamics (§3 intro).

@@ -3,7 +3,7 @@
 ## Geometry
 - **Risks** are failure modes (FM1–FM3: Miscoordination, Conflict, Collusion) and risk factors (RF1–RF7), from Hammond et al. (2025), *Multi-Agent Risks from Advanced AI*, arXiv:2502.14143.
 - The **risk index** (`out/risk_index.csv`) is flat. Each row is one FM or one RF with a single `grounding_score`.
-- **Associations** (`data/associations.csv`) are FM–RF links. Each is either co-tagged by a case study (`case_study_link = TRUE`) or only cross-referenced in the paper's text (`FALSE`).
+- **Associations** (`data/associations.csv`) are FM–RF links. Each is either co-tagged by a piece of evidence, a case study or an incident (`evidence_link = TRUE`), or only cross-referenced in the paper's text (`FALSE`). A co-tagged pair must have a row here; the build fails otherwise. An association found through evidence rather than the paper has an empty `text_reference`.
 - A risk signal feeds a risk factor and, through its associations, a failure mode. Use only `TRUE` links for evidence-only routing; under that rule Network Effects has no failure mode.
 - **Instances** (`data/risk_instances.csv`) are the paper's Table 1 sub-topics of each risk. **Directions** are its research directions.
 
@@ -41,10 +41,14 @@ Each empirical case is scored 0–2 on five criteria, summed to 0–10.
 **Bands:** Strong 9–10 · Moderate 6–8 · Limited 3–5 · Weak 0–2. Theoretical rows are not scored.
 
 ## Aggregation
-- `grounding_score` of a risk = max `evidence_score` / 10 over case studies tagged with it.
-- `evidence_score_max` of an FM–RF link or an instance = max over its case studies.
-- Max is used because corroboration is already scored inside each case (E4), and summing would let many weak studies outrank one strong one.
-- Case studies tagged only with a risk factor (CS7, CS8, CS10, CS12, CS13) count towards that risk factor only.
+- The evidence inventory is one table: Hammond case studies and incidents, distinguished by `evidence_class`.
+- `grounding_score` of a risk = max `evidence_score` / 10 over **all** evidence tagged with it, case studies and incidents alike.
+- `evidence_score_max` of an FM–RF link = max over the evidence tagged with both ends.
+- `evidence_score_max` of an instance = max over the case studies the paper links to it. **Instances are not linked to incidents by design:** Table 1's sub-topics are finer-grained than this project's scope, so incidents attach directly to failure modes and risk factors instead. Instance-level evidence therefore stays as the paper records it.
+- Max is used because corroboration is already scored inside each row (E4), and summing would let many weak rows outrank one strong one.
+- `evidence_n` reports how many rows sit behind a score. Read it with the score: a 0.9 on one row is not a well-studied risk.
+- Evidence tagged only with a risk factor counts towards that risk factor only.
+- Rows with blank E1–E5 are unscored and ignored by the aggregation.
 
 ## Instance evidence basis
 - **Case study:** at least one linked case study. `case_studies_explicit` means the paper cross-references it in that paragraph; `case_studies_placement` means the box sits in that discussion without an explicit reference.

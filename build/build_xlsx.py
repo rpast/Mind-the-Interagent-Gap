@@ -7,8 +7,8 @@ Outputs (in out/):
   associations.csv                FM-RF links with case_study_link and grounding
 
 The Evidence sheet is the single table of evidence: Hammond case studies and inventory incidents
-together, told apart by evidence_class. Grounding formulas count evidence_class = "Case study"
-only; see OPEN.md item 3.
+together, told apart by evidence_class. Grounding and every evidence_score_max run over the whole
+inventory, not case studies alone.
 
 Usage:  python build/build_xlsx.py
 The taxonomy workbook uses live formulas; Excel/LibreOffice compute them on open.
@@ -118,11 +118,12 @@ def validate():
         vals = [row.get(c, "") for c in E_COLS]
         if any(vals) and not all(v in {"0", "1", "2"} for v in vals):
             err.append(f"{rid}: E1-E5 must all be 0, 1 or 2 (or all blank)")
-    for c in cases:  # every FM x RF co-tag must be a recorded association
-        for f in ids(c["failure_modes"]):
-            for r in ids(c["risk_factors"]):
+    for row in cases + incidents:  # every FM x RF co-tag must be a recorded association
+        rid = row.get("case_study_id") or row["event_id"]
+        for f in ids(row["failure_modes"]):
+            for r in ids(row["risk_factors"]):
                 if (f, r) not in pairs:
-                    err.append(f"{c['case_study_id']} tags {f}+{r} but associations.csv lacks that pair")
+                    err.append(f"{rid} tags {f}+{r} but associations.csv lacks that pair")
     for s in sources:
         if s["event_id"] and s["event_id"] not in {i["event_id"] for i in incidents}:
             err.append(f"sources.csv: unknown event_id {s['event_id']}")
@@ -140,52 +141,6 @@ def validate():
 
 
 validate()
-
-
-# ---------------------------------------------------------------- derived values
-def tagged(rid):
-    col = "failure_modes" if rid in FM else "risk_factors"
-    return [c for c in cases if rid in ids(c[col])]
-
-
-def both(fm, rf):
-    return [c for c in cases if fm in ids(c["failure_modes"]) and rf in ids(c["risk_factors"])]
-
-
-def max_score(cs_list):
-    s = [score(c) for c in cs_list]
-    return max(s) if s else 0
-
-
-def linked(rid):
-    if rid in FM:
-        return [(a["rf_id"], a) for a in assocs if a["fm_id"] == rid]
-    return [(a["fm_id"], a) for a in assocs if a["rf_id"] == rid]
-
-
-def link_flag(a):
-    return bool(both(a["fm_id"], a["rf_id"]))
-
-
-def write_csv(path, header, rows):
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
-OUT.mkdir(exist_ok=True)
-write_csv(OUT / "risk_index.csv",
-          ["risk_id", "risk", "risk_type", "section", "grounding_score", "case_studies", "associations", "case_study_link"],
-          [[r["risk_id"], r["risk"], r["risk_type"], r["section"], max_score(tagged(r["risk_id"])) / 10,
-            ";".join(c["case_study_id"] for c in tagged(r["risk_id"])),
-            ";".join(o for o, _ in linked(r["risk_id"])),
-            ";".join(str(link_flag(a)).upper() for _, a in linked(r["risk_id"]))] for r in risks])
-write_csv(OUT / "associations.csv",
-          ["fm_id", "failure_mode", "rf_id", "risk_factor", "case_study_link", "case_studies", "fm_grounding", "rf_grounding"],
-          [[a["fm_id"], name(a["fm_id"]), a["rf_id"], name(a["rf_id"]), str(link_flag(a)).upper(),
-            ";".join(c["case_study_id"] for c in both(a["fm_id"], a["rf_id"])),
-            max_score(tagged(a["fm_id"])) / 10, max_score(tagged(a["rf_id"])) / 10] for a in assocs])
 
 
 # ---------------------------------------------------------------- evidence rows
@@ -213,6 +168,64 @@ def evidence_rows():
             page=None, source=i["source"], source_url=i["source_url"],
             retrieved_on=date.fromisoformat(i["retrieved_on"]), summary=None))
     return out
+
+
+# ---------------------------------------------------------------- derived values
+EVID = evidence_rows()
+EV = {x["id"]: x for x in EVID}
+short = lambda t, n=80: t if len(t) <= n else t[:n - 1].rstrip() + "…"
+
+
+def escore(x):
+    """Evidence score of an EVID row, or None where E1-E5 are blank."""
+    return None if any(v == "" for v in x["e"]) else sum(int(v) for v in x["e"])
+
+
+def tagged(rid):
+    """Every piece of evidence tagged with this risk: case studies and incidents alike."""
+    col = "failure_modes" if rid in FM else "risk_factors"
+    return [x for x in EVID if rid in ids(x[col])]
+
+
+def both(fm, rf):
+    return [x for x in EVID if fm in ids(x["failure_modes"]) and rf in ids(x["risk_factors"])]
+
+
+def max_score(ev_list):
+    s = [escore(x) for x in ev_list if escore(x) is not None]
+    return max(s) if s else 0
+
+
+def linked(rid):
+    if rid in FM:
+        return [(a["rf_id"], a) for a in assocs if a["fm_id"] == rid]
+    return [(a["fm_id"], a) for a in assocs if a["rf_id"] == rid]
+
+
+def link_flag(a):
+    return bool(both(a["fm_id"], a["rf_id"]))
+
+
+def write_csv(path, header, rows):
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(header)
+        w.writerows(rows)
+
+
+OUT.mkdir(exist_ok=True)
+write_csv(OUT / "risk_index.csv",
+          ["risk_id", "risk", "risk_type", "section", "grounding_score", "evidence", "evidence_n", "associations",
+           "evidence_link"],
+          [[r["risk_id"], r["risk"], r["risk_type"], r["section"], max_score(tagged(r["risk_id"])) / 10,
+            ";".join(x["id"] for x in tagged(r["risk_id"])), len(tagged(r["risk_id"])),
+            ";".join(o for o, _ in linked(r["risk_id"])),
+            ";".join(str(link_flag(a)).upper() for _, a in linked(r["risk_id"]))] for r in risks])
+write_csv(OUT / "associations.csv",
+          ["fm_id", "failure_mode", "rf_id", "risk_factor", "evidence_link", "evidence", "fm_grounding", "rf_grounding"],
+          [[a["fm_id"], name(a["fm_id"]), a["rf_id"], name(a["rf_id"]), str(link_flag(a)).upper(),
+            ";".join(x["id"] for x in both(a["fm_id"], a["rf_id"])),
+            max_score(tagged(a["fm_id"])) / 10, max_score(tagged(a["rf_id"])) / 10] for a in assocs])
 
 
 # ---------------------------------------------------------------- styling helpers
@@ -320,8 +333,8 @@ def build_taxonomy():
     ECR = f"{CSR}${L['evidence_class']}$2:${L['evidence_class']}${n}"
     IDR = f"{CSR}$A$2:$A${n}"
 
-    def maxifs(fm=None, rf=None, evidence_class=CASE_CLASS):
-        """Grounding counts case studies only by default; pass evidence_class=None to count every row."""
+    def maxifs(fm=None, rf=None, evidence_class=None):
+        """Grounding counts the whole evidence inventory; pass evidence_class to restrict it."""
         crit = ([f'{FMR},"*{name(fm)}*"'] if fm else []) + ([f'{RFR},"*{name(rf)}*"'] if rf else [])
         if evidence_class:
             crit.append(f'{ECR},"{evidence_class}"')
@@ -337,24 +350,27 @@ def build_taxonomy():
         rid = r["risk_id"]
         lk = linked(rid)
         g = maxifs(fm=rid) if rid in FM else maxifs(rf=rid)
+        ev = tagged(rid)
         rows.append([rid, r["risk"], r["risk_type"], r["section"], f"={g}/10",
-                     ", ".join(c["case_study_id"] for c in tagged(rid)) or "—",
+                     ", ".join(x["id"] for x in ev) or "—", len(ev),
                      NL.join(name(o) for o, _ in lk) or "—",
                      NL.join(str(link_flag(a)).upper() for _, a in lk) or "—"])
-    L = table(ws, ["risk_id", "risk", "risk_type", "section", "grounding_score", "case_studies", "associations",
-                   "case_study_link"], rows, [8, 26, 14, 8, 15, 26, 26, 15])
+    L = table(ws, ["risk_id", "risk", "risk_type", "section", "grounding_score", "evidence", "evidence_n",
+                   "associations", "evidence_link"], rows, [8, 26, 14, 8, 15, 40, 11, 26, 15])
     center(ws, L["grounding_score"], "0.00")
-    center(ws, L["case_study_link"])
+    center(ws, L["evidence_n"])
+    center(ws, L["evidence_link"])
     for r in range(2, ws.max_row + 1):
         if ws[f"C{r}"].value == "Failure mode":
             for c in ws[r]:
                 c.fill = fill("DEEAF6")
     ws.append([])
-    for line in ["grounding_score = highest evidence_score / 10 among case studies tagged with this risk (Hammond et al. 2025, Table 3).",
-                 "associations = linked risk factors (for a failure mode) or failure modes (for a risk factor). case_study_link is "
-                 "line-aligned: TRUE if a case study is tagged with both ends, FALSE if the paper links them only in the text."]:
+    for line in ["grounding_score = highest evidence_score / 10 across every piece of evidence tagged with this risk: "
+                 "Hammond et al. 2025 case studies and inventory incidents alike. evidence lists their ids, evidence_n counts them.",
+                 "associations = linked risk factors (for a failure mode) or failure modes (for a risk factor). evidence_link is "
+                 "line-aligned: TRUE if a piece of evidence is tagged with both ends, FALSE if the paper links them only in the text."]:
         ws.append([line])
-        ws.merge_cells(start_row=ws.max_row, start_column=1, end_row=ws.max_row, end_column=8)
+        ws.merge_cells(start_row=ws.max_row, start_column=1, end_row=ws.max_row, end_column=9)
         c = ws.cell(ws.max_row, 1)
         c.font, c.alignment = BODY, Alignment(wrap_text=True, vertical="top")
         ws.row_dimensions[ws.max_row].height = 30
@@ -366,56 +382,58 @@ def build_taxonomy():
     rows = []
     for k, a in enumerate(assocs, 1):
         f, r = a["fm_id"], a["rf_id"]
-        cs = both(f, r)
-        basis = ("Case study + text" if cs and a["text_reference"] else "Case study" if cs else "Text cross-reference only")
-        rows.append([k, name(f), name(r), str(bool(cs)).upper(), basis, inst(f), dirs(f), inst(r), dirs(r),
-                     NL.join(f"{c['case_study_id']}: {c['title']}" for c in cs) or "—",
-                     NL.join(c["hammond_type"] for c in cs) or "—", NL.join(c["type"] for c in cs) or "—",
-                     None, f"={maxifs(f, r)}", NL.join(c["source"] for c in cs) or "—", a["text_reference"] or "—"])
-    H = ["#", "failure_mode", "risk_factor", "case_study_link", "link_basis", "fm_instances", "fm_directions",
-         "rf_instances", "rf_directions", "case_studies_tagged_both", "hammond_type", "type",
-         "evidence_strength_max", "evidence_score_max", "case_study_source", "text_reference"]
-    L = table(ws, H, rows, [4, 15, 22, 11, 18, 26, 34, 30, 34, 36, 22, 20, 13, 11, 28, 44])
+        ev = both(f, r)
+        basis = ("Evidence + text" if ev and a["text_reference"] else "Evidence" if ev else "Text cross-reference only")
+        rows.append([k, name(f), name(r), str(bool(ev)).upper(), basis, inst(f), dirs(f), inst(r), dirs(r),
+                     NL.join(f"{x['id']}: {short(x['title'])}" for x in ev) or "—", len(ev),
+                     NL.join(x["source_class"] for x in ev) or "—", NL.join(x["type"] for x in ev) or "—",
+                     None, f"={maxifs(f, r)}", NL.join(x["source"] for x in ev) or "—", a["text_reference"] or "—"])
+    H = ["#", "failure_mode", "risk_factor", "evidence_link", "link_basis", "fm_instances", "fm_directions",
+         "rf_instances", "rf_directions", "evidence_tagged_both", "evidence_n", "source_class", "type",
+         "evidence_strength_max", "evidence_score_max", "evidence_source", "text_reference"]
+    L = table(ws, H, rows, [4, 15, 22, 11, 18, 26, 34, 30, 34, 48, 11, 22, 20, 13, 11, 28, 44])
     for r in range(2, ws.max_row + 1):
         ws[f"{L['evidence_strength_max']}{r}"] = strength(f"{L['evidence_score_max']}{r}")
         for c in ws[r]:
             c.fill = fill(FM_FILL.get(ws[f"B{r}"].value, "FFFFFF"))
     center(ws, L["evidence_score_max"])
-    center(ws, L["case_study_link"])
+    center(ws, L["evidence_n"])
+    center(ws, L["evidence_link"])
 
     # Taxonomy
     ws = wb.create_sheet("Taxonomy", 2)
     rows = []
     for r in risks:
         rid = r["risk_id"]
-        cs = tagged(rid)
+        ev = tagged(rid)
         rows.append([r["risk_type"], r["risk"], r["section"], r["definition"], inst(rid), dirs(rid),
                      NL.join(name(o) for o, _ in linked(rid)) or "—",
-                     NL.join(f"{c['case_study_id']}: {c['title']}" for c in cs) or "—",
-                     NL.join(c["hammond_type"] for c in cs) or "—", NL.join(c["type"] for c in cs) or "—",
+                     NL.join(f"{x['id']}: {short(x['title'])}" for x in ev) or "—", len(ev),
+                     NL.join(x["source_class"] for x in ev) or "—", NL.join(x["type"] for x in ev) or "—",
                      None, f"={maxifs(fm=rid) if rid in FM else maxifs(rf=rid)}"])
-    H = ["risk_type", "risk", "section", "definition", "instances", "directions", "linked_risks", "case_studies",
-         "hammond_type", "type", "evidence_strength_max", "evidence_score_max"]
-    L = table(ws, H, rows, [13, 22, 8, 44, 32, 40, 22, 44, 30, 22, 13, 11])
+    H = ["risk_type", "risk", "section", "definition", "instances", "directions", "linked_risks", "evidence",
+         "evidence_n", "source_class", "type", "evidence_strength_max", "evidence_score_max"]
+    L = table(ws, H, rows, [13, 22, 8, 44, 32, 40, 22, 52, 11, 24, 22, 13, 11])
     for r in range(2, ws.max_row + 1):
         ws[f"{L['evidence_strength_max']}{r}"] = strength(f"{L['evidence_score_max']}{r}")
         if ws[f"A{r}"].value == "Failure mode":
             for c in ws[r]:
                 c.fill = fill(FM_FILL.get(ws[f"B{r}"].value, "FFFFFF"))
     center(ws, L["evidence_score_max"])
+    center(ws, L["evidence_n"])
 
     # Instances
     ws = wb.create_sheet("Instances", 3)
     rows = []
     for i in instances:
-        linked_cs = ids(i["case_studies_explicit"]) + ids(i["case_studies_placement"])
+        linked_cs = ids(i["case_studies_explicit"]) + ids(i["case_studies_placement"])  # data holds CS ids only
         f = ("=MAX(" + ",".join(f'INDEX({SC},MATCH("{c}",{IDR},0))' for c in linked_cs) + ")") if linked_cs else None
         rr = R[i["risk_id"]]
         rows.append([i["instance_id"], i["instance"], rr["risk"], rr["risk_type"], rr["section"],
                      ", ".join(ids(i["case_studies_explicit"])) or "—", ", ".join(ids(i["case_studies_placement"])) or "—",
                      i["evidence_basis"], f, i["key_references"] or "—", i["support_summary"] or "—"])
-    H = ["instance_id", "instance", "parent_risk", "parent_risk_type", "section", "case_studies_explicit",
-         "case_studies_placement", "evidence_basis", "evidence_score_max", "key_references", "support_summary"]
+    H = ["instance_id", "instance", "parent_risk", "parent_risk_type", "section", "evidence_explicit",
+         "evidence_placement", "evidence_basis", "evidence_score_max", "key_references", "support_summary"]
     L = table(ws, H, rows, [9, 30, 24, 14, 8, 16, 16, 20, 12, 36, 60])
     basis_fill = {"Case study": "E2EFDA", "Cited empirical work": "FFF2CC", "Theoretical": "F2F2F2"}
     for r in range(2, ws.max_row + 1):
@@ -454,11 +472,16 @@ def build_taxonomy():
         "AIR asks users to contact Enkrypt AI before reusing its dataset.",
         "",
         "GROUNDING",
-        "grounding_score and evidence_score_max = highest evidence_score among the relevant rows with "
-        "evidence_class = 'Case study' (0 = none). Scored incidents sit in the same sheet but are deliberately left out "
-        "of grounding; that is the open decision in OPEN.md item 3. To fold them in, drop the evidence_class criterion "
-        "from maxifs() in build/build_xlsx.py.",
-        "Case studies tagged with a risk factor but no failure mode (CS7, CS8, CS10, CS12, CS13) count only towards that risk factor.",
+        "grounding_score and evidence_score_max = highest evidence_score across the whole evidence inventory tagged with "
+        "that risk, case studies and incidents alike (0 = none). Max, not sum or mean: corroboration is already scored "
+        "inside each row as E4, and summing would let many weak rows outrank one strong one.",
+        "evidence_n counts the rows behind the score. A high grounding on evidence_n = 1 rests on a single piece of "
+        "evidence; read the two together.",
+        "Evidence tagged with a risk factor but no failure mode counts only towards that risk factor. Rows with blank "
+        "E1-E5 are ignored by the score.",
+        "Instances: evidence_explicit and evidence_placement hold Hammond case-study ids only. Incidents attach directly to "
+        "failure modes and risk factors, not to instances, because Table 1's sub-topics are finer-grained than this "
+        "project's scope. Instance-level evidence stays as the paper records it.",
         "case_studies_explicit = the paper cross-references the case study in that instance's paragraph; case_studies_placement = "
         "the case-study box sits in that instance's discussion without an explicit reference.",
         "evidence_basis: Case study / Cited empirical work (no case study, but empirical studies cited) / Theoretical.",
