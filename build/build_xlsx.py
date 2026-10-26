@@ -614,10 +614,18 @@ def build_dashboard():
         used = sorted({i for x in ev for i in ids(x.get("instances", ""))
                        if i in INST and INST[i]["risk_id"] == rid}, key=lambda z: int(z[1:]))
         allinst = [i["instance_id"] for i in instances if i["risk_id"] == rid]
+        # the same three magnitudes, recomputed per evidence tier, so a view can be filtered
+        metrics = {}
+        for t in ["all"] + TYPES:
+            sub = ev if t == "all" else [x for x in ev if x["type"] == t]
+            metrics[t] = dict(
+                n=len(sub), grounding=max_score(sub) / 10,
+                instances=len({i for x in sub for i in ids(x.get("instances", ""))
+                               if i in INST and INST[i]["risk_id"] == rid}))
         risk_rows.append(dict(
             id=rid, risk=r["risk"], kind=r["risk_type"], section=r["section"],
             definition=r["definition"], grounding=max_score(ev) / 10, n=len(ev),
-            band=band(max_score(ev)) if ev else "none", tiers=by_tier,
+            band=band(max_score(ev)) if ev else "none", tiers=by_tier, metrics=metrics,
             tier_top=next((t for t in TIERS if by_tier[t]), None),
             top_id=top["id"] if top else None, top_score=escore(top) if top else None,
             instances_used=used, instances_total=len(allinst), series=risk_series(rid)))
@@ -656,7 +664,7 @@ def build_dashboard():
     routed = len([x for x in ev_rows if x["instances"]])
     payload = dict(
         latest=max(x["date"] for x in EVID), window_start=WINDOW_START,
-        window_end=max(x["date"] for x in EVID), tiers=TIERS,
+        window_end=max(x["date"] for x in EVID), tiers=TIERS, all_types=TYPES,
         counts=dict(risks=len(risks), evidence=len(EVID), cases=len(cases),
                     incidents=len(incidents), links=len(assocs), instances=len(instances),
                     ours=len([i for i in instances if i["provenance"] == "Ours"])),

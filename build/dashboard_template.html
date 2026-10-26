@@ -150,6 +150,34 @@ a.src:hover { text-decoration: underline; }
   font-size: 12.5px; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em;
   background: var(--wash); padding: 0 4px; border-radius: 3px; }
+.chartctl { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+  margin: 0 0 16px; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 12.5px; color: var(--ink-2); background: var(--surface-1);
+  border: 0; padding: 5px 11px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--hairline); }
+.seg button[aria-pressed="true"] { background: var(--s1); color: #fff; }
+.seg button:focus-visible { outline: 2px solid var(--s1); outline-offset: -3px; }
+.picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick { font: inherit; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--hairline); border-radius: 999px; padding: 3px 10px 3px 8px;
+  background: var(--surface-1); color: var(--ink-2); cursor: pointer; }
+.pick[aria-pressed="true"] { color: var(--ink); border-color: currentColor; }
+.pick[disabled] { opacity: .45; cursor: not-allowed; }
+.pick .sw { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--axis); }
+.pick:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
+/* linked to something currently selected: dashed outline, a shape channel so it never
+   depends on colour and never reads as "selected" */
+.pick.rel { border-style: dashed; border-color: var(--ink-2); background: var(--wash); color: var(--ink); }
+.pick.rel .sw { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.pick.rel::after { content: "\2197"; font-size: 10px; color: var(--muted); margin-left: 1px; }
+.legend .relkey { display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 13px; border: 1px dashed var(--ink-2); border-radius: 999px;
+  background: var(--wash); flex: none; }
+.chartwrap { position: relative; }
+.chartwrap svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cap { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+
 th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 th.sortable:hover { color: var(--ink); }
 th.sortable::after { content: "\2195"; opacity: .33; margin-left: 5px; font-size: 11px; }
@@ -219,14 +247,14 @@ input::placeholder { color: var(--muted); }
 <section id="flow">
   <h2>How risk factors relate to failure modes</h2>
   <p class="lede">A failure mode is <b>autonomous</b>: it is grounded only by evidence of that failure
-  occurring. A linked risk factor can <b>amplify</b> it — the bars below show each factor's own
-  grounding routed along a link the authors assert. That routed figure is a mechanism the authors
-  claim, <i>not</i> evidence that this factor produced this failure in any observed event.</p>
-  <div id="flow-cards"></div>
-  <div class="legend">
-    <span class="key"><span class="swatch" style="background:var(--s1)"></span> failure mode's own grounding</span>
-    <span class="key"><span class="swatch" style="background:var(--seq-350)"></span> risk factor's grounding, routed in</span>
-    <span class="key">basis: <b>prose</b> = the authors argue it · <b style="color:var(--ours)">Table 3 co-tag</b> = one of their case studies sits under both</span>
+  occurring. A linked risk factor can <b>amplify</b> it — each ribbon is a link the authors assert,
+  carrying that factor's own grounding to the failure mode. That routed figure is a mechanism the
+  authors claim, <i>not</i> evidence that this factor produced this failure in any observed event.</p>
+  <div class="card">
+    <div class="chartctl" id="sankey-ctl"></div>
+    <div class="chartwrap"><svg id="sankey" role="img"></svg></div>
+    <div class="legend" id="sankey-legend"></div>
+    <p class="cap" id="sankey-cap"></p>
   </div>
   <p class="caveat" id="unlinked-note"></p>
 </section>
@@ -252,20 +280,14 @@ input::placeholder { color: var(--muted); }
 
 <section id="time">
   <h2>How evidence compounds over time</h2>
-  <p class="lede">One panel per risk. All 13 case studies predate April 2025, so the band at the left
-  edge is the paper's baseline and the plotted window is the incident inventory. Each panel holds
-  <b>two separate plots</b> on a shared time axis — a count on its own scale above, grounding on its
-  own 0–1 scale below. They are never overlaid on one axis.</p>
+  <p class="lede">Pick risks to compare on one canvas. All 13 case studies predate April 2025, so each
+  line <b>starts at that risk's Hammond baseline</b> on the left edge and the plotted window is the
+  incident inventory. One measure at a time: a count and a 0–1 score never share an axis.</p>
   <div class="card">
-    <div class="panels" id="panels"></div>
-    <div class="legend">
-      <span class="key"><span class="swatch" style="background:var(--wash)"></span> cumulative evidence count</span>
-      <span class="key"><span class="stroke"></span> grounding, steps when stronger evidence lands</span>
-      <span class="key"><span class="dot t0"></span> real world</span>
-      <span class="key"><span class="dot t1"></span> synthetic</span>
-      <span class="key"><span class="dot t2"></span> lab</span>
-      <span class="key">hollow marker = month-only date</span>
-    </div>
+    <div class="chartctl" id="time-ctl"></div>
+    <div class="chartwrap"><svg id="chart" role="img"></svg></div>
+    <div class="legend" id="time-legend"></div>
+    <p class="cap" id="time-cap"></p>
   </div>
 </section>
 
@@ -408,6 +430,11 @@ function hover(node, lines) {
 }
 const bar = (frac, cls) => { const t = el("div", cls || "bar-track"), f = el("div", "bar-fill");
   f.style.width = (frac * 100) + "%"; t.appendChild(f); return t; };
+const sv = (t, a) => { const n = document.createElementNS("http://www.w3.org/2000/svg", t);
+  for (const k in a) n.setAttribute(k, a[k]); return n; };
+const darkMode = () => document.documentElement.getAttribute("data-theme") === "dark"
+  || (document.documentElement.getAttribute("data-theme") !== "light"
+      && typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
 
 /* ---------- header ---------- */
 const kpi = (v, l) => { const li = el("li", "kpi"); li.appendChild(el("b", null, v));
@@ -604,37 +631,204 @@ const riskTable = sortableTable({
       $("#events").scrollIntoView({ behavior: "smooth", block: "start" }); }); },
 });
 
-/* ---------- RF -> FM flow ---------- */
-const fc = $("#flow-cards");
-D.flow.forEach(f => {
-  const c = el("div", "fmcard");
-  const h = el("div", "fmhead");
-  h.appendChild(el("span", "rid", f.fm + " "));
-  h.appendChild(el("b", null, f.fm_name));
-  h.appendChild(el("span", "own", "own grounding " + f.own.toFixed(1) + " · " + f.own_n + " rows"));
-  c.appendChild(h);
-  const own = el("div", "fmown"); const oi = el("i"); oi.style.width = (f.own * 100) + "%";
-  own.appendChild(oi); c.appendChild(own);
-  hover(own, () => [f.own.toFixed(1) + " own grounding", f.fm_name + ", from " + f.own_n + " rows"]);
-  const g = el("div", "inflow");
-  f.incoming.forEach(z => {
-    const nm = el("div", "nm"); nm.appendChild(el("span", "rid", z.rf + " "));
-    nm.appendChild(document.createTextNode(z.rf_name));
-    const trk = el("div", "trk"); const i = el("i"); i.style.width = (z.grounding * 100) + "%";
-    trk.appendChild(i);
-    const vv = el("div", "vv", z.grounding.toFixed(1));
-    const bs = el("div", "bs" + (z.basis === "Paper prose" ? "" : " cotag"),
-      z.basis === "Paper prose" ? "prose" : "Table 3 co-tag");
-    [nm, trk, vv, bs].forEach(n => g.appendChild(n));
-    [nm, trk, vv, bs].forEach(n => hover(n, () => [
-      z.rf_name + " → " + f.fm_name,
-      z.grounding.toFixed(1) + " routed in, from " + z.n + " rows tagged with the factor",
-      "link basis: " + z.basis,
-      z.text_reference || null]));
+/* ---------- RF -> FM: sankey ----------
+   Not a conserved flow. The same evidence supports every link leaving a factor, so ribbon
+   widths are a factor's evidence mass shared across its links for legibility, never an
+   additive split. Both columns use ONE scale, so the left column towering over the right is
+   the real finding: risk factors carry 57 evidence rows, failure modes 17. */
+const FM_HEX = { light: ["#2a78d6", "#eb6834", "#1baf7a"], dark: ["#3987e5", "#d95926", "#199e70"] };
+const fmColor = i => FM_HEX[darkMode() ? "dark" : "light"][i % 3];
+
+const SK_BASIS = [
+  { key: "grounding", label: "grounding", fmt: v => v.toFixed(1) },
+  { key: "instances", label: "instances", fmt: v => String(v) },
+  { key: "n", label: "evidence rows", fmt: v => String(v) },
+];
+const TIER_LABEL = { all: "all evidence", "Observed in real world": "real world",
+  "Synthetic evidence": "synthetic", "Observed in lab": "lab", Theoretical: "theoretical" };
+const skState = { basis: "grounding", tier: "all" };
+
+const skCtl = $("#sankey-ctl");
+function segControl(label, items, pick, onPick) {
+  const g = el("div", "seg");
+  g.setAttribute("role", "group"); g.setAttribute("aria-label", label);
+  items.forEach(it => {
+    const b = el("button", null, it.label);
+    b.setAttribute("type", "button"); b.dataset.v = it.key;
+    b.addEventListener("click", () => { onPick(it.key); });
+    g.appendChild(b);
   });
-  c.appendChild(g);
-  fc.appendChild(c);
-});
+  skCtl.appendChild(el("label", null, label)); skCtl.appendChild(g);
+  return g;
+}
+const skBasisSeg = segControl("Width by", SK_BASIS,
+  () => skState.basis, k => { skState.basis = k; drawSankey(); });
+const skTierSeg = segControl("Evidence tier",
+  ["all"].concat(D.all_types).map(t => ({ key: t, label: TIER_LABEL[t] })),
+  () => skState.tier, k => { skState.tier = k; drawSankey(); });
+
+function drawSankey() {
+  const svg = $("#sankey");
+  const B = SK_BASIS.find(b => b.key === skState.basis), tier = skState.tier;
+  Array.from(skBasisSeg.children).forEach(b =>
+    b.setAttribute("aria-pressed", b.dataset.v === B.key ? "true" : "false"));
+  Array.from(skTierSeg.children).forEach(b =>
+    b.setAttribute("aria-pressed", b.dataset.v === tier ? "true" : "false"));
+  const val = r => r.metrics[tier][B.key];
+
+  const RFN = D.risks.filter(r => r.kind === "Risk factor");
+  const FMN = D.risks.filter(r => r.kind === "Failure mode");
+  const links = D.flow.flatMap(f => f.incoming.map(z => ({
+    fm: f.fm, fm_name: f.fm_name, rf: z.rf, rf_name: z.rf_name,
+    basis: z.basis, tr: z.text_reference })));
+
+  const SW = 760, NW = 13, LX = 190, RX = SW - 190 - NW, GAP = 16, TOP = 24;
+  const totalL = RFN.reduce((a, r) => a + val(r), 0);
+  const totalR = FMN.reduce((a, f) => a + val(f), 0);
+  const avail = 430 - GAP * (RFN.length - 1);
+  const scale = totalL > 0 ? avail / totalL : 0;         /* one scale for both columns */
+  const MINH = 11;
+  const H = r => val(r) > 0 ? Math.max(MINH, val(r) * scale) : MINH;
+  const colHeight = list => list.reduce((a, r) => a + H(r), 0) + GAP * (list.length - 1);
+  const tallest = Math.max(colHeight(RFN), colHeight(FMN));
+  const SH = Math.round(TOP + tallest + 30);
+
+  const place = list => { const tot = colHeight(list);
+    let y = TOP + (tallest - tot) / 2;
+    const out = {};
+    list.forEach(r => { out[r.id] = { r, y, h: H(r), zero: val(r) === 0 }; y += H(r) + GAP; });
+    return out; };
+  const L = place(RFN), R = place(FMN);
+
+  svg.textContent = "";
+  svg.setAttribute("viewBox", "0 0 " + SW + " " + SH);
+  svg.setAttribute("aria-label", "Sankey: " + links.length
+    + " author-asserted links from seven risk factors to three failure modes");
+
+  const head = (x, t, anchor) => { const n = sv("text", { x, y: 14, fill: "var(--muted)",
+    "font-size": 10.5, "text-anchor": anchor }); n.textContent = t; svg.appendChild(n); };
+  head(LX + NW, "RISK FACTORS — mechanisms", "end");
+  head(RX, "FAILURE MODES — what goes wrong", "start");
+
+  /* ribbons first, so nodes sit on top */
+  const cursor = {};
+  const ribbons = [];
+  RFN.forEach(r => { cursor["L" + r.id] = L[r.id].y; });
+  FMN.forEach(f => { cursor["R" + f.id] = R[f.id].y; });
+  const outDeg = {}, inDeg = {};
+  links.forEach(k => { outDeg[k.rf] = (outDeg[k.rf] || 0) + 1; inDeg[k.fm] = (inDeg[k.fm] || 0) + 1; });
+
+  links.forEach(k => {
+    const src = L[k.rf], tgt = R[k.fm];
+    const sh = src.h / outDeg[k.rf], th = tgt.h / inDeg[k.fm];
+    const y0 = cursor["L" + k.rf]; cursor["L" + k.rf] += sh;
+    const y1 = cursor["R" + k.fm]; cursor["R" + k.fm] += th;
+    const x0 = LX + NW, x1 = RX, mid = (x0 + x1) / 2;
+    const col = fmColor(FMN.findIndex(f => f.id === k.fm));
+    const d = "M " + x0 + " " + y0
+      + " C " + mid + " " + y0 + ", " + mid + " " + y1 + ", " + x1 + " " + y1
+      + " L " + x1 + " " + (y1 + th)
+      + " C " + mid + " " + (y1 + th) + ", " + mid + " " + (y0 + sh) + ", " + x0 + " " + (y0 + sh)
+      + " Z";
+    /* a link whose factor has nothing at this tier still exists as a claim: show it faint,
+       never let it vanish, because "asserted but unevidenced here" is the finding */
+    const dead = src.zero || tgt.zero;
+    const base = dead ? 0.09 : 0.3;
+    const path = sv("path", { d, fill: col, "fill-opacity": base });
+    svg.appendChild(path);
+    if (k.basis !== "Paper prose") {   /* shape channel, not colour: co-tag links get a dashed spine */
+      svg.appendChild(sv("path", { d: "M " + x0 + " " + (y0 + sh / 2) + " C " + mid + " "
+        + (y0 + sh / 2) + ", " + mid + " " + (y1 + th / 2) + ", " + x1 + " " + (y1 + th / 2),
+        fill: "none", stroke: col, "stroke-width": 1.5, "stroke-dasharray": "4 3",
+        "stroke-opacity": dead ? 0.3 : 1 }));
+    }
+    hover(path, () => [k.rf + " " + k.rf_name + " → " + k.fm + " " + k.fm_name,
+      dead ? "no " + TIER_LABEL[tier] + " evidence on " + (src.zero ? k.rf : k.fm)
+           : "routes " + B.label + " " + B.fmt(val(src.r)) + " into " + k.fm_name,
+      "link basis: " + k.basis,
+      k.tr || null]);
+    path.addEventListener("pointerenter", () => path.setAttribute("fill-opacity", base + 0.25));
+    path.addEventListener("pointerleave", () => path.setAttribute("fill-opacity", base));
+    ribbons.push({ k, path, base });
+  });
+
+  /* nodes + labels */
+  const node = (slot, x, side, col) => {
+    const { r, y, h, zero } = slot;
+    /* dotted outline for an empty node, so it never reads as the dashed co-tag spine */
+    const rect = zero
+      ? sv("rect", { x, y, width: NW, height: h, rx: 2, fill: "none", stroke: col,
+          "stroke-width": 1.5, "stroke-dasharray": "1.5 2" })
+      : sv("rect", { x, y, width: NW, height: h, rx: 2, fill: col });
+    svg.appendChild(rect);
+    const anchor = side === "L" ? "end" : "start", lx = side === "L" ? x - 9 : x + NW + 9;
+    const tx = sv("text", { x: lx, y: y + h / 2 - 2, fill: zero ? "var(--muted)" : "var(--ink)",
+      "font-size": 11.5, "text-anchor": anchor });
+    tx.textContent = r.id + " " + r.risk;
+    svg.appendChild(tx);
+    const sub = sv("text", { x: lx, y: y + h / 2 + 10, fill: "var(--muted)", "font-size": 10,
+      "text-anchor": anchor });
+    sub.textContent = zero ? "no " + TIER_LABEL[tier] + " evidence"
+      : B.label + " " + B.fmt(val(r)) + (B.key === "grounding"
+          ? " · " + r.metrics[tier].n + " rows" : "");
+    svg.appendChild(sub);
+    const lines = () => [r.id + " " + r.risk,
+      zero ? "no evidence at the " + TIER_LABEL[tier] + " tier"
+           : "grounding " + r.metrics[tier].grounding.toFixed(1) + " · "
+             + r.metrics[tier].instances + " instances · " + r.metrics[tier].n + " rows",
+      tier === "all" ? null : "across all tiers: grounding " + r.grounding.toFixed(1)
+        + " · " + r.n + " rows",
+      side === "L" ? "linked to " + links.filter(k => k.rf === r.id).map(k => k.fm).join(", ")
+                   : "amplified by " + inDeg[r.id] + " factors"];
+    hover(rect, lines); hover(tx, lines);
+    const mine = () => ribbons.filter(z => (side === "L" ? z.k.rf : z.k.fm) === r.id);
+    rect.addEventListener("pointerenter", () => {
+      ribbons.forEach(z => z.path.setAttribute("fill-opacity", 0.06));
+      mine().forEach(z => z.path.setAttribute("fill-opacity", Math.max(0.2, z.base + 0.3))); });
+    rect.addEventListener("pointerleave", () =>
+      ribbons.forEach(z => z.path.setAttribute("fill-opacity", z.base)));
+  };
+  RFN.forEach(r => node(L[r.id], LX, "L", "var(--ink-2)"));
+  FMN.forEach((f, i) => node(R[f.id], RX, "R", fmColor(i)));
+
+  const lg = $("#sankey-legend");
+  lg.textContent = "";
+  FMN.forEach((f, i) => { const k = el("span", "key"), sw = el("span", "swatch");
+    sw.style.background = fmColor(i);
+    k.appendChild(sw); k.appendChild(el("span", null, f.id + " " + f.risk)); lg.appendChild(k); });
+  const ck = el("span", "key");
+  const cs = el("span", "swatch");
+  cs.style.background = "transparent";
+  cs.style.borderTop = "2px dashed var(--ink-2)";
+  cs.style.height = "0"; cs.style.borderRadius = "0";
+  ck.appendChild(cs);
+  ck.appendChild(el("span", null, "dashed spine: Table 3 co-tag, not argued in prose"));
+  lg.appendChild(ck);
+  const empties = RFN.concat(FMN).filter(r => val(r) === 0);
+  if (empties.length) {
+    const ek = el("span", "key"), es = el("span", "swatch");
+    es.style.background = "transparent";
+    es.style.border = "1.5px dotted var(--ink-2)";
+    ek.appendChild(es);
+    ek.appendChild(el("span", null, "dotted outline: no " + TIER_LABEL[tier] + " evidence — "
+      + empties.map(r => r.id).join(", ")));
+    lg.appendChild(ek);
+  }
+  const noneAtAll = totalL === 0 && totalR === 0;
+  $("#sankey-cap").textContent = noneAtAll
+    ? "No evidence in the inventory is classed " + TIER_LABEL[tier] + ", so every node is empty. "
+      + "The 12 links are still shown: they are claims the authors make, independent of our evidence."
+    : "Width is " + B.label + " at the " + TIER_LABEL[tier] + " tier, on one scale across both "
+      + "columns: risk factors total " + B.fmt(totalL) + ", failure modes " + B.fmt(totalR) + ". "
+      + "Width is a factor's magnitude shared across its links for legibility, never an additive "
+      + "split — the same evidence supports every link leaving a factor, so widths do not sum. "
+      + (B.key === "grounding" ? "Grounding is a maximum, so it routes whole and is never divided. "
+                               : "")
+      + "Read the numbers on the nodes."
+      + (empties.length ? " " + empties.length + " node"
+          + (empties.length === 1 ? "" : "s") + " have no evidence at this tier." : "");
+}
+drawSankey();
 $("#unlinked-note").textContent = D.unlinked_rf.length
   ? "Risk factors linked to no failure mode: " + D.unlinked_rf.map(r => r.id + " " + r.name).join(", ")
     + ". The model requires every risk factor to reach at least one failure mode, so the build fails if this list is non-empty."
@@ -708,64 +902,242 @@ rrow(RT.routed, "reach a risk through at least one instance");
 rrow(RT.unrouted, "reach no risk" + (RT.unrouted ? ": " + RT.unrouted_ids.join(", ") : ""));
 rrow(RT.instances_used + " / " + RT.instances_total, "instances carry evidence");
 
-/* ---------- accumulation: two stacked plots, separate scales, shared x ---------- */
-const W = 320, PADL = 26, PADR = 10, H_N = 36, H_G = 30, GAPT = 14, H = H_N + GAPT + H_G + 16;
-const t0 = Date.parse(D.window_start), t1 = Date.parse(D.window_end);
-const maxN = Math.max(...D.risks.map(r => r.n));
-const sx = d => PADL + (Date.parse(d) - t0) / (t1 - t0) * (W - PADL - PADR);
-const sv = (t, a) => { const n = document.createElementNS("http://www.w3.org/2000/svg", t);
-  for (const k in a) n.setAttribute(k, a[k]); return n; };
-const pane = $("#panels");
-D.risks.forEach(r => {
-  const p = el("div", "panel"), h3 = el("h3");
-  h3.appendChild(el("span", "rid", r.id + " ")); h3.appendChild(document.createTextNode(r.risk));
-  p.appendChild(h3);
-  const inWin = r.series.points.length - 1;
-  p.appendChild(el("p", "meta", "grounding " + r.grounding.toFixed(1) + " · " + r.n + " rows · "
-    + r.series.baseline_n + " before the window · " + inWin + " in it"));
-  const svg = sv("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
-    "aria-label": r.risk + ": " + r.n + " rows, grounding " + r.grounding.toFixed(1) });
-  if (r.series.baseline_n)
-    svg.appendChild(sv("rect", { x: 0, y: 0, width: PADL - 4, height: H_N + GAPT + H_G, fill: "var(--wash)" }));
-  const yN = v => H_N - (maxN ? v / maxN * (H_N - 4) : 0);
-  svg.appendChild(sv("line", { x1: PADL - 4, y1: H_N, x2: W, y2: H_N, stroke: "var(--axis)", "stroke-width": 1 }));
-  const pts = r.series.points;
-  let dA = "M " + sx(pts[0].date) + " " + yN(pts[0].n);
-  pts.forEach((q, i) => { if (i) dA += " L " + sx(q.date) + " " + yN(pts[i - 1].n)
-    + " L " + sx(q.date) + " " + yN(q.n); });
-  dA += " L " + sx(D.window_end) + " " + yN(pts[pts.length - 1].n);
-  svg.appendChild(sv("path", { d: dA + " L " + sx(D.window_end) + " " + H_N + " L "
-    + sx(pts[0].date) + " " + H_N + " Z", fill: "var(--wash)" }));
-  svg.appendChild(sv("path", { d: dA, fill: "none", stroke: "var(--axis)", "stroke-width": 1 }));
-  const ln = sv("text", { x: 0, y: 9, fill: "var(--muted)", "font-size": 9 });
-  ln.textContent = "n " + maxN; svg.appendChild(ln);
-  const gTop = H_N + GAPT, yG = v => gTop + (1 - v) * H_G;
-  svg.appendChild(sv("line", { x1: PADL - 4, y1: yG(0), x2: W, y2: yG(0), stroke: "var(--axis)", "stroke-width": 1 }));
-  svg.appendChild(sv("line", { x1: PADL - 4, y1: yG(1), x2: W, y2: yG(1), stroke: "var(--grid)", "stroke-width": 1 }));
-  let dG = "M " + sx(pts[0].date) + " " + yG(pts[0].g);
-  pts.forEach((q, i) => { if (i) dG += " L " + sx(q.date) + " " + yG(pts[i - 1].g)
-    + " L " + sx(q.date) + " " + yG(q.g); });
-  dG += " L " + sx(D.window_end) + " " + yG(pts[pts.length - 1].g);
-  svg.appendChild(sv("path", { d: dG, fill: "none", stroke: "var(--s1)", "stroke-width": 2,
-    "stroke-linejoin": "round", "stroke-linecap": "round" }));
-  ["1.0", "0"].forEach((t, i) => { const tx = sv("text", { x: 0, y: i ? yG(0) + 3 : yG(1) + 3,
-    fill: "var(--muted)", "font-size": 9 }); tx.textContent = t; svg.appendChild(tx); });
-  pts.slice(1).forEach(q => {
-    const cx = sx(q.date), cy = yG(0) + 8, col = "var(--s" + (TIER_I(q.tier) + 1) + ")";
-    svg.appendChild(sv("circle", { cx, cy, r: 4,
-      fill: q.precision === 3 ? col : "var(--surface-1)", stroke: col, "stroke-width": 2 }));
-    const hit = sv("circle", { cx, cy, r: 12, fill: "transparent" });
-    hover(hit, () => [q.id, fmtDate(q.date, q.precision) + " · " + SHORT[q.tier],
-      "evidence " + q.n + " for this risk · grounding now " + q.g.toFixed(1)]);
-    svg.appendChild(hit);
-  });
-  [["2025-07-01", "2025"], ["2026-01-01", "2026"], ["2026-07-01", "mid-26"]].forEach(([d, lab]) => {
-    const tx = sv("text", { x: sx(d), y: H - 1, fill: "var(--muted)", "font-size": 9,
-      "text-anchor": "middle" }); tx.textContent = lab; svg.appendChild(tx); });
-  if (r.series.baseline_n) { const bl = sv("text", { x: 0, y: H - 1, fill: "var(--muted)", "font-size": 8.5 });
-    bl.textContent = "pre"; svg.appendChild(bl); }
-  p.appendChild(svg); pane.appendChild(p);
+/* ---------- accumulation: one canvas, selectable series, one measure at a time ---------- */
+/* 8 categorical slots for 10 risks. A risk holds its slot for as long as it stays selected, so
+   adding or removing a series never repaints the survivors. */
+const SLOTS = 8, slotOf = {}, slotTaken = new Array(SLOTS).fill(null);
+function claimSlot(id) {
+  if (slotOf[id] !== undefined) return slotOf[id];
+  const free = slotTaken.indexOf(null);
+  if (free < 0) return -1;
+  slotTaken[free] = id; slotOf[id] = free; return free;
+}
+function releaseSlot(id) {
+  const k = slotOf[id];
+  if (k === undefined) return;
+  slotTaken[k] = null; delete slotOf[id];
+}
+const SERIES_LIGHT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
+const SERIES_DARK  = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+const slotColor = k => (darkMode() ? SERIES_DARK : SERIES_LIGHT)[k % SLOTS];
+
+const MEASURES = [
+  { key: "g", label: "grounding", get: p => p.g, fmt: v => v.toFixed(1), fixed: 1 },
+  { key: "n", label: "cumulative evidence", get: p => p.n, fmt: v => String(v), fixed: 0 },
+];
+const chartState = { measure: "g", picked: ["FM1", "FM2", "FM3"] };
+chartState.picked.forEach(claimSlot);
+
+/* which risks the authors link to which, both directions off the same edge */
+const RISK_NAME = Object.fromEntries(D.risks.map(r => [r.id, r.risk]));
+const adj = {};
+D.flow.forEach(f => f.incoming.forEach(z => {
+  (adj[f.fm] = adj[f.fm] || []).push({ id: z.rf, basis: z.basis });
+  (adj[z.rf] = adj[z.rf] || []).push({ id: f.fm, basis: z.basis });
+}));
+/* id -> [{via, basis}] for risks linked to something selected but not selected themselves */
+let relInfo = {};
+function computeRelated() {
+  relInfo = {};
+  chartState.picked.forEach(pid => (adj[pid] || []).forEach(n => {
+    if (chartState.picked.includes(n.id)) return;
+    (relInfo[n.id] = relInfo[n.id] || []).push({ via: pid, basis: n.basis });
+  }));
+}
+
+const CW = 760, CH = 330, CL = 46, CRG = 116, CT = 16, CB = 30;
+const cx0 = Date.parse(D.window_start), cx1 = Date.parse(D.window_end);
+const xOf = t => CL + (t - cx0) / (cx1 - cx0) * (CW - CL - CRG);
+const cx = d => xOf(Date.parse(d));
+
+const ctl = $("#time-ctl");
+const seg = el("div", "seg");
+seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Measure");
+MEASURES.forEach(m => {
+  const b2 = el("button", null, m.label);
+  b2.setAttribute("type", "button"); b2.dataset.m = m.key;
+  b2.addEventListener("click", () => { chartState.measure = m.key; drawChart(); });
+  seg.appendChild(b2);
 });
+ctl.appendChild(el("label", null, "Measure")); ctl.appendChild(seg);
+
+const picks = el("div", "picks");
+picks.setAttribute("role", "group"); picks.setAttribute("aria-label", "Risks to compare");
+D.risks.forEach(r => {
+  const btn = el("button", "pick");
+  btn.setAttribute("type", "button"); btn.dataset.r = r.id;
+  btn.appendChild(el("span", "sw"));
+  btn.appendChild(el("span", null, r.id));
+  btn.addEventListener("click", () => {
+    const i = chartState.picked.indexOf(r.id);
+    if (i >= 0) { chartState.picked.splice(i, 1); releaseSlot(r.id); }
+    else { if (claimSlot(r.id) < 0) return; chartState.picked.push(r.id); }
+    drawChart();
+  });
+  hover(btn, () => {
+    const rel = relInfo[r.id];
+    return [r.id + " " + r.risk,
+      "grounding " + r.grounding.toFixed(1) + " · " + r.n + " rows",
+      rel ? "linked to " + rel.map(z => z.via + " " + RISK_NAME[z.via]
+        + " (" + z.basis.replace("Paper ", "") + ")").join(", ") : null,
+      chartState.picked.includes(r.id) ? "selected — click to remove" : "click to compare"];
+  });
+  picks.appendChild(btn);
+});
+ctl.appendChild(el("label", null, "Risks")); ctl.appendChild(picks);
+const clearBtn = el("button", "reset", "clear");
+clearBtn.setAttribute("type", "button");
+clearBtn.addEventListener("click", () => {
+  chartState.picked.slice().forEach(releaseSlot); chartState.picked = []; drawChart(); });
+ctl.appendChild(clearBtn);
+
+const svgRoot = $("#chart"), tlLegend = $("#time-legend"), tlCap = $("#time-cap");
+
+function drawChart() {
+  const m = MEASURES.find(x => x.key === chartState.measure);
+  Array.from(seg.children).forEach(b2 =>
+    b2.setAttribute("aria-pressed", b2.dataset.m === m.key ? "true" : "false"));
+  const full = slotTaken.every(x => x !== null);
+  computeRelated();
+  Array.from(picks.children).forEach(btn => {
+    const id = btn.dataset.r, on = chartState.picked.includes(id), rel = !on && !!relInfo[id];
+    btn.className = "pick" + (rel ? " rel" : "");
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.style.color = on ? slotColor(slotOf[id]) : "";
+    btn.children[0].style.background = on ? slotColor(slotOf[id]) : "";
+    btn.setAttribute("title", rel
+      ? "Linked by the authors to " + relInfo[id].map(z => z.via).join(", ")
+      : "");
+    if (!on && full) btn.setAttribute("disabled", "disabled"); else btn.removeAttribute("disabled");
+  });
+
+  const sel = D.risks.filter(r => chartState.picked.includes(r.id));
+  svgRoot.textContent = "";
+  svgRoot.setAttribute("viewBox", "0 0 " + CW + " " + CH);
+  svgRoot.setAttribute("aria-label", sel.length
+    ? m.label + " over time for " + sel.map(r => r.id + " " + r.risk).join(", ")
+    : "no risks selected");
+
+  /* grounding is pinned 0-1; counts scale to the selection and the axis says so */
+  let hi = m.fixed || Math.max(5, Math.ceil(Math.max(1, ...sel.map(r => r.n)) / 5) * 5);
+  const cy = v => CT + (1 - v / hi) * (CH - CT - CB);
+  const ticks = m.fixed ? [0, 0.2, 0.4, 0.6, 0.8, 1]
+    : Array.from({ length: 6 }, (_, i) => Math.round(hi * i / 5));
+  ticks.forEach(t => {
+    svgRoot.appendChild(sv("line", { x1: CL, y1: cy(t), x2: CW - CRG + 6, y2: cy(t),
+      stroke: t === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
+    const tx = sv("text", { x: CL - 8, y: cy(t) + 3.5, fill: "var(--muted)", "font-size": 10,
+      "text-anchor": "end" });
+    tx.textContent = m.fixed ? t.toFixed(1) : t; svgRoot.appendChild(tx);
+  });
+  const yl = sv("text", { x: 0, y: CT - 4, fill: "var(--muted)", "font-size": 10 });
+  yl.textContent = m.key === "g" ? "grounding" : "rows"; svgRoot.appendChild(yl);
+  [["2025-07-01", "Jul 2025"], ["2026-01-01", "Jan 2026"], ["2026-07-01", "Jul 2026"]].forEach(([d, lab]) => {
+    svgRoot.appendChild(sv("line", { x1: cx(d), y1: CT, x2: cx(d), y2: cy(0),
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const tx = sv("text", { x: cx(d), y: CH - 10, fill: "var(--muted)", "font-size": 10,
+      "text-anchor": "middle" }); tx.textContent = lab; svgRoot.appendChild(tx);
+  });
+  const bl = sv("text", { x: CL, y: CH - 10, fill: "var(--muted)", "font-size": 10,
+    "text-anchor": "middle" }); bl.textContent = "baseline"; svgRoot.appendChild(bl);
+  svgRoot.appendChild(sv("line", { x1: CL, y1: CT, x2: CL, y2: cy(0), stroke: "var(--axis)",
+    "stroke-width": 1 }));
+
+  if (!sel.length) {
+    const t = sv("text", { x: (CL + CW - CRG) / 2, y: CH / 2, fill: "var(--muted)",
+      "font-size": 12, "text-anchor": "middle" });
+    t.textContent = "Pick a risk above to plot it."; svgRoot.appendChild(t);
+    tlLegend.textContent = ""; tlCap.textContent = ""; return;
+  }
+
+  const ends = [];
+  sel.forEach(r => {
+    const col = slotColor(slotOf[r.id]);
+    const pts = r.series.points.map(p => ({ x: cx(p.date), v: m.get(p), p }));
+    pts.push({ x: xOf(cx1), v: pts[pts.length - 1].v, p: null });
+    let d = "M " + pts[0].x + " " + cy(pts[0].v);
+    for (let i = 1; i < pts.length; i++)
+      d += " L " + pts[i].x + " " + cy(pts[i - 1].v) + " L " + pts[i].x + " " + cy(pts[i].v);
+    if (sel.length === 1)
+      svgRoot.appendChild(sv("path", { d: d + " L " + xOf(cx1) + " " + cy(0) + " L " + CL + " "
+        + cy(0) + " Z", fill: col, "fill-opacity": 0.1 }));
+    svgRoot.appendChild(sv("path", { d, fill: "none", stroke: col, "stroke-width": 2,
+      "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    pts.filter(q => q.p && q.p.id).forEach(q => {
+      svgRoot.appendChild(sv("circle", { cx: q.x, cy: cy(q.v), r: 4, fill: col,
+        stroke: "var(--surface-1)", "stroke-width": 2 }));
+      const h2 = sv("circle", { cx: q.x, cy: cy(q.v), r: 12, fill: "transparent" });
+      hover(h2, () => [q.p.id, r.id + " " + r.risk,
+        fmtDate(q.p.date, q.p.precision) + " · " + SHORT[q.p.tier],
+        "evidence " + q.p.n + " for this risk · grounding now " + q.p.g.toFixed(1)]);
+      svgRoot.appendChild(h2);
+    });
+    ends.push({ r, col, v: pts[pts.length - 1].v, y: cy(pts[pts.length - 1].v) });
+  });
+
+  /* direct end-labels, nudged apart with a leader line where series converge */
+  ends.sort((p, q) => p.y - q.y);
+  for (let i = 1; i < ends.length; i++)
+    if (ends[i].y - ends[i - 1].y < 13) ends[i].y = ends[i - 1].y + 13;
+  /* keep the nudged stack inside the plot: shift it up if it has run past the axis */
+  const over = ends.length ? ends[ends.length - 1].y - (cy(0) - 2) : 0;
+  if (over > 0) ends.forEach(e => { e.y -= Math.min(over, ends[0].y - CT); });
+  ends.forEach(e => {
+    const x0 = CW - CRG + 2, yTrue = cy(e.v);
+    if (Math.abs(e.y - yTrue) > 1.5)
+      svgRoot.appendChild(sv("path", { d: "M " + (x0 - 4) + " " + yTrue + " L " + (x0 + 2) + " " + e.y,
+        fill: "none", stroke: e.col, "stroke-width": 1, "stroke-opacity": 0.6 }));
+    const t = sv("text", { x: x0 + 6, y: e.y + 3.5, fill: "var(--ink-2)", "font-size": 11 });
+    t.textContent = e.r.id + " " + m.fmt(e.v); svgRoot.appendChild(t);
+  });
+
+  /* crosshair snaps to the nearest event date and reads every selected series there */
+  const dates = [...new Set(sel.flatMap(r => r.series.points.map(p => p.date)))].sort();
+  const cross = sv("line", { x1: CL, y1: CT, x2: CL, y2: cy(0), stroke: "var(--ink-2)",
+    "stroke-width": 1, "stroke-opacity": 0, "pointer-events": "none" });
+  svgRoot.appendChild(cross);
+  const valueAt = (r, dt) => { let found = r.series.points[0];
+    r.series.points.forEach(p => { if (p.date <= dt) found = p; }); return found; };
+  const hit = sv("rect", { x: CL, y: CT, width: CW - CL - CRG, height: cy(0) - CT,
+    fill: "transparent" });
+  hit.addEventListener("pointermove", e => {
+    const box = svgRoot.getBoundingClientRect();
+    const px = (e.clientX - box.left) / (box.width || CW) * CW;
+    let best = dates[0], bd = Infinity;
+    dates.forEach(dt => { const dd = Math.abs(cx(dt) - px); if (dd < bd) { bd = dd; best = dt; } });
+    cross.setAttribute("x1", cx(best)); cross.setAttribute("x2", cx(best));
+    cross.setAttribute("stroke-opacity", 0.35);
+    showTip(e, [best === D.window_start ? "Hammond baseline" : best].concat(
+      sel.map(r => r.id + "  " + m.fmt(m.get(valueAt(r, best)))
+        + (m.key === "n" ? " rows" : " grounding"))));
+  });
+  hit.addEventListener("pointerleave", () => { cross.setAttribute("stroke-opacity", 0); hideTip(); });
+  svgRoot.appendChild(hit);
+
+  tlLegend.textContent = "";
+  sel.forEach(r => { const k = el("span", "key"), sw = el("span", "swatch");
+    sw.style.background = slotColor(slotOf[r.id]);
+    k.appendChild(sw); k.appendChild(el("span", null, r.id + " " + r.risk)); tlLegend.appendChild(k); });
+  const dk = el("span", "key"), ds = el("span", "swatch");
+  ds.style.background = "var(--ink-2)"; ds.style.borderRadius = "50%";
+  ds.style.width = "8px"; ds.style.height = "8px";
+  dk.appendChild(ds); dk.appendChild(el("span", null, "a dated piece of evidence"));
+  tlLegend.appendChild(dk);
+  const relIds = Object.keys(relInfo);
+  if (relIds.length) {
+    const rk = el("span", "key");
+    rk.appendChild(el("span", "relkey"));
+    rk.appendChild(el("span", null, "dashed: linked to a selected risk by the authors — "
+      + relIds.sort().join(", ") + ". Any risk can still be plotted."));
+    tlLegend.appendChild(rk);
+  }
+  tlCap.textContent = (m.key === "g"
+    ? "Grounding is a maximum, so a line steps up only when stronger evidence arrives and never falls."
+    : "Counts scale to the current selection — read the axis.")
+    + " Every value is also in the evidence table below."
+    + (full ? " All 8 series colours are in use; deselect one to add another." : "");
+}
+drawChart();
 
 /* ---------- instance layer ---------- */
 const instTable = sortableTable({
