@@ -1,0 +1,11 @@
+risk_id,risk,risk_type,section,definition
+FM1,Miscoordination,Failure mode,2.1,Agents share a clear common objective but fail to align behaviour to achieve it.
+FM2,Conflict,Failure mode,2.2,"Mixed-motive interaction ends in an outcome off the Pareto frontier (incl. commons depletion, warfare, races to the bottom)."
+FM3,Collusion,Failure mode,2.3,"Undesired (often covert) cooperation between AI systems at the expense of third parties, e.g. markets or oversight schemes."
+RF1,Information Asymmetries,Risk factor,3.1,"Interacting agents hold different information bearing on a joint action; private info can cause miscoordination, deception, conflict."
+RF2,Network Effects,Risk factor,3.2,Small changes in node/connection properties or topology produce large changes in whole-network behaviour.
+RF3,Selection Pressures,Risk factor,3.3,"Training, deployment and replacement choices act as evolutionary forces selecting undesirable dispositions or capabilities."
+RF4,Destabilising Dynamics,Risk factor,3.4,"Mutually adapting systems generate feedback loops, instability and unpredictability."
+RF5,Commitment and Trust,Risk factor,3.5,"Difficulty forming credible commitments, trust or reputation blocks mutual gains in AI-AI and human-AI interaction."
+RF6,Emergent Agency,Risk factor,3.6,Qualitatively new goals or capabilities emerge from composing individually innocuous systems.
+RF7,Multi-Agent Security,Risk factor,3.7,Multi-agent systems create new security threats and vulnerabilities.

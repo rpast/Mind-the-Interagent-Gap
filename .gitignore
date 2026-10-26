@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.DS_Store
+~$*.xlsx
+
+# Python environments
+.venv/
+venv/
+env/
+
+# Editors and tooling
+.idea/
+.vscode/
+.~lock.*#
+
+# Local agent config
+.claude/settings.local.json
+.claude/.cc-writes/
+
+# Third-party source documents: licence-gated, see resources/README.md
+resources/*.pdf
+!resources/README.md

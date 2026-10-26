@@ -1,0 +1,34 @@
+instance_id,instance,risk_id,case_studies_explicit,case_studies_placement,evidence_basis,key_references,support_summary
+I01,Incompatible Strategies,FM1,CS1,,Case study,,
+I02,Credit Assignment,FM1,,,Cited empirical work,Du et al. 2023; Li et al. 2025; Agapiou et al. 2022,Known multi-agent learning problem: unclear which agent caused an outcome; agents must generalise to unfamiliar co-players.
+I03,Limited Interactions,FM1,,,Cited empirical work,Hu et al. 2020; Treutlein et al. 2021; Emmons et al. 2022,"Zero- and few-shot coordination research: without shared history or communication, agents must coordinate blind."
+I04,Social Dilemmas,FM2,CS10,CS2,Case study,,
+I05,Military Domains,FM2,CS10,CS3,Case study,,
+I06,Coercion and Extortion,FM2,,,Theoretical,Ellsberg 1968; Harrenstein et al. 2007,"Argued: AI cyber-offence and surveillance make threats cheaper, more widespread and harder to detect."
+I07,Markets,FM3,CS4;CS10,,Case study,,
+I08,Steganography,FM3,CS5,,Case study,,
+I09,Communication Constraints,RF1,,,Cited empirical work,Foerster et al. 2016; Lazaridou & Baroni 2020; Sukhbaatar et al. 2016,Emergent-communication research on constrained channels; strategic withholding expected to dominate as capabilities grow.
+I10,Bargaining,RF1,,,Theoretical,Myerson & Satterthwaite 1983; Fearon 1995,Formal results: private valuations make efficient bargaining impossible to guarantee and can lead to costly conflict.
+I11,Deception,RF1,CS7,CS6,Case study,,
+I12,Error Propagation,RF2,CS7;CS8,,Case study,,
+I13,Network Rewiring,RF2,,,Theoretical,Albert et al. 2000; Kunegis et al. 2013,"Network theory: AI-AI preferential attachment could centralise AI nodes or trigger phase transitions. Only anecdote cited (forum bots, Kulveit 2023)."
+I14,Homogeneity and Correlated Failures,RF2,,,Theoretical,Bommasani et al. 2021,"Argued: many agents built on few foundation models share failure modes, vulnerabilities and biases."
+I15,Undesirable Dispositions from Competition,RF3,,CS9,Case study,,
+I16,Undesirable Dispositions from Human Data,RF3,CS7,,Case study,,
+I17,Undesirable Capabilities,RF3,,,Cited empirical work,Baker et al. 2019; Blumenkamp & Prorok 2021,Co-adaptation autocurricula: emergent tool use in hide-and-seek; agents learning manipulative communication.
+I18,Feedback Loops,RF4,CS10,,Case study,,
+I19,Cyclic Behaviour,RF4,,,Theoretical,Zinkevich et al. 2005; Paes Leme et al. 2024,Formal results: multi-agent Q-learning can cycle; auto-bidding dynamics can fail to converge to truthful equilibria.
+I20,Chaos,RF4,,,Theoretical,Sanders et al. 2018; Cheung & Piliouras 2020,Formal results: chaotic learning dynamics become the norm as agent count grows; paper notes not yet seen in frontier AI.
+I21,Phase Transitions,RF4,,,Theoretical,Leonardos & Piliouras 2022; Zeeman 1976,Formal results: small parameter changes (e.g. RL exploration rate) cause bifurcations in equilibria.
+I22,Distributional Shift,RF4,,,Theoretical,Stastny et al. 2021; Papoudakis et al. 2019,Argued: co-adapting agents create non-stationarity; narrow training co-players cause overconfidence in negotiation.
+I23,Inefficient Outcomes,RF5,,,Theoretical,Fearon 1995; Powell 2006,"Argued: easily created, deceptive agents garner little trust, causing economic inefficiency and pressure to defect."
+I24,Threats and Extortion,RF5,CS11,,Case study,,
+I25,Rigidity and Mistaken Commitments,RF5,CS11,,Case study,,
+I26,Emergent Capabilities,RF6,,,Theoretical,Konda & Tsitsiklis 2000; Drexler 2019,Hypothetical: composed narrow tools (e.g. automated chemistry workflow) exceed individual capabilities. CS12 gives partial lab evidence.
+I27,Emergent Goals,RF6,,,Theoretical,Dennett 1971,Hypothetical: engagement-optimising moderation bots collectively shift users' politics. Paper states no advanced-AI examples are known.
+I28,Swarm Attacks,RF7,,,Theoretical,DDoS / brigading analogues (Cisco 2023),Extrapolated from non-AI bot swarms to adaptive AI agents that jointly find new attack surfaces.
+I29,Heterogeneous Attacks,RF7,CS12,,Case study,,
+I30,Social Engineering at Scale,RF7,,,Theoretical,Ai et al. 2024; Hazell 2023,"Argued: many coordinated, seemingly independent agents persuade or phish more effectively and evade detection."
+I31,Vulnerable AI Agents,RF7,CS13,,Case study,,
+I32,Cascading Security Failures,RF7,CS8,,Case study,,
+I33,Undetectable Threats,RF7,,,Cited empirical work,Motwani et al. 2024; Franzmeyer et al. 2023; Draguns et al. 2024,"Steganography, illusory attacks and encrypted backdoors shown to evade detection. Motwani et al. is also the CS5 source but is not cross-referenced here as a case study."

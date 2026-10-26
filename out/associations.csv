@@ -1,0 +1,13 @@
+fm_id,failure_mode,rf_id,risk_factor,case_study_link,case_studies,fm_grounding,rf_grounding
+FM1,Miscoordination,RF1,Information Asymmetries,TRUE,CS1,0.4,0.7
+FM1,Miscoordination,RF3,Selection Pressures,TRUE,CS1,0.4,0.8
+FM1,Miscoordination,RF4,Destabilising Dynamics,FALSE,,0.4,0.9
+FM2,Conflict,RF1,Information Asymmetries,TRUE,CS6,0.8,0.7
+FM2,Conflict,RF3,Selection Pressures,TRUE,CS2;CS9,0.8,0.8
+FM2,Conflict,RF4,Destabilising Dynamics,TRUE,CS3,0.8,0.9
+FM2,Conflict,RF5,Commitment and Trust,TRUE,CS2;CS9;CS11,0.8,0.7
+FM2,Conflict,RF7,Multi-Agent Security,FALSE,,0.8,0.9
+FM3,Collusion,RF2,Network Effects,FALSE,,0.8,0.9
+FM3,Collusion,RF3,Selection Pressures,TRUE,CS4,0.8,0.8
+FM3,Collusion,RF6,Emergent Agency,TRUE,CS4,0.8,0.8
+FM3,Collusion,RF7,Multi-Agent Security,TRUE,CS5,0.8,0.9

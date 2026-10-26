@@ -1,0 +1,41 @@
+risk_id,direction
+FM1,Communication
+FM1,Norms and Conventions
+FM1,Modelling Other Agents
+FM2,Learning Peer and Pool Incentivisation
+FM2,Establishing Trust
+FM2,Normative Approaches to Equilibrium Selection
+FM2,Cooperative Dispositions
+FM2,Agent Governance
+FM2,Evidential Reasoning
+FM3,Detecting AI Collusion
+FM3,Mitigating AI Collusion
+FM3,Assessing Impacts on Safety Protocols
+RF1,Information Design
+RF1,Individual Information Revelation
+RF1,Few-Shot Coordination
+RF1,Truthful AI
+RF2,Evaluating and Monitoring Networks
+RF2,Faithful and Tractable Simulations
+RF2,Improving Network Security and Stability
+RF3,Evaluating Against Diverse Co-Players
+RF3,Environment Design
+RF3,Understanding the Impacts of Training
+RF3,Evolutionary Game Theory
+RF3,Simulating Selection Pressures
+RF4,Understanding Dynamics
+RF4,Monitoring and Stabilising Dynamics
+RF4,Regulating Adaptive Multi-Agent Systems
+RF5,Keeping Humans in the Loop
+RF5,Limiting Commitment Power
+RF5,Institutions and Normative Infrastructure
+RF5,Privacy-Preserving Monitoring
+RF5,Mutual Simulation and Transparency
+RF6,Empirical Exploration
+RF6,Theories of Emergent Capabilities
+RF6,Theories of Emergent Goals
+RF6,Monitoring and Intervening on Collective Agents
+RF7,Secure Interaction Protocols
+RF7,Monitoring and Threat Detection
+RF7,Multi-Agent Adversarial Testing
+RF7,Sociotechnical Security Defences

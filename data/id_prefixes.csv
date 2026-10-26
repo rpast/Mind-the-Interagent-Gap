@@ -1,0 +1,8 @@
+prefix,table,id_pattern,example,source_collection,description
+FM,risks.csv,^FM\d+$,FM2,Hammond et al. 2025,Failure mode
+RF,risks.csv,^RF\d+$,RF5,Hammond et al. 2025,Risk factor
+I,risk_instances.csv,^I\d{2}$,I07,Hammond et al. 2025,Instance of a risk from the paper's Table 1
+CS,case_studies.csv,^CS\d+$,CS10,Hammond et al. 2025,Case study from the paper's Table 3
+AIR-,incidents.csv,^AIR-\d{4}-\d{4}$,AIR-2026-0183,Agent Incident Registry (Enkrypt AI),Registry's own record id; air.enkryptai.com
+LW-,incidents.csv,^LW-\d{2}$,LW-01,LessWrong / Alignment Forum,Event found via forum posts and traced to primary sources
+AIV-,incidents.csv,^AIV-\d{2}$,AIV-05,AI Village,Event from AI Village operator write-ups
