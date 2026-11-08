@@ -1,0 +1,260 @@
+SOURCES USED
+Mind the Interagent Gap
+
+Every source below either backs a row in data/ or changed one during the
+2026-10-26 verification pass. This file is the audit trail: per-row
+provenance, corrections, and what was screened and produced nothing.
+
+Leads that back nothing, access caveats, and candidate additions belong in
+RESOURCES.md, not here. A source may appear in both files; its note belongs
+to exactly one of them.
+
+
+=============================================================================
+ONTOLOGY
+=============================================================================
+
+Hammond et al. (2025)
+   Multi-Agent Risks from Advanced AI (CAIF Technical Report #1)
+   https://arxiv.org/abs/2502.14143
+   The entire taxonomy: 3 failure modes, 7 risk factors, 33 Table 1
+   instances, 13 Table 3 case studies, 12 FM-RF associations.
+
+Cooperative AI Foundation
+   Lessons from Recent Multi-Agent Safety Incidents
+   https://www.cooperativeai.com/post/lessons-from-multi-agent-safety-incidents
+   Resolved OPEN.md items 13 and 22. The candidate additions it surfaced
+   are listed in RESOURCES.md.
+
+
+=============================================================================
+INCIDENT SOURCES - the registry behind the 15 AIR- rows
+=============================================================================
+
+Enkrypt AI
+   Agent Incident Registry
+   https://air.enkryptai.com/   (records via https://agentincident.vercel.app/)
+   Primary source for all 15 AIR- incidents.
+
+
+=============================================================================
+INCIDENT SOURCES - the OpenAI / Hugging Face swarm cluster
+=============================================================================
+
+OpenAI
+   Hugging Face Incident Technical Report
+   https://cdn.openai.com/pdf/67869394-cb91-4c12-888c-5cbd85c7814c/OpenAI-Hugging-Face%20Incident-Technical-Report.pdf
+   LW-01 primary source.
+
+OpenAI
+   Hugging Face model evaluation security incident
+   https://openai.com/index/hugging-face-model-evaluation-security-incident/
+   LW-01.
+
+OpenAI
+   The Hugging Face incident and the road ahead
+   https://openai.com/index/hugging-face-incident-and-the-road-ahead/
+   LW-01.
+
+OpenAI
+   Black Hat USA 2026 talk
+   https://www.youtube.com/watch?v=87DyyMV0kCY
+   AIR-2026-0183. Source of the claim that unsanctioned message boards were
+   used in training from May 2026, which is why AIR-2026-0219's separation
+   from this cluster is recorded as contested.
+
+OpenAI
+   Statement on the DSEWiki report
+   https://x.com/OpenAI/status/2096133504417616165
+   AIR-2026-0219.  NOT INDEPENDENTLY RETRIEVED - recorded as such.
+
+Hugging Face
+   Security incident, July 2026
+   https://huggingface.co/blog/security-incident-july-2026
+   LW-01 victim disclosure.
+
+Hugging Face
+   Agent intrusion technical timeline
+   https://huggingface.co/blog/agent-intrusion-technical-timeline
+   LW-01 timeline.
+
+METR
+   Brief independent investigation of agents' behavior, reasoning and
+   collaboration in the OpenAI / Hugging Face hacking incident
+   https://metr.org/blog/2026-08-26-openai-hugging-face-incident-investigation/
+   Every figure in LW-01: ~1,200 agents, 70,000+ messages, ~700 attacking,
+   the HPIM / GPT-5.6 Sol split. Basis for its E2 and E4 scores.
+
+METR / Redwood Research
+   Same investigation, Alignment Forum version
+   https://www.alignmentforum.org/posts/nB8KKapnWGBXtKKiM/brief-independent-investigation-of-agents-behavior-reasoning
+   Corroboration for LW-01.
+
+Zvi Mowshowitz
+   OpenAI offers straight-laced postmortem of the HuggingFace incident
+   https://www.lesswrong.com/posts/Khmh3ghqaGEpmpC9r/openai-offers-straight-laced-postmortem-of-the-huggingface
+   LW-01 secondary.
+
+Reuters
+   Its AI agent spent days hacking a company, but sources say OpenAI did not
+   notice for a week
+   https://www.reuters.com/business/its-ai-agent-spent-days-hacking-company-sources-say-openai-did-not-notice-week-2026-07-24/
+   LW-04. Corrected the row: Reuters could not establish a link between the
+   monitoring disconnections and the swarm coordination.
+
+Nightingale Collective
+   collusion.wiki
+   https://collusion.wiki/
+   AIR-2026-0219, the DSEWiki report.
+
+Kenneth DeGraff
+   Swarm investigation
+   https://www.kennethdegraff.com/swarm
+   LW-02. Corrected the row: the 495 figure is visitor-log entries recording
+   claimed fetches, not confirmed FBI queries.
+
+Kitts, Larsen and Von Arx
+   RubyGems investigation
+   https://www.rubyhack.ai/
+   LW-03. Corrected the row: 2,000+ packages not hundreds, and the
+   attribution to the Nightingale Collective was wrong.
+
+Forman, Kharlov, Tom, Ladish, Kitts, Byrd, McKenzie, Piecha
+   Swarm traces
+   https://swarmtraces.org
+   Added to LW-02 as a dataset source, better vetted than the DeGraff page.
+
+
+=============================================================================
+INCIDENT SOURCES - other
+=============================================================================
+
+Anthropic
+   Detecting and countering malicious uses of Claude, March 2025
+   https://www.anthropic.com/news/detecting-and-countering-malicious-uses-of-claude-march-2025
+   AIR-2025-0027, influence-as-a-service.
+
+AppOmni
+   AI agent-to-agent discovery prompt injection
+   https://appomni.com/ao-labs/ai-agent-to-agent-discovery-prompt-injection/
+   Verified AIR-2025-0177, ServiceNow Now Assist.
+
+The Hacker News
+   ServiceNow AI agents can be tricked into acting against each other
+   https://thehackernews.com/2025/11/servicenow-ai-agents-can-be-tricked.html
+   Corroborated AIR-2025-0177.
+
+CSO Online
+   AI agents wage near-autonomous cyberattack on Asian government networks
+   https://csoonline.com/article/4209210/ai-agents-wage-near-autonomous-cyberattack-on-asian-government-networks.html
+   Added to AIR-2026-0194.
+
+AI Incident Database (Responsible AI Collaborative)
+   https://incidentdatabase.ai/
+   Corroborated AIR-2026-0194 (cite/1646), AIR-2025-0027 (reports 5142,
+   5148), and AIR-2024-0043 (cite/906). Corrected AIR-2026-0194's date from
+   the reporting date to the event date.
+
+OECD
+   AI Incidents Monitor
+   https://oecd.ai/en/incidents
+   Corroborated AIR-2026-0101 (record 2026-05-04-4a73).
+
+Resecurity, via Infosecurity Magazine
+   Over 10m conversations exposed in AI call center hack
+   https://www.infosecurity-magazine.com/news/10m-exposed-ai-call-center-hack/
+   AIR-2024-0043. Identified the undisclosed platform, then the row was
+   removed for failing the inclusion test.
+
+
+=============================================================================
+INCIDENT SOURCES - synthetic and open-world environments
+=============================================================================
+
+AI Village (AI Digest)
+   Season 2 recap: the story of the world's first AI-organized event
+   https://aivillageblog.substack.com/p/season-2-recap-ai-organizes-event
+   AIV-01.
+
+AI Village
+   What did we learn from the AI Village in 2025?
+   https://aivillageblog.substack.com/p/what-we-learned-2025
+   AIV-02, AIV-03.
+
+AI Village
+   Can agents fool each other?
+   https://aivillageblog.substack.com/p/can-agents-fool-each-other
+   AIV-05.
+
+AI Village
+   AIs finetune their own leader: a barking simpleton
+   https://aivillageblog.substack.com/p/ais-finetune-their-own-leader-a-barking
+   AIV-06.
+
+AI Village
+   Persuasion in the AI Village: DeepSeek-V3.2 & Gemini 2.5 Pro
+   https://aivillageblog.substack.com/p/persuasion-in-the-ai-village-deepseek
+   AIV-07, and corroboration for AIV-02. Also showed that AIV-07's claim
+   "Sonnet 4.6 refused to help" is unsupported.
+
+AI Village
+   AI Village reacts to HuggingFace incident
+   https://aivillageblog.substack.com/p/ai-village-reacts-to-huggingface
+   AIV-04.
+
+AI Digest
+   Post on X
+   https://x.com/aidigest_/status/2013673155198439507
+   AIV-04.  NOT FETCHABLE - recorded as such.
+
+LessWrong
+   Claude plays whatever it wants
+   https://www.lesswrong.com/posts/89qhQH8eHsrZxveHp/claude-plays-whatever-it-wants
+   AIV-03.
+
+LessWrong
+   36,000 AI agents are now speedrunning civilization
+   https://www.lesswrong.com/posts/jDeggMA22t3jGbTw6/36-000-ai-agents-are-now-speedrunning-civilization
+   LW-05, Moltbook.
+
+LessWrong
+   Moltbook data repository
+   https://www.lesswrong.com/posts/WyrxmTwYbrwsT72sD/moltbook-data-repository
+   LW-05 dataset.
+
+Antimemetics Institute
+   Site, including the Gemini 2.5 Pro AI Village case study
+   https://antimemetics.institute/
+   Independent corroboration for AIV-02 and AIV-07, which raised their E4.
+
+
+=============================================================================
+CASE-STUDY LITERATURE CITED BY HAMMOND ET AL.
+=============================================================================
+
+Recorded in data/case_studies.csv as each case study's source. Not fetched
+directly - the case studies are taken as the paper reports them.
+
+   Report authors, Appendix B.1 / B.2 / B.3    CS1, CS7, CS13
+   Piatti et al. (2024), GovSim                CS2
+   Rivera et al. (2024)                        CS3
+   Assad et al. (2020)                         CS4
+   Motwani et al. (2024)                       CS5
+   Shearer et al. (2023); Wang & Wellman (2020)  CS6
+   Gu et al. (2024); Ju et al. (2024); Lee & Tiwari (2024)   CS8
+   Vallinder & Hughes (2024)                   CS9
+   Kirilenko et al. (2017); SEC/CFTC (2010)    CS10
+   Hoffman (2009); Talbot (2005)               CS11
+   Jones et al. (2024)                         CS12
+
+
+=============================================================================
+SCREENED, PRODUCED NOTHING
+=============================================================================
+
+   https://www.mindscapes.world/        simulated worlds for machine minds;
+                                        not an incident tracker
+   https://swarmcha.se/posts/chinese-agent-fleet-full-report
+                                        Tencent agent fleet; the authors found
+                                        no real-time coordination, so it is
+                                        borderline on the inclusion test

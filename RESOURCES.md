@@ -2,9 +2,11 @@
 
 Curated sources for multi-agent risk evidence. Each entry has a one-line note on what it gives us and any access caveat.
 
+This file is the **lead list**: what is worth reading, and what stands in the way of reading it. It is forward-looking, and it lists sources that back nothing yet. The **audit trail** lives in `docs/sources.txt`: which source backs which row ID, what a source corrected during a verification pass, and what was screened and rejected. A source may appear in both files, but each note belongs to exactly one of them — keep access caveats and candidate leads here, keep row provenance there.
+
 ## Foundation
 - [Hammond et al. 2025, Multi-Agent Risks from Advanced AI](https://arxiv.org/abs/2502.14143): the taxonomy (3 failure modes, 7 risk factors) and 13 case studies.
-- [Cooperative AI Foundation](https://www.cooperativeai.com): the report's authors. Includes the [multi-agent governance memo](https://www.cooperativeai.com/post/new-memo-establishing-foundational-principles-and-thresholds-for-multi-agent-ai-governance).
+- [Cooperative AI Foundation](https://www.cooperativeai.com): the report's authors. Includes the [multi-agent governance memo](https://www.cooperativeai.com/post/new-memo-establishing-foundational-principles-and-thresholds-for-multi-agent-ai-governance) and [Lessons from Recent Multi-Agent Safety Incidents](https://www.cooperativeai.com/post/lessons-from-multi-agent-safety-incidents).
 - [International AI Safety Report 2026](https://arxiv.org/pdf/2602.21012): vetted synthesis with references.
 
 ## Incident databases
@@ -34,6 +36,10 @@ Curated sources for multi-agent risk evidence. Each entry has a one-line note on
 - [AI swarms are starting to pose indirect takeover risk](https://www.alignmentforum.org/posts/8oFYZdXkTaNGRtcn8/ai-swarms-are-starting-to-pose-indirect-takeover-risk)
 - [AI Village reacts to the Hugging Face incident](https://www.lesswrong.com/posts/cR3P3hvtZtpo7GdS8/ai-village-reacts-to-huggingface-incident-comparing-the)
 - [Secret Collusion](https://www.alignmentforum.org/posts/smMdYezaC8vuiLjCf/secret-collusion-will-we-know-when-to-unplug-ai) and [Detecting collusion through multi-agent interpretability](https://www.lesswrong.com/posts/Q65SETuTmhF4LWdix/detecting-collusion-through-multi-agent-interpretability-3)
+
+## Candidate additions (screened in, not yet recorded)
+- [CAIF, Lessons from Recent Multi-Agent Safety Incidents](https://www.cooperativeai.com/post/lessons-from-multi-agent-safety-incidents): GTG-1002, UK AISI Mythos 5, Vending Bench Arena.
+- [Antimemetics Multi-Agent Databank](https://databank.antimemetics.institute): GovSim replication, algorithmic collusion in an LLM duopoly, Prompt Infection.
 
 ## Meta
 - [The Agent Incident Registry paper](https://arxiv.org/pdf/2609.11030): compares incident databases.
