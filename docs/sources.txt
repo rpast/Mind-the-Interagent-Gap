@@ -23,8 +23,10 @@ Hammond et al. (2025)
 Cooperative AI Foundation
    Lessons from Recent Multi-Agent Safety Incidents
    https://www.cooperativeai.com/post/lessons-from-multi-agent-safety-incidents
-   Resolved OPEN.md items 13 and 22. The candidate additions it surfaced
-   are listed in RESOURCES.md.
+   Partially resolved OPEN.md item 13: it treats GTG-1002 and UK AISI
+   Mythos 5 as multi-agent candidates, but neither is screened or added.
+   Also the new CAIF output that item 22 watches for. The candidate
+   additions it surfaced are listed in RESOURCES.md.
 
 
 =============================================================================

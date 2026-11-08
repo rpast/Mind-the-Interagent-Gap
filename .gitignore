@@ -12,6 +12,7 @@ env/
 .idea/
 .vscode/
 .~lock.*#
+.ipynb_checkpoints/
 
 # Local agent config
 .claude/settings.local.json
@@ -20,3 +21,7 @@ env/
 # Third-party source documents: licence-gated, see resources/README.md
 resources/*.pdf
 !resources/README.md
+
+# AIID fetches: the JSONL is the archive and is tracked; the CSV is a
+# convenience view that fetch_aiid.py regenerates from the same call.
+resources/aiid/*.csv

@@ -12,7 +12,8 @@ This file is the **lead list**: what is worth reading, and what stands in the wa
 ## Incident databases
 - [Agent Incident Registry, Enkrypt AI](https://air.enkryptai.com/): agent incidents from 2022 onward, one record per incident ([paper](https://arxiv.org/pdf/2609.11030), [about](https://air.enkryptai.com/about/)). Has a `multi_agent_system` attack surface, but tagging is incomplete: the Hugging Face swarm is missing from that view. JS-rendered, so it needs a browser or a paste. Contact Enkrypt before reusing the data.
 - [AI Agent Incident Register, companyscope](https://companyscope.io/register/methodology): agent incidents with legal analysis and OWASP agentic mapping. JSON feed at `companyscope.io/api/register`, licensed CC BY 4.0. Its IDs also use `AIR-`, so give its rows a different prefix.
-- [AI Incident Database](https://incidentdatabase.ai/): no multi-agent tag, and its MIT taxonomy mapping stops at subdomain 7.5. Keyword search and [entity pages](https://incidentdatabase.ai/entities/ai-agent-system-users/) still help.
+- [AI Incident Database](https://incidentdatabase.ai/): no multi-agent tag. Its GraphQL API at `/api/graphql` serves the MIT labels as `classifications` in the `MIT` namespace; fetch with `build/fetch_aiid.py`. The subdomain values stop at 7.4, so 7.6 "Multi-agent risks" is not in the AIID copy (`OPEN.md` item 23). Keyword search and [entity pages](https://incidentdatabase.ai/entities/ai-agent-system-users/) still help.
+- [MIT AI Risk Navigator](https://airisk.mit.edu/navigator): the incident browser, with a `behaviour` facet the AIID copy lacks — `#/incidents/browse?behaviour=Multi-agent` returns 28 incidents. A JS app in a cross-origin iframe (`risk-navigator-five.vercel.app`) that frame-busts, so it needs a real browser, not a fetch. Labelled a research prototype, "preliminary and not yet validated"; the site asks that its visualizations not be redistributed. AIRI data is CC BY 4.0.
 - [MIT AI Risk Repository](https://airisk.mit.edu/): includes a multi-agent risk subdomain.
 - [OECD AI Incidents Monitor](https://oecd.ai/en/incidents) and [AIAAIC Repository](https://www.aiaaic.org/): broad news-based coverage, keyword search only.
 
@@ -23,8 +24,8 @@ This file is the **lead list**: what is worth reading, and what stands in the wa
 
 ## Primary incident reports
 - OpenAI [Hugging Face incident technical report](https://cdn.openai.com/pdf/67869394-cb91-4c12-888c-5cbd85c7814c/OpenAI-Hugging-Face%20Incident-Technical-Report.pdf), [Hugging Face disclosure](https://huggingface.co/blog/security-incident-july-2026), [METR / Redwood investigation](https://metr.org/blog/2026-08-26-openai-hugging-face-incident-investigation/).
-- [Anthropic: incidents in cybersecurity evals](https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals). Probably single-agent; check.
-- [UK AISI: unsanctioned agent behaviour during cyber testing](https://www.aisi.gov.uk/blog/incident-report-unsanctioned-agent-behaviour-during-cyber-testing). Probably single-agent; check.
+- [Anthropic: incidents in cybersecurity evals](https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals). The CAIF lessons report treats GTG-1002 as a multi-agent candidate; not yet screened (`OPEN.md` item 13).
+- [UK AISI: unsanctioned agent behaviour during cyber testing](https://www.aisi.gov.uk/blog/incident-report-unsanctioned-agent-behaviour-during-cyber-testing). The CAIF lessons report treats Mythos 5 as a multi-agent candidate; not yet screened (`OPEN.md` item 13).
 - [METR testimony, Sep 2026](https://metr.org/blog/2026-09-30-chris-painter-senate-testimony/).
 
 ## Synthetic and open-world agent environments

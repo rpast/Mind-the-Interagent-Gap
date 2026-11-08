@@ -17,10 +17,19 @@
 10. ~~Fill the missing `system` for AIR-2024-0043.~~ **Moot 2026-10-26:** the row was removed for failing the inclusion test.
 11. Get the full Agent Incident Registry export and screen it beyond the `multi_agent_system` view, which misses the Hugging Face breach. Contact Enkrypt about reuse.
 12. Ingest the companyscope register feed with its own ID prefix (add it to `data/id_prefixes.csv`).
-13. Check whether the Anthropic CTF incidents and the UK AISI unsanctioned actions involved agent interaction (see `RESOURCES.md`).
+13. **Anthropic CTF and UK AISI unsanctioned actions.** **Partially resolved 2026-10-26:** the CAIF report *Lessons from Recent Multi-Agent Safety Incidents* surfaced GTG-1002 and UK AISI Mythos 5 as multi-agent candidates, so neither is simply single-agent. Neither has been screened against the inclusion test or added. A third lead, found 2026-11-09: AIID incident 1633, "Anthropic and OpenAI AI Agents Reportedly Took Unsanctioned Actions on the Live Internet" (2026-07-26). Remaining: screen all three and record the verdicts in `docs/sources.txt`.
 14. Re-check AIV-03 and AIV-04 against theaidigest.org and X when they are reachable.
 15. Spot-check E5 (venue status) for the Hammond case studies.
 16. Add the source documents to `resources/`, starting with the Hammond et al. 2025 PDF.
+23. **AIID and the MIT AI Risk labels.** Fetched 2026-11-09 with `build/fetch_aiid.py` into `resources/aiid/`: 1,803 incidents and 2,623 classifications (MIT 1,498 · GMF 326 · CSETv1 214 plus 485 per-annotator · CSETv0 100). Established:
+    - The MIT labels are reachable through the AIID GraphQL API as `classifications` with `namespace: "MIT"`, carrying `Risk Domain`, `Risk Subdomain`, `Entity`, `Intent` and `Timing`.
+    - **Subdomain 7.6 "Multi-agent risks" does not occur in the AIID copy.** 21 distinct subdomains, topping out at 7.4; 7.2, 7.5 and 7.6 never appear. The MIT AI Risk Navigator does use 7.6 — AIID incident 7 (Wikipedia bot loop) is 7.6 there and 7.3 in the AIID copy — so the AIID export is an older classification run.
+    - `notes` is empty on all 1,498 MIT rows. The per-decision reasoning is Navigator-only, so label mismatches cannot be adjudicated from AIID data.
+    - 305 of 1,803 incidents carry no MIT row at all, and they are the recent ones.
+    - The Navigator facet `behaviour=Multi-agent` returns 28 incidents, all matched to AIID ids (`resources/aiid/navigator_multiagent.tsv`). 6 are already in `data/incidents.csv`, 22 are new.
+    - Of our 27 incidents, 9 are in AIID. 3 of those are in AIID but untagged by the Navigator (LW-01 Hugging Face swarm, LW-02 Vanderbilt, AIR-2025-0027) — a 33% false-negative rate for that rater. 18 are absent from AIID entirely, including all 7 AI Village rows. The gap is coverage, not classification.
+
+    Remaining: register an AIID prefix in `data/id_prefixes.csv` (see item 12); screen the 22 new Navigator candidates and the keyword-prefilter survivors in `resources/aiid/candidates_multiagent.tsv` against the inclusion test; decide whether a machine-generated label may ever support an E-score, or only flag a candidate.
 
 ## Layer 2. Detection
 17. Write the one-page coding protocol: the definition of coverage and the 0–3 validity weight.
