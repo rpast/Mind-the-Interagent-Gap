@@ -1,6 +1,6 @@
 # External validation of the incident inventory — 2026-10-26
 
-Scope: the 28 rows of `data/incidents.csv` checked against primary and independent sources.
+Scope: the rows of `data/incidents.csv` (written as 28 at the time; the file holds 27) checked against primary and independent sources.
 Trackers screened: swarmtraces.org, collusion.wiki (via secondary coverage), antimemetics.institute
 and its Multi-Agent Databank, swarmcha.se, mindscapes.world, LessWrong, EA Forum, Cooperative AI
 Foundation, METR, OECD AI Incidents Monitor, AI Incident Database (AIID), vendor and lab disclosures.

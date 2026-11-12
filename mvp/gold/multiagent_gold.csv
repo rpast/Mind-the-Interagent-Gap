@@ -1,0 +1,34 @@
+source_id,source_record_id,expected_multi_agent,expected_failure_mode,expected_instances,basis,dossier,notes
+aiid,47,to_judge,,,aiid_csetv1_maybe,,LinkedIn Search Prefers Male Names - CSETv1 says multiple AI interaction; not yet judged against our gates.
+aiid,125,to_judge,,,aiid_csetv1_yes,,Amazon’s Robotic Fulfillment Centers Have Higher Serious Injury Rates - CSETv1 says multiple AI interaction; not yet judged against our gates.
+aiid,19,to_judge,,,aiid_csetv1_yes,,Sexist and Racist Google Adsense Advertisements - CSETv1 says multiple AI interaction; not yet judged against our gates.
+aiid,25,to_judge,,,aiid_csetv1_yes,,Google and Delphi Self-Driving Prototypes Allegedly Involved in Near-M - CSETv1 says multiple AI interaction; not yet judged against our gates.
+aiid,44,to_judge,,,aiid_csetv1_yes,,Machine Personal Assistants Failed to Maintain Social Norms - CSETv1 says multiple AI interaction; not yet judged against our gates.
+aiid,7,to_judge,,,aiid_csetv1_yes,,Wikipedia Vandalism Prevention Bot Loop - CSETv1 says multiple AI interaction; not yet judged against our gates.
+air_enkrypt,AIR-2025-0019,true,,I26;I28,poc_inventory,MIG-0002,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2025-0027,true,,I30,poc_inventory,MIG-0003,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2025-0068,true,,I13;I32,poc_inventory,MIG-0005,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2025-0070,true,,I31,poc_inventory,MIG-0006,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2025-0136,true,,I31,poc_inventory,MIG-0008,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2025-0149,true,,I11;I31,poc_inventory,MIG-0009,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2025-0177,true,,I31,poc_inventory,MIG-0010,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2026-0029,true,,I31,poc_inventory,MIG-0013,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2026-0101,true,,I31,poc_inventory,MIG-0015,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2026-0180,true,,I31,poc_inventory,MIG-0023,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2026-0183,true,FM3,I35;I26;I28,poc_inventory,MIG-0024,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2026-0189,true,,I13;I28,poc_inventory,MIG-0025,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2026-0193,true,,I12;I32,poc_inventory,MIG-0026,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2026-0194,true,,I28,poc_inventory,MIG-0019,"Human verdict inherited from the PoC, which applied the same inclusion test."
+air_enkrypt,AIR-2026-0219,true,FM3,I35;I26;I28,poc_inventory,MIG-0016,"Human verdict inherited from the PoC, which applied the same inclusion test."
+aivillage,AIV-01,true,FM1,I34;I12,poc_inventory,MIG-0004,"Human verdict inherited from the PoC, which applied the same inclusion test."
+aivillage,AIV-02,true,FM1,I34,poc_inventory,MIG-0001,"Human verdict inherited from the PoC, which applied the same inclusion test."
+aivillage,AIV-03,true,,I36,poc_inventory,MIG-0007,"Human verdict inherited from the PoC, which applied the same inclusion test."
+aivillage,AIV-04,true,FM1,I01,poc_inventory,MIG-0011,"Human verdict inherited from the PoC, which applied the same inclusion test."
+aivillage,AIV-05,true,,I11;I25,poc_inventory,MIG-0014,"Human verdict inherited from the PoC, which applied the same inclusion test."
+aivillage,AIV-06,true,FM1,I01;I09;I23,poc_inventory,MIG-0021,"Human verdict inherited from the PoC, which applied the same inclusion test."
+aivillage,AIV-07,true,FM1,I34;I11;I12,poc_inventory,MIG-0027,"Human verdict inherited from the PoC, which applied the same inclusion test."
+lesswrong,LW-01,true,FM3,I35;I14;I26;I28,poc_inventory,MIG-0020,"Human verdict inherited from the PoC, which applied the same inclusion test."
+lesswrong,LW-02,true,FM3,I35;I28,poc_inventory,MIG-0018,"Human verdict inherited from the PoC, which applied the same inclusion test."
+lesswrong,LW-03,true,,,poc_inventory,MIG-0017,"Human verdict inherited from the PoC, which applied the same inclusion test."
+lesswrong,LW-04,true,,,poc_inventory,MIG-0022,"Human verdict inherited from the PoC, which applied the same inclusion test."
+lesswrong,LW-05,true,,I13;I27,poc_inventory,MIG-0012,"Human verdict inherited from the PoC, which applied the same inclusion test."

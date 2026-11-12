@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Input Layer Workflow</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb; --plane: #f9f9f7;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --hairline: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --seq-250: #86b6ef; --seq-450: #2a78d6; --seq-650: #104281;
+  --wash: rgba(137,135,129,0.14); --ours: #eb6834;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --plane: #0d0d0d;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --hairline: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --seq-250: #184f95; --seq-450: #3987e5; --seq-650: #9ec5f4;
+    --wash: rgba(137,135,129,0.20); --ours: #d95926;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-1: #1a1a19; --plane: #0d0d0d;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --hairline: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --seq-250: #184f95; --seq-450: #3987e5; --seq-650: #9ec5f4;
+  --wash: rgba(137,135,129,0.20); --ours: #d95926;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--plane); color: var(--ink);
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, sans-serif;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 16px 64px; }
+header { margin-bottom: 20px; }
+h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--ink-2); font-size: 13px; margin: 0; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.card {
+  background: var(--surface-1); border: 1px solid var(--grid);
+  border-radius: 8px; padding: 16px; margin-bottom: 16px;
+}
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.lab { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-right: 2px; }
+button {
+  font: inherit; font-size: 12.5px; color: var(--ink); cursor: pointer;
+  background: var(--surface-1); border: 1px solid var(--axis);
+  border-radius: 999px; padding: 4px 11px;
+}
+button:hover { border-color: var(--seq-450); }
+button[aria-pressed="true"] { background: var(--seq-450); border-color: var(--seq-450); color: #fff; }
+select {
+  font: inherit; font-size: 12.5px; color: var(--ink); background: var(--surface-1);
+  border: 1px solid var(--axis); border-radius: 6px; padding: 4px 8px;
+}
+#flow { width: 100%; height: auto; display: block; }
+.stage-box { cursor: pointer; }
+.stage-box:focus { outline: 2px solid var(--seq-450); outline-offset: 2px; }
+.panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 820px) { .panel { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+td a { color: var(--seq-450); }
+.scroll { max-height: 420px; overflow: auto; }
+.chip {
+  display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 999px;
+  background: var(--wash); color: var(--ink-2); margin-right: 3px; white-space: nowrap;
+}
+.chip.ours { background: var(--ours); color: #fff; }
+.empty { color: var(--muted); font-style: italic; padding: 12px 0; }
+h2 { font-size: 14px; margin: 0 0 10px; }
+.note { font-size: 12px; color: var(--ink-2); margin: 10px 0 0; }
+.provbar { display: flex; height: 22px; border-radius: 4px; overflow: hidden; border: 1px solid var(--grid); }
+.provbar div { display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Input layer workflow</h1>
+  <p class="sub">Where incidents come from, what screens them, and what is still waiting on a human.
+     Counts are live from <span class="mono">mvp/state/pipeline.json</span>.</p>
+</header>
+
+<div class="card">
+  <div class="bar">
+    <span class="lab">Mode</span>
+    <span id="modes"></span>
+    <span style="flex:1"></span>
+    <button id="theme" aria-pressed="false" title="Toggle dark mode">Dark</button>
+  </div>
+  <svg id="flow" role="img" aria-label="Pipeline stages"></svg>
+  <p class="note" id="modenote"></p>
+</div>
+
+<div class="card">
+  <h2>Label provenance across the <span id="dcount"></span> dossiers</h2>
+  <div class="provbar" id="provbar"></div>
+  <div class="legend" id="provlegend"></div>
+  <p class="note">An external or machine label may mark a candidate. Only a human verdict
+     puts an incident in scope, so every in-scope dossier is <span class="mono">ours</span>.</p>
+</div>
+
+<div class="card">
+  <div class="bar">
+    <span class="lab">Filter</span>
+    <select id="fsource"><option value="">All sources</option></select>
+    <select id="fprov"><option value="">All provenance</option></select>
+    <span id="fcount" class="sub"></span>
+  </div>
+  <div class="panel">
+    <div>
+      <h2 id="ptitle">Dossiers</h2>
+      <div class="scroll" id="plist"></div>
+    </div>
+    <div>
+      <h2>Sources</h2>
+      <div class="scroll" id="reglist"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const D = __DATA__;
+
+const svgNS = "http://www.w3.org/2000/svg";
+function sv(tag, attrs, text) {
+  const el = document.createElementNS(svgNS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+let mode = "aiid-full";
+let selected = "dossiers";
+
+/* ---------------------------------------------------------------- flow */
+
+const BOX_W = 118, BOX_H = 62, GAP = 22, PAD = 10;
+
+function drawFlow() {
+  const svg = document.getElementById("flow");
+  svg.textContent = "";
+  const stages = D.stages;
+  const width = stages.length * BOX_W + (stages.length - 1) * GAP + PAD * 2;
+  const height = BOX_H + 54;
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+  const active = new Set(D.modes[mode] || []);
+  // the diagram shows the routine; 'queue' is a hand-off, not a box
+  const runs = id => active.has(id) || (id === "review" && active.has("queue"))
+                  || (id === "classify" && active.has("queue"))
+                  || (id === "sources" && active.has("fetch"))
+                  || (id === "dossiers" && active.has("index"));
+
+  stages.forEach((s, i) => {
+    const x = PAD + i * (BOX_W + GAP), y = 26;
+    const on = runs(s.id);
+    const sel = s.id === selected;
+
+    if (i < stages.length - 1) {
+      const ax = x + BOX_W, ay = y + BOX_H / 2;
+      svg.appendChild(sv("path", {
+        d: `M${ax} ${ay} H${ax + GAP - 6}`,
+        stroke: on ? "var(--seq-450)" : "var(--axis)",
+        "stroke-width": on ? 1.6 : 1,
+        "stroke-dasharray": on ? "" : "3 3", fill: "none"
+      }));
+      svg.appendChild(sv("path", {
+        d: `M${ax + GAP - 6} ${ay} l-5 -3.2 v6.4 z`,
+        fill: on ? "var(--seq-450)" : "var(--axis)"
+      }));
+    }
+
+    const g = sv("g", { class: "stage-box", tabindex: "0", role: "button",
+                        "aria-label": `${s.label}, ${s.count}` });
+    g.appendChild(sv("rect", {
+      x, y, width: BOX_W, height: BOX_H, rx: 7,
+      fill: sel ? "var(--seq-450)" : "var(--surface-1)",
+      stroke: on ? "var(--seq-450)" : "var(--axis)",
+      "stroke-width": sel ? 2 : 1,
+      "stroke-dasharray": on ? "" : "3 3",
+      opacity: on ? 1 : 0.55
+    }));
+    g.appendChild(sv("text", {
+      x: x + BOX_W / 2, y: y + 23, "text-anchor": "middle",
+      "font-size": "11.5", "font-weight": "600",
+      fill: sel ? "#fff" : (on ? "var(--ink)" : "var(--muted)")
+    }, s.label));
+    g.appendChild(sv("text", {
+      x: x + BOX_W / 2, y: y + 46, "text-anchor": "middle",
+      "font-size": "17", "font-family": "ui-monospace, Menlo, monospace",
+      fill: sel ? "#fff" : (on ? "var(--seq-450)" : "var(--muted)")
+    }, String(s.count)));
+    const pick = () => { selected = s.id; drawFlow(); renderPanel(); };
+    g.addEventListener("click", pick);
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+    svg.appendChild(g);
+  });
+
+  document.getElementById("modenote").textContent =
+    `Mode ${mode} runs: ${(D.modes[mode] || []).join(" → ")}. `
+    + "Dashed stages are skipped in this mode.";
+}
+
+/* -------------------------------------------------------------- panels */
+
+function provOf(row) {
+  const s = row.multi_agent_label_source || "";
+  if (!s) return "unlabelled";
+  if (s === "ours") return "ours";
+  if (s.startsWith("classifier:")) return "machine";
+  return "external";
+}
+
+function filtered() {
+  const fs = document.getElementById("fsource").value;
+  const fp = document.getElementById("fprov").value;
+  return D.incidents.filter(r =>
+    (!fs || (r.sources || "").split(";").includes(fs)) &&
+    (!fp || provOf(r) === fp));
+}
+
+function table(cols, rows, render) {
+  const t = el("table");
+  const hr = el("tr");
+  cols.forEach(c => hr.appendChild(el("th", null, c)));
+  t.appendChild(hr);
+  rows.forEach(r => t.appendChild(render(r)));
+  return t;
+}
+
+function renderPanel() {
+  const host = document.getElementById("plist");
+  const title = document.getElementById("ptitle");
+  host.textContent = "";
+  const stage = D.stages.find(s => s.id === selected) || {};
+
+  if (selected === "dossiers" || selected === "index") {
+    const rows = filtered();
+    title.textContent = `Dossiers (${rows.length})`;
+    document.getElementById("fcount").textContent =
+      `${rows.length} of ${D.incidents.length} dossiers`;
+    if (!rows.length) { host.appendChild(el("p", "empty", "Nothing matches.")); return; }
+    host.appendChild(table(["id", "date", "title", "label"], rows, r => {
+      const tr = el("tr");
+      tr.appendChild(el("td", "mono", r.id));
+      tr.appendChild(el("td", "mono", r.occurrence_date));
+      const td = el("td");
+      td.appendChild(document.createTextNode(r.title));
+      if (r.failure_mode) { const c = el("span", "chip", r.failure_mode); td.appendChild(c); }
+      tr.appendChild(td);
+      const pv = el("td");
+      pv.appendChild(el("span", "chip " + (provOf(r) === "ours" ? "ours" : ""), provOf(r)));
+      tr.appendChild(pv);
+      return tr;
+    }));
+    return;
+  }
+
+  if (selected === "prefilter" || selected === "review" || selected === "classify") {
+    const fs = document.getElementById("fsource").value;
+    const rows = (D.queue || []).filter(r => !fs || r.source_id === fs);
+    title.textContent = `Candidate queue (${rows.length})`;
+    document.getElementById("fcount").textContent = `${rows.length} candidates`;
+    if (!rows.length) { host.appendChild(el("p", "empty", "Queue is empty.")); return; }
+    host.appendChild(table(["record", "date", "title", "why"], rows.slice(0, 400), r => {
+      const tr = el("tr");
+      const idc = el("td", "mono");
+      if (r.url) { const a = el("a"); a.href = r.url; a.textContent = r.source_record_id; a.target = "_blank"; a.rel = "noreferrer"; idc.appendChild(a); }
+      else idc.textContent = r.source_record_id;
+      tr.appendChild(idc);
+      tr.appendChild(el("td", "mono", r.date));
+      tr.appendChild(el("td", null, r.title));
+      const why = el("td");
+      (r.arms || "").split(";").filter(Boolean).forEach(a =>
+        why.appendChild(el("span", "chip", a)));
+      if (r.label_values) why.appendChild(el("div", "mono", r.label_values));
+      tr.appendChild(why);
+      return tr;
+    }));
+    if (rows.length > 400) host.appendChild(el("p", "note", `Showing the first 400 of ${rows.length}.`));
+    return;
+  }
+
+  title.textContent = stage.label || "Stage";
+  document.getElementById("fcount").textContent = "";
+  const detail = stage.detail || {};
+  const keys = Object.keys(detail);
+  if (!keys.length) { host.appendChild(el("p", "empty", "No breakdown for this stage.")); return; }
+  host.appendChild(table(["key", "count"], keys.sort(), k => {
+    const tr = el("tr");
+    tr.appendChild(el("td", "mono", k));
+    tr.appendChild(el("td", "mono", String(detail[k])));
+    return tr;
+  }));
+}
+
+function renderRegistry() {
+  const host = document.getElementById("reglist");
+  host.textContent = "";
+  const fs = document.getElementById("fsource").value;
+  const rows = (D.registry || []).filter(r => !fs || r.source_id === fs);
+  host.appendChild(table(["source", "role", "access", "status"], rows, r => {
+    const tr = el("tr");
+    const c = el("td");
+    c.appendChild(el("div", "mono", r.source_id));
+    c.appendChild(el("div", "sub", r.name));
+    tr.appendChild(c);
+    tr.appendChild(el("td", null, r.role));
+    const a = el("td");
+    a.appendChild(el("span", "chip", r.access_method));
+    if (r.external_ma_label !== "no") a.appendChild(el("span", "chip", "ma:" + r.external_ma_label));
+    tr.appendChild(a);
+    tr.appendChild(el("td", null, r.status));
+    return tr;
+  }));
+}
+
+function renderProvenance() {
+  const p = D.provenance || {};
+  const order = ["ours", "external", "machine", "unlabelled"];
+  const colour = { ours: "var(--ours)", external: "var(--seq-450)",
+                   machine: "var(--s3)", unlabelled: "var(--muted)" };
+  const total = order.reduce((a, k) => a + (p[k] || 0), 0) || 1;
+  const bar = document.getElementById("provbar");
+  const leg = document.getElementById("provlegend");
+  bar.textContent = ""; leg.textContent = "";
+  order.forEach(k => {
+    const n = p[k] || 0;
+    if (n) {
+      const d = el("div", null, n > total * 0.08 ? String(n) : "");
+      d.style.width = (100 * n / total) + "%";
+      d.style.background = colour[k];
+      d.title = `${k}: ${n}`;
+      bar.appendChild(d);
+    }
+    const li = el("span", null, "");
+    const sw = el("span", "swatch"); sw.style.background = colour[k];
+    li.appendChild(sw);
+    li.appendChild(document.createTextNode(`${k} ${n}`));
+    leg.appendChild(li);
+  });
+  document.getElementById("dcount").textContent = String(D.incidents.length);
+}
+
+/* ---------------------------------------------------------------- init */
+
+function init() {
+  const mh = document.getElementById("modes");
+  Object.keys(D.modes).forEach(m => {
+    const b = el("button", null, m);
+    b.setAttribute("aria-pressed", String(m === mode));
+    b.addEventListener("click", () => {
+      mode = m;
+      [...mh.children].forEach(c => c.setAttribute("aria-pressed", String(c.textContent === m)));
+      drawFlow();
+    });
+    mh.appendChild(b);
+  });
+
+  const fs = document.getElementById("fsource");
+  (D.sources || []).forEach(s => {
+    const o = el("option", null, s); o.value = s; fs.appendChild(o);
+  });
+  const fp = document.getElementById("fprov");
+  ["ours", "external", "machine", "unlabelled"].forEach(s => {
+    const o = el("option", null, s); o.value = s; fp.appendChild(o);
+  });
+  fs.addEventListener("change", () => { renderPanel(); renderRegistry(); });
+  fp.addEventListener("change", renderPanel);
+
+  const tb = document.getElementById("theme");
+  tb.addEventListener("click", () => {
+    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+    tb.setAttribute("aria-pressed", String(!dark));
+    tb.textContent = dark ? "Dark" : "Light";
+  });
+
+  drawFlow();
+  renderProvenance();
+  renderPanel();
+  renderRegistry();
+}
+
+init();
+</script>
+</body>
+</html>

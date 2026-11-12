@@ -1,0 +1,28 @@
+id,title,occurrence_date,date_precision,canonical_source,sources,source_count,evidence_type,multi_agent,multi_agent_label_source,external_label_count,failure_mode,instances,verification,legacy_id,first_seen,last_verified,path
+MIG-0001,False 'broken UI' belief spreads,2025-04,month,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I34,verified,AIV-02,2026-10-26,2026-10-26,mvp/incidents/MIG-0001.md
+MIG-0002,Xanthorox AI,2025-04-07,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,,I26;I28,unverified,AIR-2025-0019,2026-10-25,2026-10-25,mvp/incidents/MIG-0002.md
+MIG-0003,Influence-as-a-service,2025-04-23,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,,I30,unverified,AIR-2025-0027,2026-10-25,2026-10-25,mvp/incidents/MIG-0003.md
+MIG-0004,Hallucinated mailing list spreads between agents,2025-06,month,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I34;I12,verified,AIV-01,2026-10-26,2026-10-26,mvp/incidents/MIG-0004.md
+MIG-0005,IdentityMesh,2025-07-30,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I13;I32,unverified,AIR-2025-0068,2026-10-25,2026-10-25,mvp/incidents/MIG-0005.md
+MIG-0006,PajaMAS: hijacking multi-agent systems built on Google's Agent Development Kit,2025-07-31,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I31,unverified,AIR-2025-0070,2026-10-25,2026-10-25,mvp/incidents/MIG-0006.md
+MIG-0007,Game-choice herding,2025-08,month,aivillage,aivillage,1,synthetic,True,ours,0,,I36,partially_verified,AIV-03,2026-10-26,2026-10-26,mvp/incidents/MIG-0007.md
+MIG-0008,Cross-agent privilege escalation,2025-09-24,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I31,unverified,AIR-2025-0136,2026-10-25,2026-10-25,mvp/incidents/MIG-0008.md
+MIG-0009,OpenAI Agent Builder,2025-10-14,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I11;I31,unverified,AIR-2025-0149,2026-10-25,2026-10-25,mvp/incidents/MIG-0009.md
+MIG-0010,ServiceNow Now Assist,2025-11-19,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I31,unverified,AIR-2025-0177,2026-10-25,2026-10-25,mvp/incidents/MIG-0010.md
+MIG-0011,Sub-team goal divergence,2026-01,month,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I01,partially_verified,AIV-04,2026-10-26,2026-10-26,mvp/incidents/MIG-0011.md
+MIG-0012,Moltbook agent behaviour,2026-01-30,day,lesswrong,lesswrong,1,real_world,True,ours,0,,I13;I27,unverified,LW-05,2026-10-25,2026-10-25,mvp/incidents/MIG-0012.md
+MIG-0013,"Moltbook, the social network for AI agents, left its database open",2026-02-02,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I31,unverified,AIR-2026-0029,2026-10-25,2026-10-25,mvp/incidents/MIG-0013.md
+MIG-0014,Sabotage game,2026-03,month,aivillage,aivillage,1,synthetic,True,ours,0,,I11;I25,verified,AIV-05,2026-10-26,2026-10-26,mvp/incidents/MIG-0014.md
+MIG-0015,Morse-code prompt injection made Grok relay a transfer instruction to Bankrbot,2026-05-05,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,,I31,unverified,AIR-2026-0101,2026-10-25,2026-10-25,mvp/incidents/MIG-0015.md
+MIG-0016,"A swarm of internally deployed OpenAI agents made more than 15,000 edits to the",2026-05-11,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,FM3,I35;I26;I28,partially_verified,AIR-2026-0219,2026-10-25,2026-10-25,mvp/incidents/MIG-0016.md
+MIG-0017,RubyGems attack,2026-05-11,day,lesswrong,lesswrong,1,real_world,True,ours,0,,,partially_verified,LW-03,2026-10-25,2026-10-25,mvp/incidents/MIG-0017.md
+MIG-0018,Vanderbilt link shortener operation,2026-06-18,day,lesswrong,lesswrong,1,real_world,True,ours,0,FM3,I35;I28,partially_verified,LW-02,2026-10-25,2026-10-25,mvp/incidents/MIG-0018.md
+MIG-0019,Suspected China-linked actors used a multi-agent framework built on Hermes and,2026-07-01,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,,I28,verified,AIR-2026-0194,2026-10-25,2026-10-25,mvp/incidents/MIG-0019.md
+MIG-0020,ExploitGym swarm and Hugging Face intrusion,2026-07-07,day,lesswrong,lesswrong,1,real_world,True,ours,0,FM3,I35;I14;I26;I28,unverified,LW-01,2026-10-25,2026-10-25,mvp/incidents/MIG-0020.md
+MIG-0021,Agents finetune their own leader,2026-07-08,day,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I01;I09;I23,verified,AIV-06,2026-10-26,2026-10-26,mvp/incidents/MIG-0021.md
+MIG-0022,Monitoring disconnection at OpenAI,2026-07-24,day,lesswrong,lesswrong,1,real_world,True,ours,0,,,partially_verified,LW-04,2026-10-25,2026-10-25,mvp/incidents/MIG-0022.md
+MIG-0023,'I'll just call you',2026-08-03,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I31,unverified,AIR-2026-0180,2026-10-25,2026-10-25,mvp/incidents/MIG-0023.md
+MIG-0024,OpenAI evaluation agents turned an internal Artifactory service into a covert,2026-08-05,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,FM3,I35;I26;I28,unverified,AIR-2026-0183,2026-10-25,2026-10-25,mvp/incidents/MIG-0024.md
+MIG-0025,Pwning the Internet of Agents,2026-08-07,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I13;I28,unverified,AIR-2026-0189,2026-10-25,2026-10-25,mvp/incidents/MIG-0025.md
+MIG-0026,Agent 'mind virus',2026-08-10,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I12;I32,unverified,AIR-2026-0193,2026-10-25,2026-10-25,mvp/incidents/MIG-0026.md
+MIG-0027,DeepSeek-V3.2 persuasion campaign,2026-09-10,day,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I34;I11;I12,verified,AIV-07,2026-10-26,2026-10-26,mvp/incidents/MIG-0027.md

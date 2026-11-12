@@ -1,0 +1,5 @@
+evidence_type,display_name,criterion,excludes
+real_world,Observed in real world,"Deployed systems acting on real stakes, outside experimenter control.","Anything an experimenter set up, however realistic."
+synthetic,Synthetic evidence,"Agents interacting in a simulated or researcher-built environment: modelled markets, commons and wargames, and open-ended agent worlds.","Narrow task probes with no environment, which are lab."
+lab,Observed in lab,"Controlled experiment on real models in a narrow task probe, with no environment for the agents to act in.","Anything with a persistent environment, which is synthetic."
+theoretical,Theoretical,"Argument, formal model or non-AI analogue only. No AI system was run.","Any run of an AI system, however small."
