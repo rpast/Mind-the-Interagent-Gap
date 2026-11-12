@@ -1,23 +1,47 @@
 # Mind the Interagent Gap
 
-An evidence-graded index of multi-agent AI risks: failure modes and risk factors from Hammond et al. (2025), linked to a growing inventory of real-world, experimental and synthetic agent-to-agent incidents.
+An evidence-graded index of multi-agent AI risks: failure modes and risk factors from
+Hammond et al. (2025), linked to a growing inventory of real-world, experimental and
+synthetic agent-to-agent incidents.
 
-The project has three layers: an evidence-tiered risk ontology (coverage), an inventory of detection techniques and evals, and a mapping between them that shows which risks are covered and how validly. The ontology is in progress. See `docs/project_outline.md`.
+The project has three layers: an evidence-tiered risk ontology (coverage), an inventory of
+detection techniques and evals, and a mapping between them that shows which risks are
+covered and how validly. See `docs/project_outline.md`.
 
-## Outputs
-- `out/dashboard.html`: self-contained dashboard — the risks, how risk factors link to failure modes, how observed evidence maps onto both, grounding per risk, how evidence accumulates over time, and the methodology. Data is inlined, so it opens straight from disk with no server.
-- `out/evidence.csv`: every piece of evidence, case studies and incidents, with its instances, E1–E5 breakdown and score.
-- `out/instances.csv`: the link layer — each instance, its parent risk, provenance and the evidence routed through it.
-- `out/risk_index.csv`: one row per failure mode or risk factor, with a grounding score from 0 to 1 and associations.
-- `out/associations.csv`: failure mode–risk factor links, with the case-study link flag and grounding scores.
-- `out/multi_agent_risk_taxonomy.xlsx`: risk index, links, taxonomy, instances, evidence and sources, with live formulas. Its Evidence sheet is the one table of evidence: Hammond case studies and inventory incidents together, told apart by `evidence_class`.
+## Two trees
 
-## Build
+| | |
+|---|---|
+| **`poc/`** | The proof of concept, **frozen**. It established the ontology and scoring and still builds, but receives no new data. See `poc/README.md`. |
+| **`mvp/`** | The current build, started from zero on 2026-11-12. The input layer comes first; detection and mapping follow in the same tree until v1.0. See `mvp/README.md`. |
+
+They share no files. `resources/` (source documents), `docs/project_outline.md`,
+`docs/sources.txt`, `RESOURCES.md` and `OPEN.md` are project-level and sit at the root.
+
+## Running
+
 ```
 pip install -r requirements.txt
-python build/build_xlsx.py
+
+python poc/build/build_xlsx.py                      # rebuild the frozen PoC outputs
+python mvp/pipeline/run.py update --mode aiid-full  # fetch, screen and index incidents
 ```
-Edit `data/*.csv`, never `out/`. Put source documents in `resources/`. See `docs/methodology.md` for definitions and scoring, `RESOURCES.md` for curated links, and `OPEN.md` for open items.
+
+`poc/out/dashboard.html` opens straight from disk with no server; its data is inlined.
+
+## Where things live
+
+- `mvp/incidents/` — one Markdown dossier per incident, the curated record
+- `mvp/registry/sources.csv` — the machine-readable source registry the pipeline reads
+- `mvp/taxonomy/` — risks, the instance repository, associations, evidence types
+- `RESOURCES.md` — the human lead list: what is worth reading and what blocks reading it
+- `docs/sources.txt` — the audit trail: which source backs which row, and what was screened
+  and rejected
+- `OPEN.md` — open decisions and next tasks
 
 ## Data reuse
-Incident rows cite their sources. The Agent Incident Registry asks users to contact Enkrypt AI before reusing its dataset.
+
+Incident rows cite their sources. The Agent Incident Registry asks users to contact Enkrypt
+AI before reusing its dataset. The MIT AI Risk Navigator is a research prototype,
+"preliminary and not yet validated", and asks that its visualizations not be redistributed.
+`mvp/registry/sources.csv` records the reuse status of every source.

@@ -1,31 +1,58 @@
 # Mind the Interagent Gap
 
-Evidence-graded index of multi-agent AI risks (Hammond et al. 2025 failure modes and risk factors) and an inventory of agent-to-agent incidents.
+Evidence-graded index of multi-agent AI risks (Hammond et al. 2025 failure modes and risk
+factors) and an inventory of agent-to-agent incidents.
 
-Read `docs/project_outline.md` first: it gives the goal, the three layers (ontology, detection, mapping) and the current step.
+Read `docs/project_outline.md` first: it gives the goal and the three layers (ontology,
+detection, mapping).
+
+## Two trees — do not mix them
+
+- **`poc/` is frozen.** Reference only. It still builds, but it gets no new data and no new
+  features. Do not add incidents, columns or files to it. See `poc/README.md`.
+- **`mvp/` is the live build.** Everything new goes here. It was started from zero on
+  2026-11-12 and does not preserve the PoC's structure. See `mvp/README.md`.
+
+Project-level files stay at the root: `resources/` (source documents),
+`docs/project_outline.md`, `docs/sources.txt`, `RESOURCES.md`, `OPEN.md`.
 
 ## Layout
-- `resources/` holds the source documents (papers, reports), starting with Hammond et al. 2025. Ground classification and incident claims in these files and cite file and page.
-- `data/*.csv` is the source of truth. Edit only these.
-- `build/build_xlsx.py` validates the data and writes `out/`: one workbook, `risk_index.csv` and `associations.csv`. Never edit `out/` by hand.
-- Case studies and incidents share the workbook's Evidence sheet, told apart by `evidence_class`. Every score runs over the whole inventory.
-- Instances are the link layer: evidence attaches to an instance, each instance belongs to one risk. Never infer an FM–RF link from two tags on one row.
-- `docs/methodology.md` holds the definitions, evidence rubric and scoring rules. Read it before classifying or scoring.
-- `RESOURCES.md` lists curated sources. `OPEN.md` lists open decisions and next tasks.
+
+- `resources/` holds the source documents (papers, reports), starting with Hammond et al.
+  2025. Ground every classification and incident claim in these files and cite file and page.
+- `mvp/registry/sources.csv` is the source registry: the machine-readable spine the pipeline
+  reads. `RESOURCES.md` is the human lead list. `docs/sources.txt` is the per-row audit
+  trail. A source may appear in all three, but each note belongs to exactly one.
+- `mvp/taxonomy/` holds risks, the instance repository, FM–RF associations and the evidence
+  types. The pipeline and the classifiers read it; it is hand-curated.
+- `mvp/raw/<source>/` is verbatim fetch output. Never hand-edit it.
+- `mvp/records/<source>.jsonl` is normalised, append-only and content-hashed. Machine-written.
+- `mvp/incidents/<ID>.md` is the curated record: one dossier per incident. Hand-edited.
+- `mvp/proposals/` holds classifier output. It is never authoritative; a human promotes.
+- `mvp/out/` is generated. Never edit it by hand.
 
 ## Workflow
-1. Edit `data/*.csv`.
-2. Run `python build/build_xlsx.py`. It must pass validation.
-3. Commit the data and the rebuilt `out/` together.
+
+1. `python mvp/pipeline/run.py update --mode <labelled-only|aiid-full|all-sources>`
+2. Review `mvp/proposals/`, promote what passes the inclusion test.
+3. `python mvp/pipeline/run.py check` — must exit 0.
+4. Commit the records, the dossiers and the rebuilt `mvp/out/` together.
 
 ## Rules
-- Add an incident only if the behaviour arises from interaction between two or more AI agents (one agent acting on another counts).
-- Verify every claim against the primary source before adding it. Record "Verified" or "Partially verified" and the reason in `notes`. A primary source beats a summary.
+
+- Add an incident only if the behaviour arises from interaction between two or more AI
+  agents (one agent acting on another counts). A swarm doing what one capable agent could
+  have done is a multi-agent *setup*, not a multi-agent *risk*.
+- Verify every claim against the primary source before adding it. Record the verdict in
+  `verification` and the reason in `## Verification notes`. A primary source beats a summary.
+- **An external or machine label may mark a candidate. It may never, by itself, put an
+  incident in scope.** Only a human verdict sets `multi_agent: true` with
+  `multi_agent_label_source: ours`. Inherited labels go in `external_labels`, never
+  overwritten and never merged with ours.
 - One fact per field. Never encode information in parentheses.
-- Multi-value fields hold `;`-separated IDs (`FM2;RF5`, `CS1;CS10`).
-- Dates are ISO, partial allowed (`2025`, `2025-06`, `2025-06-18`). Use the event date, or the publication date for studies.
-- IDs must match a prefix in `data/id_prefixes.csv`. To add a new source collection, add its prefix there first.
-- `type` is one of: Observed in real world · Synthetic evidence · Observed in lab · Theoretical.
-- Grounding score = highest `evidence_score` / 10 across all evidence tagged with the risk, case studies and incidents alike. Do not sum or average.
-- Every scored evidence row needs at least one instance. `failure_modes` and `risk_factors` are derived from it; the build fails if a hand-written tag disagrees.
-- FM–RF associations come only from Hammond et al., with `basis` recording which.
+- Multi-value fields hold `;`-separated IDs. Dates are ISO, partial allowed (`2026`,
+  `2026-06`, `2026-06-18`). Use the event date, or the publication date for studies.
+- `evidence_type` is one of: `real_world` · `synthetic` · `lab` · `theoretical`.
+- Evidence reaches a risk only through an instance. Never infer an FM–RF link from two tags
+  on one row; associations come only from Hammond et al., with `basis` recording which.
+- Scoring is parked. No E1–E5 anywhere in `mvp/`.
