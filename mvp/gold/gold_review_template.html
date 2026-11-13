@@ -305,7 +305,7 @@ function deriveFM(cur) {
   if (c !== "expected") return "";
   if (o === "identical") return "FM1 Miscoordination";
   if (o === "mixed") return "FM2 Conflict";
-  if (o === "opposing") return "out of scope — the architect built the conflict";
+  if (o === "opposing") return "no failure mode — the architect built the conflict; still in scope";
   return "";
 }
 

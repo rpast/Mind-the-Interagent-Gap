@@ -48,6 +48,256 @@
     Review with `python mvp/gold/build_review.py` → `mvp/out/gold_review.html`, which hides the prior label behind a toggle so the verdict is formed first. Export and fold back with `--merge`. Only the two measured baselines survive the review unchanged: the Navigator rater's 33% false-negative rate, and the keyword arm's 78% recall (itself provisional, since it is measured against the positives under review).
 29. **Reconcile the candidate-count discrepancy.** `mvp/raw/aiid/candidates_multiagent.tsv` holds 229 rows (11 strong, 218 weak) where `FETCHED.md` records 11 + 214, and no committed code produces that file. The prefilter now regenerates the queue from committed code; the old TSV should be retired or explained.
 
+### New, 2026-11-13 (grey zone: multi-agent attacks)
+
+30. ~~**Do multi-agent attacks pass Gate 1?**~~ **Resolved 2026-11-13: yes, by presumption.**
+    Gate 1's worked example ("a swarm of agents breaking into a company's servers does not
+    pass") contradicted the paper's own account of RF7: I28 Swarm Attacks turns on "it is the
+    number of them that defeats the defence" and I29 Heterogeneous Attacks on combined
+    affordances defeating a safeguard none could defeat alone. Both passages apply the
+    counterfactual to a different unit — the example to the *class* of event, the instances
+    to the *realised outcome*. The instances have it right, and the example is removed.
+
+    The rule: **multi-agent attacks pass Gate 1 unless the source carries positive evidence
+    that the multiplicity played no role in the attack's success.** Carried by one extracted
+    fact, `multiplicity_role` ∈ `load_bearing` · `incidental` · `unreported`, where
+    `load_bearing` and `unreported` both resolve to `could_not` and only `incidental` puts a
+    record out. Applied in code, as with Gate 2 and `evidence_type`. Written up in
+    `mvp/docs/definitions.md` § "The security branch" and `mvp/docs/classifiers.md`.
+
+    Two things it settles. **Intent does not enter Gate 1** — Hammond p.20, for multi-agent
+    security the agents' objectives "may be largely irrelevant"; and unintended harm is not
+    miscoordination, which needs agents failing to align *with each other*. **No failure
+    mode attaches** — an attacker fleet executing its operator's plan is not misaligned with
+    itself, not in mixed-motive interaction with its target, and not colluding against its
+    own principal. The brake on scope creep is the failure-mode definitions themselves:
+    nothing about a fleet attack satisfies any of the three, so admitting these incidents
+    cannot inflate the FM evidence base however many arrive. They accumulate against RF7.
+
+    Known cost, declared rather than hidden: the presumption is recall-favouring on this
+    branch. It is there because incident reporting states that a fleet was involved and
+    almost never states whether the fleet was why the attack worked, so a proof requirement
+    would route nearly every real-world security incident to `unclear` and leave RF7
+    grounded in lab work alone.
+
+31. **Re-verdict the security rows in the gold set under the new rule. Blocks calibration.**
+    `mvp/out/gold_reviewed_20261113.csv` was reviewed before the rule existed, and seven of
+    its 60 rows are security-flavoured: G-016, G-017, G-020, G-047, G-048, G-059, G-060. Two
+    are currently inconsistent with each other — G-047 (Canada federal archives, `in`) and
+    G-060 (attacker used AI agents to breach an analytics firm, `out`) are substantively the
+    same claim with opposite verdicts, which is the grey zone surfacing as rater
+    disagreement. Under the presumption G-060 flips to `in` unless its source shows
+    `incidental`. G-048 (OpenAI training agent retrieved credentials) describes one agent and
+    is unaffected. Set `multiplicity_role` on all seven from their primary sources, then
+    recompute Gate 1 accuracy — the `could_not` count moves, so the accuracy figure moves
+    with it.
+
+32. ~~**Gate 2 appeared to overrule Gate 1.**~~ **Resolved 2026-11-13.** Gate 2's `opposing`
+    branch read "out of scope", so a coordinated attack passed Gate 1 and was then thrown
+    out by Gate 2 for the very polarity that makes it an attack. The two gates were doing
+    the same job in the documentation and contradicting each other. They are now separated
+    explicitly: **Gate 1 alone decides scope; Gate 2 only picks the failure mode and cannot
+    send a record back.** `opposing` now yields *no failure mode*, which is already a
+    legitimate outcome — most in-scope security incidents carry risk factors only. Changed in
+    `definitions.md` (gate preamble, the tree, the `opposing` paragraph), in
+    `classifiers.md` (the `failure_mode` code rule), in `extract_gate.v2.md`, and in
+    `mvp/gold/gold_review_template.html`, which displayed "out of scope" to the reviewer.
+
+33. **Instances no longer route to failure modes.** **Decided 2026-11-13.** The earlier
+    design derived an incident's failure mode and risk factors from `instances.risk_id` and
+    cross-checked that against the Gate 2 tree. Dropped: the failure mode is now assigned
+    **only** by the Gate 2 tree, working from the FM definitions directly, and instances are
+    assigned independently as descriptive detail — useful before any risk is assigned, and
+    not causally linked to one. Consequences, documented in `definitions.md` § Instances and
+    `classifiers.md`: call 2 emits instance ids and quotes only, the FM cross-check is gone,
+    and `no_failure_mode` is no longer a field. `assign_instances.v1.md` still needs
+    checking for language that implies the old routing.
+
+34. **Rename the `poc_positive` stratum.** It is a literal value in
+    `mvp/gold/multiagent_gold.csv` and in `build_review.py`, and the docs now avoid
+    explaining it, so the identifier is the last place the old tree leaks into
+    reader-facing material. Suggest `carried_over`. Data change, so it is not done
+    unilaterally.
+
+35. **Add `multiplicity_role` to the dossier schema and to `run.py check`.** The field is
+    documented but not yet enforced: `check` should require it on any record carrying an RF7
+    instance, and reject a blank where the record describes an attack.
+
+### New, 2026-11-13 (gold-set source context)
+
+36. **Gold rows were judged on one-line text.** **Addressed 2026-11-13.** Every row carried
+    only its inventory headline: 70–261 characters for the carried-over rows, 335–500 for the
+    AIID ones. Facts the gates require — agent count, whether the agents interacted, who
+    controlled the environment, what multiplicity contributed — were absent from the text being
+    judged. 41 of 60 rows are now enriched from source in `mvp/gold/context/`, field by field
+    in the shape the gates ask for. The 19 not enriched are all reviewed `out` and all
+    single-system: G-034, G-035, G-036, G-037, G-039, G-040, G-041, G-042, G-043, G-044,
+    G-045, G-046, G-050, G-051, G-052, G-053, G-054, G-055, G-057. Their AIID description is
+    the full record. Fetch them too if precision needs to rest on more than that.
+
+37. ~~**Two confirmed duplicate pairs in the gold set.**~~ **Resolved 2026-11-13.** Handled
+    with a `duplicate_of` column rather than by deleting rows: each pair keeps both rows, since
+    a classifier meets them as two separate records and should label both, but they name one
+    incident and must be counted once in any inventory or evidence claim.
+    - **G-018 and G-049** → canonical **G-049** (`aiid:1800`). Same Vanderbilt link-shortener
+      event, same researcher as primary source. AIID is canonical where a record exists.
+    - **G-020 and G-024** → canonical **G-020** (the OpenAI technical report). The report
+      describes the Artifactory message board and the 4 July outage as one continuous chain from
+      May to July 2026, which is what AIR-2026-0183 records from a secondary source.
+    - **G-016 (DSEWiki) is not a duplicate.** The registry states it is a second breakout
+      distinct from the Hugging Face swarm, so the earlier suspicion is withdrawn.
+    - Any metric must therefore report both the row count and the distinct-incident count.
+      Currently 23 in-scope rows, 21 distinct incidents.
+38. ~~**Rows where the source does not support the verdict.**~~ **Applied 2026-11-13** as
+    round 2 of the gold review. Five verdicts flipped, fourteen more rows had their basis
+    recorded without a change. Output: `mvp/out/gold_reviewed_20261113_r2.csv`, merged into
+    `mvp/gold/multiagent_gold.csv`; per-row reasoning is in `review_note` and in each row's
+    `caveat` in `mvp/gold/context/`.
+    - **Flipped:** G-005 in→out (one agent, no second actor) · G-059 in→out
+      (`multiplicity_role: incidental`, the operator's own review found no coordination) ·
+      G-025 in→unclear (sole source a conference schedule entry) · G-031 in→unclear (page
+      states no interaction, mechanism, cause or goals) · G-007 in→unclear (source mismatch,
+      item 39).
+    - **Held, with an explicit human ruling:** G-003 stays in scope. The source does not say
+      the 100+ bot personas are themselves AI agents, and the ruling is that it does not
+      matter — agenthood here is functional, not architectural. That ruling also resolved
+      item 41 and is written up in `definitions.md` § "What counts as an agent".
+    - **Held, basis recorded:** G-012 (verification downgraded), G-017 (in by the presumption,
+      not by evidence of coordination), G-047, G-060, G-019, G-016, G-038, G-048.
+    - `multiplicity_role` is now set on the 12 security rows: 3 `load_bearing`,
+      5 `unreported`, 2 `incidental`, 2 `not_applicable`.
+    - **The set now reads: 23 in, 33 out, 4 unclear — 23 in-scope rows covering 21 distinct
+      incidents.** These are the numbers accuracy must be computed against, and they supersede
+      the first-round counts.
+39. **G-007 cites a source that does not contain its episode.** The recorded episode is
+    game-choice herding with a no-group-chat comparison; the cited LessWrong post describes
+    neither. That material is on the AI Village 2025 lessons post (the AIV-02 source) instead.
+    Either re-point the row or rewrite it to the copying this page does document (Grok 4
+    copying GPT-5), which is thinner and has no stated mechanism.
+
+40. **G-022 (LW-04) cannot be verified with current tooling.** Reuters refuses automated
+    fetches at the proxy, not with an HTTP status, so the sole source is unreadable. It stays
+    `unclear`. Obtain the article another way or drop the row. Check also that it is not the
+    same July 2026 OpenAI episode the Hugging Face report already covers.
+
+41. ~~**Is a rule-based bot an AI agent?**~~ **Resolved 2026-11-13: yes.** Raised because
+    AIID's page for incident 7, the Wikipedia bot loop, says it is unclear whether any of the
+    bots uses machine learning and thinks it unlikely — and that row is both a gold positive
+    (G-033) and the designated end-to-end test in `classifiers.md`. The question was settled
+    by the same human ruling that kept G-003 in scope, where the acting parts are 100+
+    scripted social-media personas rather than models: **agenthood is functional, not
+    architectural.** A thing is an agent when attributing it a goal explains its behaviour
+    better than treating it as a mechanism — the intentional stance, after Dennett (1971),
+    which the instance repository already applies to I27 Emergent Goals. Written up in
+    `definitions.md` § "What counts as an agent". The threshold is deliberately generous and
+    does little work on its own; Gate 1 is what keeps cases out. Consequences: G-033 and
+    G-003 both stand, and no row in the set turns on how sophisticated its agents were.
+
+42. ~~**`evidence_type` is wrong on the carried-over security rows.**~~ **Corrected
+    2026-11-13, but not as stated.** The original claim here — that these rows were labelled
+    `real_world` — was wrong and was asserted without checking the dossiers. All seven were
+    already `lab`. The real mismatch is `lab` against `synthetic`: `lab` is defined as a narrow
+    task probe "with no environment for the agents to act in" and explicitly excludes "anything
+    with a persistent environment, which is synthetic". Six of the seven have one — demo
+    multi-agent systems, a shared developer workspace, a sales workflow, a ServiceNow instance,
+    a simulated six-agent collaboration, connected systems with merged identities — so they are
+    now `synthetic`: MIG-0005, MIG-0006, MIG-0008, MIG-0009, MIG-0010, MIG-0026.
+    - **MIG-0023 (AIR-2026-0180, adk-python CI) is left as `lab` and is a genuine gap in the
+      vocabulary.** Researchers injected into the *live* CI of a public repository. The
+      environment is persistent, so not `lab`; it was not researcher-built, so not `synthetic`;
+      the experimenter triggered it, so not `real_world`, which excludes "anything an
+      experimenter set up". A researcher-run test inside someone else's production system fits
+      none of the four labels. Decide whether that case needs its own criterion.
+
+43. **New leads found while enriching.** None screened.
+    - AIID 1710, "AI Agent Appearing to Originate from OpenAI Reportedly Attempted to Hack
+      U.S. Department of Education Civil Rights Website" (Sep 2026), listed as related to 1731.
+    - AIID 1797, "OpenAI AI Agents Reportedly Flooded RubyGems Software Registry with Malicious
+      Packages" — the AIID record for the event behind G-017, not yet linked to our dossier
+      (OPEN item 25).
+    - AIID 1668, the DSEWiki campaign (see item 37).
+
+### New, 2026-11-13 (first accuracy run)
+
+44. ~~**Compute Gate 1 accuracy.**~~ **Done 2026-11-13.** Write-up in
+    `mvp/docs/gate1_accuracy.md`, figures in `mvp/out/gate1_accuracy_20261113.json`. Gold set
+    after the drops: 57 rows, 21 in / 33 out / 3 unclear, 54 scorable. **The classifier itself
+    has never been run** — `mvp/proposals/` does not exist — so only the existing predictors
+    could be scored. The carried-over inventory's own labels reach 81.8% precision (18 of 22);
+    AIID's CSETv1 human annotators reach 20% (1 of 5).
+
+45. **The gold sample cannot score the keyword prefilter, and the recorded 78% recall is
+    withdrawn.** All 18 `queue_boundary` rows tripped the keyword arm, because the stratum was
+    defined that way, so the arm is the sampling frame and its precision on those rows is just
+    the stratum's base rate — circular. Its recall rests on 3 positives in total. The earlier
+    78% figure was measured against unreviewed positives, and 22 of 54 scorable rows have no
+    prefilter queue row at all: the keyword net runs over AIID, and most of the index's
+    positives are not in AIID. **The keyword arm's recall is unmeasured.** To measure any
+    screen honestly, draw the negatives independently of the predictor being scored — a random
+    sample of the AIID window, hand-screened, with the arm scored afterwards.
+
+46. **19% of the positives rest on the attack presumption alone.** Four of 21: G-017, G-019,
+    G-047, G-049, all `multiplicity_role: unreported`. Two rest on stated evidence (G-020,
+    G-016) and 15 are non-security rows passing Gate 1 on interaction. Any claim built on this
+    inventory should carry that split, since reversing one rule moves a fifth of the positives.
+
+47. **`build_review.py --merge` silently dropped two columns.** Fixed 2026-11-13. The row
+    rebuild copied only columns whose name starts with `review`, so `multiplicity_role` and
+    `duplicate_of` were written as empty on every merge even though they were in `REVIEW_COLS`.
+    Now keyed off `REVIEW_COLS` itself. Any merge run before this fix lost those two fields;
+    `mvp/out/gold_reviewed_20261113_r2.csv` is the authority and was re-merged.
+
+### New, 2026-11-13 (documentation and spillover purge)
+
+48. ~~**Document the gold set and the ceiling.**~~ **Done 2026-11-13.** `mvp/docs/gold_set.md`
+    covers what the set is for, the four strata and how each was drawn, the declared sampling
+    bias, the two review rounds and why independence mattered, the set as it stands, and the
+    ceiling calculation in full — method, why only precision is meaningful, the numbers, the
+    four rejected rows, how to read 81.8% and what the ceiling is not. The calculation is now a
+    committed tool, `mvp/gold/score_gate1.py`, rather than an ad-hoc script.
+
+49. ~~**Purge earlier-classification spillover from `mvp/`.**~~ **Done 2026-11-13** for
+    everything that is a live reference. Changed: the five `prior_*` columns moved out of
+    `multiagent_gold.csv` into `mvp/gold/archive/` (they are the ceiling's input, so deleting
+    them would make a published number unreproducible); stratum `poc_positive` renamed
+    `carried_over`; `prior_basis` on the drawn rows renamed `draw_note`, since it records
+    sampling provenance rather than a classification; `legacy_id` removed from all 27 dossiers
+    and from the schema in `run.py`; the inherited `multi_agent_basis` string replaced on all
+    27 with the actual basis, which is now the 2026-11-13 human review; the "not captured in
+    the PoC row" body placeholders rewritten; prose cleaned in `README.md`, `classifiers.md`,
+    `input_layer.md`, `definitions.md`, `fetch_aiid.md`, `build_taxonomy_seed.py` and the
+    `check` message in `run.py`; the two review exports moved from `mvp/out/` to
+    `mvp/gold/archive/` as `review_round1/2_20261113.csv`.
+
+50. **Three places still carry earlier-classification traces, each for a reason. Decide.**
+    - **`mvp/gold/archive/`** holds the earlier labels verbatim, including the inherited basis
+      text. This is deliberate: it is the audit trail for the 81.8% ceiling, and a measurement
+      nobody can recompute is not a measurement. The archive README states that nothing in the
+      pipeline reads it and that no label there may put an incident in scope. If the preference
+      is for no trace at all, the ceiling has to be treated as a one-off figure recorded in
+      prose only, and the archive deleted.
+    - **`mvp/records/*.jsonl` carry `meta.poc_event_id`, `meta.poc_source_class` and
+      `meta.poc_system`.** Not renamed, because `content_hash` is computed over the whole
+      record body: renaming the keys invalidates every hash, and recomputing them would
+      falsify the chain whose job is to detect upstream change. Renaming needs a migration that
+      rewrites records and hashes together, with the reason recorded.
+    - **`mvp/taxonomy/build_taxonomy_seed.py` reads `poc/data/`** as its seed tables. This is a
+      genuine build-time dependency on the frozen tree, not a stale reference. The variable is
+      now `SEED_TABLES`. It only runs when the taxonomy is re-seeded.
+
+51. **Dossier ids still read `MIG-nnnn`, which stands for the migration.** Renaming is a data
+    migration, not a text fix: the ids are referenced by the gold set's `dossier` column, by
+    `mvp/out/`, and `check` ties a dossier's id to its canonical source, so a row citing AIID
+    is meant to become `AIID-nnnn` (item 25). Do the renaming as one migration, together with
+    item 25, rather than piecemeal.
+
+52. **Seven dossiers no longer assert `multi_agent: true`.** Set on 2026-11-13 from the review:
+    `false` on MIG-0002, MIG-0005, MIG-0013, MIG-0014 (reviewed out) and `unclear` on
+    MIG-0007, MIG-0022, MIG-0025. They are retained as screened negatives with the reason in
+    `multi_agent_basis`, and `check` passes. Decide whether a dossier that fails Gate 1 should
+    stay in `mvp/incidents/` at all or move to a separate screened-out set — keeping them
+    inflates "27 dossiers" as a headline count, since only 20 of the 27 are in scope.
+
 ## Layer 2. Detection
 17. Write the one-page coding protocol: the definition of coverage and the 0–3 validity weight.
 18. Build `data/evals.csv` (technique, what it measures, method, access, validity note). Seed it from METR, Apollo Research, UK AISI, GovSim, Melting Pot, agent-security benchmarks and steganography evals.

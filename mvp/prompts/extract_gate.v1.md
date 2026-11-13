@@ -3,6 +3,7 @@ prompt_id: extract_gate
 prompt_version: v1
 purpose: Extract the facts a multi-agent verdict depends on, and answer the two gate questions.
 output: one JSON object per record, no prose
+status: superseded by v2 on 2026-11-13 — frozen, kept for provenance of labels already carrying v1
 ---
 
 You are screening incident records for a research index of **multi-agent AI risks**. For

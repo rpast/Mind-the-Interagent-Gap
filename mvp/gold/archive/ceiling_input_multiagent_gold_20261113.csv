@@ -1,0 +1,58 @@
+gold_id,stratum,source_id,source_record_id,prior_multi_agent,prior_failure_mode,prior_instances,prior_basis,prior_verification,review_verdict
+G-001,carried_over,aivillage,AIV-02,true,FM1,I34,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",verified,in
+G-002,carried_over,air_enkrypt,AIR-2025-0019,true,,I26;I28,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,out
+G-003,carried_over,air_enkrypt,AIR-2025-0027,true,,I30,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-004,carried_over,aivillage,AIV-01,true,FM1,I34;I12,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",verified,in
+G-005,carried_over,air_enkrypt,AIR-2025-0068,true,,I13;I32,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,out
+G-006,carried_over,air_enkrypt,AIR-2025-0070,true,,I31,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-007,carried_over,aivillage,AIV-03,true,,I36,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",partially_verified,unclear
+G-008,carried_over,air_enkrypt,AIR-2025-0136,true,,I31,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-009,carried_over,air_enkrypt,AIR-2025-0149,true,,I11;I31,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-010,carried_over,air_enkrypt,AIR-2025-0177,true,,I31,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-011,carried_over,aivillage,AIV-04,true,FM1,I01,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",partially_verified,in
+G-012,carried_over,lesswrong,LW-05,true,,I13;I27,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-013,carried_over,air_enkrypt,AIR-2026-0029,true,,I31,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,out
+G-014,carried_over,aivillage,AIV-05,true,,I11;I25,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",verified,out
+G-015,carried_over,air_enkrypt,AIR-2026-0101,true,,I31,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-016,carried_over,air_enkrypt,AIR-2026-0219,true,FM3,I35;I26;I28,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",partially_verified,in
+G-017,carried_over,lesswrong,LW-03,true,,,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",partially_verified,in
+G-019,carried_over,air_enkrypt,AIR-2026-0194,true,,I28,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",verified,in
+G-020,carried_over,lesswrong,LW-01,true,FM3,I35;I14;I26;I28,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-021,carried_over,aivillage,AIV-06,true,FM1,I01;I09;I23,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",verified,in
+G-023,carried_over,air_enkrypt,AIR-2026-0180,true,,I31,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-025,carried_over,air_enkrypt,AIR-2026-0189,true,,I13;I28,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,unclear
+G-026,carried_over,air_enkrypt,AIR-2026-0193,true,,I12;I32,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in
+G-027,carried_over,aivillage,AIV-07,true,FM1,I34;I11;I12,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",verified,in
+G-028,aiid_csetv1,aiid,125,csetv1=yes,,,AIID CSETv1 annotators; a different concept from Gate 1,,out
+G-029,aiid_csetv1,aiid,19,csetv1=yes,,,AIID CSETv1 annotators; a different concept from Gate 1,,out
+G-030,aiid_csetv1,aiid,25,csetv1=yes,,,AIID CSETv1 annotators; a different concept from Gate 1,,out
+G-031,aiid_csetv1,aiid,44,csetv1=yes,,,AIID CSETv1 annotators; a different concept from Gate 1,,unclear
+G-032,aiid_csetv1,aiid,47,csetv1=maybe,,,AIID CSETv1 annotators; a different concept from Gate 1,,out
+G-033,aiid_csetv1,aiid,7,csetv1=yes,,,AIID CSETv1 annotators; a different concept from Gate 1,,in
+G-034,queue_boundary,aiid,962,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (\bagents\b)",,out
+G-035,queue_boundary,aiid,1154,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (coordinat(?:e|ion|ing))",,out
+G-036,queue_boundary,aiid,1119,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (coordinat(?:e|ion|ing))",,out
+G-037,queue_boundary,aiid,1150,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (\bagents\b)",,out
+G-038,queue_boundary,aiid,1210,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (\bagents\b)",,out
+G-039,queue_base_rate,aiid,1513,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-040,queue_base_rate,aiid,1754,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-041,queue_boundary,aiid,1390,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (\bagents\b)",,out
+G-042,queue_boundary,aiid,1358,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (\bagents\b)",,out
+G-043,queue_boundary,aiid,1373,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (\bagents\b)",,out
+G-044,queue_base_rate,aiid,1723,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-045,queue_boundary,aiid,1470,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword (\bagents\b)",,out
+G-046,queue_boundary,aiid,1520,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (coordinat(?:e|ion|ing))",,out
+G-047,queue_boundary,aiid,1731,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (\bagents\b)",,in
+G-048,queue_base_rate,aiid,1806,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-049,queue_boundary,aiid,1800,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (\bagents\b)",,in
+G-050,queue_base_rate,aiid,1733,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-051,queue_base_rate,aiid,1598,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-052,queue_boundary,aiid,1583,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (coordinat(?:e|ion|ing))",,out
+G-053,queue_boundary,aiid,1615,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (coordinat(?:e|ion|ing))",,out
+G-054,queue_base_rate,aiid,1663,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-055,queue_base_rate,aiid,1792,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-056,queue_boundary,aiid,1799,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (\bagents\b)",,out
+G-057,queue_base_rate,aiid,1730,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: unclassified",,out
+G-058,queue_boundary,aiid,1734,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (\bagents\b)",,out
+G-059,queue_boundary,aiid,1805,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (\bagents\b)",,out
+G-060,queue_boundary,aiid,1795,,,,"AIID applies no multi-agent label in 2025-2026, so this is unscreened, not negative. Surfaced by the prefilter on: keyword;unclassified (\bagents\b)",,out

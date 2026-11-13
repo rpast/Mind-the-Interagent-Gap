@@ -71,7 +71,6 @@ REQUIRED_KEYS = [
     "actor_count", "interaction_kind", "evidence_type", "multi_agent",
     "multi_agent_basis", "multi_agent_label_source", "external_labels",
     "failure_mode", "failure_mode_source", "instances", "verification",
-    "legacy_id",
 ]
 
 # The keyword net, lifted verbatim from notebooks/explore_aiid.ipynb section 8
@@ -575,7 +574,6 @@ def stage_promote(refs):
             "failure_mode_source": "",
             "instances": [],
             "verification": "unverified",
-            "legacy_id": None,
         }
         pending = "_pending_"
         sections = {name: pending for name in SECTIONS}
@@ -620,7 +618,6 @@ def stage_index():
             "failure_mode": meta.get("failure_mode") or "",
             "instances": ";".join(meta.get("instances") or []),
             "verification": meta.get("verification", ""),
-            "legacy_id": meta.get("legacy_id") or "",
             "first_seen": meta.get("first_seen", ""),
             "last_verified": meta.get("last_verified") or "",
             "path": str(path.relative_to(ROOT)),
@@ -799,8 +796,8 @@ def stage_check():
 
         for key in meta:
             if re.fullmatch(r"e[1-5](_.*)?", str(key)):
-                problems.append(f"{rel}: {key!r} is an evidence score; scoring is parked "
-                                f"and lives in poc/")
+                problems.append(f"{rel}: {key!r} is an evidence score; "
+                                f"scoring is parked and no score belongs in a dossier")
 
         for name in SECTIONS:
             if not re.search(rf"^## {re.escape(name)}\s*$", body, re.M):

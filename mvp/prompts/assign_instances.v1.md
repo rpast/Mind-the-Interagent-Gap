@@ -4,6 +4,7 @@ prompt_version: v1
 purpose: Assign instance ids from the instance repository to a record that passed the multi-agent gate.
 output: one JSON object per record, no prose
 runs_on: records whose extract_gate verdict was multi_agent = true
+status: superseded by v2 on 2026-11-13 — frozen, kept for provenance of labels already carrying v1
 ---
 
 You are assigning **instances** to incident records in a multi-agent risk index.

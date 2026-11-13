@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed mvp/taxonomy/ from the PoC tables plus written instance definitions.
+"""Seed mvp/taxonomy/ from the earlier taxonomy tables plus written instance definitions.
 
 Run once. The CSVs it writes are hand-curated from then on; this script exists
 so the seeding is reproducible and reviewable, not so it can be re-run blindly.
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-POC = ROOT / "poc" / "data"
+SEED_TABLES = ROOT / "poc" / "data"   # frozen reference tables; read once at seed time
 OUT = Path(__file__).resolve().parent
 
 PAPER = "Hammond et al. 2025"
@@ -209,7 +209,7 @@ def main():
         written.append(f"{name}: {len(rows)} rows")
 
     def read(name):
-        with open(POC / name, newline="", encoding="utf-8") as f:
+        with open(SEED_TABLES / name, newline="", encoding="utf-8") as f:
             return list(csv.DictReader(f))
 
     # risks.csv - carried over unchanged in content
@@ -234,7 +234,7 @@ def main():
             definition, source_ref, examples = DEFS[iid]
             provenance = "hammond_table_1"
         else:
-            # the three instances this project authored; the PoC already wrote
+            # the three instances this project authored; the earlier tables already wrote
             # their definitions into support_summary
             definition = r["support_summary"]
             source_ref = "authored by this project"

@@ -2,22 +2,24 @@
 """Assemble the gold set and render the review worksheet.
 
 Writes:
-  mvp/gold/multiagent_gold.csv   the label file: three strata, verdicts blank
+  mvp/gold/multiagent_gold.csv   the label file: four strata, with the verdicts
   mvp/out/gold_review.html       a self-contained worksheet, opens from disk
 
-Three strata:
-  poc_positive      the 27 migrated incidents. Labelled multi_agent by the PoC,
-                    which was AI-assisted throughout and never independently
-                    reviewed. Being re-verified from the primary sources.
+Four strata:
+  carried_over      every incident the index already held, taken whole rather
+                    than sampled, and judged from the primary sources.
   aiid_csetv1       AIID's 5 `yes` and 1 `maybe` on the CSETv1 attribute
                     `Multiple AI Interaction`. Independent human annotators,
                     but a different concept from our Gate 1.
-  aiid_unlabelled   27 drawn from AIID 2025-2026 records that AIID does not
-                    mark multi-agent. Unscreened, not negative: AIID applies no
-                    multi-agent label in that window.
+  queue_boundary    candidates that tripped the prefilter's keyword arm.
+  queue_base_rate   candidates with no signal at all, as a control.
 
-Every row is to_judge. The worksheet hides the prior label behind a toggle so a
-verdict is formed before the earlier pass is seen.
+The boundary and base-rate rows were drawn as unscreened, not as negatives:
+AIID applies no multi-agent label in the 2025-2026 window, so its silence
+carries no information and each row needed a human verdict.
+
+See mvp/docs/gold_set.md for the sampling design, the review protocol and the
+accuracy ceiling computed from this set.
 """
 import argparse
 import csv
@@ -35,10 +37,10 @@ TEMPLATE = MVP / "gold" / "gold_review_template.html"
 OUT = MVP / "out" / "gold_review.html"
 
 FIELDS = ["gold_id", "stratum", "source_id", "source_record_id", "dossier",
-          "date", "title", "prior_multi_agent", "prior_failure_mode",
-          "prior_instances", "prior_basis", "prior_verification",
+          "date", "title", "draw_note",
           "review_verdict", "review_gate1", "review_gate2_cooperation",
           "review_gate2_objectives", "review_failure_mode", "review_note",
+          "multiplicity_role", "duplicate_of", "review_round",
           "reviewed_by", "reviewed_on"]
 
 
@@ -63,6 +65,7 @@ def narrative(dossier_meta, body, record):
 
 REVIEW_COLS = ["review_verdict", "review_gate1", "review_gate2_cooperation",
                "review_gate2_objectives", "review_failure_mode", "review_note",
+               "multiplicity_role", "duplicate_of", "review_round",
                "reviewed_by", "reviewed_on"]
 
 
@@ -91,7 +94,7 @@ def main():
     records = pipeline.latest_records()
     rows = []
 
-    # --- stratum 1: the 27 migrated positives -----------------------------
+    # --- stratum 1: everything the index already held ---------------------
     for path in pipeline.all_dossiers():
         meta, body = pipeline.read_dossier(path)
         src = meta["sources"][0]
@@ -99,17 +102,12 @@ def main():
         rec = records.get(key, {})
         rows.append({
             "gold_id": f"G-{len(rows) + 1:03d}",
-            "stratum": "poc_positive",
+            "stratum": "carried_over",
             "source_id": src["source_id"],
             "source_record_id": src["record_id"],
             "dossier": meta["id"],
             "date": meta["occurrence_date"],
             "title": meta["title"],
-            "prior_multi_agent": "true",
-            "prior_failure_mode": meta.get("failure_mode") or "",
-            "prior_instances": ";".join(meta.get("instances") or []),
-            "prior_basis": meta.get("multi_agent_basis", ""),
-            "prior_verification": meta.get("verification", ""),
             "_narrative": narrative(meta, body, rec),
             "_sources": meta.get("sources") or [],
             "_external": meta.get("external_labels") or [],
@@ -132,10 +130,6 @@ def main():
             "stratum": "aiid_csetv1",
             "source_id": sid, "source_record_id": rid, "dossier": "",
             "date": rec["date"], "title": rec["title"],
-            "prior_multi_agent": f'csetv1={str(cse[0]["value"]).lower()}',
-            "prior_failure_mode": "", "prior_instances": "",
-            "prior_basis": "AIID CSETv1 annotators; a different concept from Gate 1",
-            "prior_verification": "",
             "_narrative": {"What happened": rec.get("text", "")},
             "_sources": [{"source_id": sid, "record_id": rid, "url": rec.get("url", "")}],
             "_external": rec["external_labels"],
@@ -143,7 +137,7 @@ def main():
             "_mit": rec["meta"].get("mit_subdomain", ""),
         })
 
-    # --- stratum 3: the drawn negative candidates -------------------------
+    # --- strata 3 and 4: the drawn, unscreened candidates -----------------
     sample = MVP / "gold" / "negative_sample.csv"
     if not sample.exists():
         sys.exit(f"no {sample.relative_to(ROOT)}; run sample_negatives.py first")
@@ -156,13 +150,10 @@ def main():
             "source_id": s["source_id"],
             "source_record_id": s["source_record_id"],
             "dossier": "", "date": s["date"], "title": s["title"],
-            "prior_multi_agent": "",
-            "prior_failure_mode": "", "prior_instances": "",
-            "prior_basis": (
+            "draw_note": (
                 "AIID applies no multi-agent label in 2025-2026, so this is unscreened, "
                 "not negative. Surfaced by the prefilter on: " + (s.get("arms") or "")
                 + (f" ({why})" if why else "")),
-            "prior_verification": "",
             "_narrative": {"What happened": rec.get("text", "")},
             "_sources": [{"source_id": s["source_id"],
                           "record_id": s["source_record_id"], "url": s["url"]}],
@@ -170,6 +161,21 @@ def main():
             "_url": s["url"],
             "_mit": s.get("mit_subdomain", ""),
         })
+
+    # --- rows retired from the set ----------------------------------------
+    # mvp/gold/dropped.csv records rows removed with a reason (duplicates, and
+    # rows whose only source cannot be read). They are regenerated from the
+    # dossiers on every run, so they have to be filtered out again here or they
+    # would silently return to the set.
+    dropped_path = MVP / "gold" / "dropped.csv"
+    if dropped_path.exists():
+        retired = {(r["source_id"], r["source_record_id"])
+                   for r in csv.DictReader(dropped_path.open(encoding="utf-8"))}
+        before = len(rows)
+        rows = [r for r in rows
+                if (r["source_id"], str(r["source_record_id"])) not in retired]
+        if before != len(rows):
+            print(f"  retired {before - len(rows)} row(s) per {dropped_path.name}")
 
     # --- the label file, verdicts blank -----------------------------------
     existing = {}
@@ -187,7 +193,7 @@ def main():
             keep = existing.get((r["source_id"], r["source_record_id"]), {})
             for col in FIELDS:
                 r.setdefault(col, "")
-                if col.startswith("review") or col == "reviewed_by" or col == "reviewed_on":
+                if col in REVIEW_COLS:
                     r[col] = keep.get(col, "")
             w.writerow(r)
 

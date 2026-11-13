@@ -1,0 +1,4 @@
+gold_id,stratum,source_id,source_record_id,prior_multi_agent,prior_failure_mode,prior_instances,prior_basis,prior_verification,review_verdict
+G-018,carried_over,lesswrong,LW-02,true,FM3,I35;I28,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",partially_verified,in
+G-022,carried_over,lesswrong,LW-04,true,,,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",partially_verified,unclear
+G-024,carried_over,air_enkrypt,AIR-2026-0183,true,FM3,I35;I26;I28,"Inherited from the PoC inventory, which applied the same inclusion test: the behaviour arises from interaction between two or more AI agents.",unverified,in

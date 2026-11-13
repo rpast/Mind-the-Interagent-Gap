@@ -1,15 +1,17 @@
 # Classifier design
 
-Two model calls produce three labels. Everything they emit is a **proposal**; a human
+Two model calls produce the labels. Everything they emit is a **proposal**; a human
 promotes. See `mvp/docs/definitions.md` for the definitions the classifiers apply.
 
 ## Why this shape
 
-**Not a trained model.** There are 27 positive examples in total. The decision is a
-definitional counterfactual, not a surface pattern. Every verdict needs a citable rationale
-and a quote, because it will be argued with. The label set is still moving. A fine-tuned or
-BERT-style classifier needs hundreds to thousands of labels, returns no reasoning, and would
-have to be retrained every time a definition is sharpened.
+**Not a trained model.** The labelled set is small — tens of positive examples, not
+thousands — and that is unlikely to change, because each positive requires a human to read a
+primary source. The decision is also a definitional counterfactual rather than a surface
+pattern: every verdict needs a citable rationale and a quote, because it will be argued with,
+and the definitions are still being sharpened. A fine-tuned or BERT-style classifier needs
+hundreds to thousands of labels, returns no reasoning, and would have to be retrained each
+time a definition moves.
 
 **Not one master prompt.** Asking for multi-agent, evidence type and failure mode in one
 answer is cheapest, but the three judgements contaminate each other — a model that has just
@@ -29,14 +31,20 @@ hold more context.
 call 1   read the record, extract facts, answer the two gate questions
            -> multi_agent      rule over gate 1 + interaction_present
            -> evidence_type    rule over setting, stakes, who controlled the environment
-           -> failure_mode     rule: the gate 2 tree
-call 2   assign instance ids               (only if the record passed the gate)
-           -> failure mode and risk factors derived from instances.risk_id
-           -> cross-checked against call 1's tree result
+           -> failure_mode     rule: the gate 2 tree, over the FM definitions
+call 2   assign instance ids               (only if the record passed Gate 1)
+           -> instances        descriptive detail, assigned independently
 ```
 
-Two model calls, three labels, and a free consistency check: the failure mode is reached
-twice by independent routes, and a disagreement is a review signal rather than a tiebreak.
+The two calls answer different questions and neither feeds the other. Call 1 produces the
+labels from a handful of extracted facts. Call 2 describes the incident more finely against
+the 33 instance definitions, which do not fit in call 1's prompt and would skew its
+judgement if they did — a model that has just read "Swarm Attacks" is readier to call the
+next record a swarm.
+
+**Instances do not determine the failure mode**, and the failure mode does not constrain the
+instances. `definitions.md` § Instances says why. Call 2 can therefore run on records whose
+failure mode is null, which is most security records.
 
 ## Runner: a Claude Code skill, not an API job
 
@@ -59,7 +67,7 @@ about the design assumes the in-session runner.
 
 ## Call 1 — extraction and gates
 
-Prompt: `mvp/prompts/extract_gate.v1.md`. Output, one JSON object per record:
+Prompt: `mvp/prompts/extract_gate.v2.md`. Output, one JSON object per record:
 
 ```json
 {
@@ -70,12 +78,13 @@ Prompt: `mvp/prompts/extract_gate.v1.md`. Output, one JSON object per record:
   "setting": "deployed", "stakes": "real",
   "environment_controlled_by": "nobody",
   "single_agent_counterfactual": "could_not",
+  "multiplicity_role": "unreported",
   "cooperation_expected": "expected",
   "objective_relation": "identical",
   "confidence": "high",
   "uncertainty_reason": "",
   "quotes": {"interaction_present": "bots reverted each other's edits in a loop"},
-  "prompt_id": "extract_gate", "prompt_version": "v1",
+  "prompt_id": "extract_gate", "prompt_version": "v2",
   "model": "...", "run_date": "2026-11-12"
 }
 ```
@@ -84,26 +93,42 @@ Every extracted fact carries a verbatim quote from the record. A fact with no qu
 a fact; the field is left null and the confidence drops.
 
 Vocabularies: `single_agent_counterfactual` ∈ could / could_not / unclear ·
+`multiplicity_role` ∈ load_bearing / incidental / unreported ·
 `cooperation_expected` ∈ expected / unexpected / unclear · `objective_relation` ∈ identical /
 mixed / opposing / unclear · `confidence` ∈ high / medium / low.
+
+`multiplicity_role` is extracted on security records only — attacks, intrusions, abuse
+campaigns. It is never null there: a fleet with no statement of its contribution is
+`unreported`, not blank. `incidental` is the only value that requires evidence, and like
+every other fact it requires a verbatim quote.
 
 **Routing to review.** Anything with `confidence` below high, or any `unclear` in the three
 gate fields, goes to the review queue rather than producing a label. Gate 1 is the weak
 link — it asks for a counterfactual that the project's own reading notes leave open — so the
 design never lets a model settle it silently.
 
+The one exception is the security branch, where `definitions.md` sets a presumption: a
+multi-agent attack whose `multiplicity_role` is `unreported` resolves to `could_not` instead
+of routing to review. Everywhere else `unreported` has no meaning and `unclear` still
+routes.
+
 **Rules applied in code afterwards:**
 
+- `single_agent_counterfactual`, on a security record, is overridden by
+  `multiplicity_role`: `load_bearing` or `unreported` → `could_not`; `incidental` → `could`.
+  The presumption is applied here, in code, not asked of the model
 - `multi_agent` = `single_agent_counterfactual == "could_not"` AND `interaction_present`
 - `evidence_type`: deployed + real stakes + environment not controlled by an experimenter →
   `real_world`; researcher-built or simulated environment → `synthetic`; narrow probe on
   real models with no environment → `lab`; no AI system run → `theoretical`
-- `failure_mode`: the Gate 2 tree in `definitions.md`
+- `failure_mode`: the Gate 2 tree in `definitions.md`, over `cooperation_expected` and
+  `objective_relation`. `opposing` yields no failure mode and does **not** remove the record
+  from the index — Gate 1 alone decides scope
 
 ## Call 2 — instance assignment
 
-Prompt: `mvp/prompts/assign_instances.v1.md`. Runs only on records that passed Gate 1. The
-36 instance definitions fit in the prompt, so the model sees the actual definitions rather
+Prompt: `mvp/prompts/assign_instances.v2.md`. Runs only on records that passed Gate 1. The
+33 instance definitions fit in the prompt, so the model sees the actual definitions rather
 than two-word names.
 
 ```json
@@ -113,42 +138,41 @@ than two-word names.
     {"instance_id": "I01", "confidence": "high",
      "quote": "each bot repeatedly undid the other's change"},
     {"instance_id": "I19", "confidence": "medium", "quote": "..."}
-  ],
-  "no_failure_mode": false
+  ]
 }
 ```
 
-Failure mode and risk factors are derived in code from `instances.risk_id` — never taken
-from the model directly. This matters: in the PoC, a row's failure modes and risk factors
-had to equal exactly the set reachable through its instances, and a label that cannot be
-routed through an instance cannot be used at all.
+Output is the instance ids and their quotes, nothing else. The call does **not** emit a
+failure mode, a risk factor, or an opinion about either: those come from call 1 and from a
+later step, and deriving them from `instances.risk_id` would manufacture agreement between
+two judgements that are supposed to be independent.
 
-`no_failure_mode: true` is a legitimate answer. Most security events carry risk factors
-only.
-
-**Cross-check.** The failure mode derived from the instances is compared with the one the
-Gate 2 tree produced in call 1. Agreement raises confidence; disagreement flags the record
-for review and is recorded in the proposal. Neither route wins automatically.
+An empty instance list is a legitimate answer. So is a list of instances on a record whose
+failure mode is null.
 
 ## Calibration, before any bulk run
 
-**The gold set is under review and must not be used until it is.** Every label in the PoC
-came from AI-assisted sessions — all 8 commits in the repo carry a Claude co-author trailer —
-and none was independently checked. Calibrating against it would measure agreement with an
-earlier model pass, not accuracy. Worse, the PoC's own verification rule was not met: of the
-27 incidents, 6 carry an explicit *Verified*, 6 *Partially verified*, 8 have notes with no
-verdict, and **7 have no verification record at all**. Fourteen rest on a single source.
+A classifier is only as good as the set it is measured against, so the gold set comes first.
+
+**Where it came from, and why it had to be re-reviewed.** The index began with an inventory
+of incidents whose labels were all produced in AI-assisted sessions and never independently
+checked. Calibrating against those labels would have measured agreement with an earlier
+model pass rather than accuracy — the one thing a gold set must not do. Many of the rows also
+failed the project's own verification rule: a minority carried an explicit verdict against a
+primary source, several had notes but no verdict, some had no verification record at all,
+and about half rested on a single source. Every one of those rows has since been re-judged
+by a human against its sources, with the earlier label hidden until the verdict was formed.
 
 `mvp/gold/multiagent_gold.csv`, 60 rows in four strata, all `to_judge`:
 
 | stratum | n | what it is |
 |---|---|---|
-| `poc_positive` | 27 | the migrated incidents, being re-verified from primary sources |
+| `carried_over` | 27 | everything the index already held, each row judged from primary sources |
 | `aiid_csetv1` | 6 | AIID's 5 `yes` and 1 `maybe` on `Multiple AI Interaction` — independent human annotators, but a different concept from Gate 1 |
 | `queue_boundary` | 18 | prefilter candidates that tripped the keyword arm: something looked multi-agent |
 | `queue_base_rate` | 9 | prefilter candidates with no signal at all, as a control |
 
-The 27 negative candidates are drawn from the prefilter queue, dated 2025–2026, excluding
+The negative candidates are drawn from the prefilter queue, dated 2025–2026, excluding
 anything AIID marks multi-agent (`mvp/gold/sample_negatives.py`, seeded). **They are
 unscreened, not negative.** AIID applies no multi-agent label to 2025–2026 records at all —
 CSETv1 stops in 2024 — so the absence of one carries no information, and a real multi-agent
@@ -161,10 +185,10 @@ in the other direction — precision measured against this set is **pessimistic*
 describes the decision boundary rather than the population. `--hard 0` draws a base-rate
 sample instead.
 
-**Why there were no negatives before.** The gold set was 27 positives and nothing else, so
-recall was measurable and precision was not: a classifier that labelled everything
-multi-agent would have scored 100%. That hole was structural and independent of the
-provenance problem; fixing provenance alone would not have closed it.
+**Why negatives had to be added.** The original set was positives and nothing else, so
+recall was measurable and precision was not: a classifier that labelled every record
+multi-agent would have scored 100% on it. That hole was structural and separate from the
+provenance problem — re-reviewing the positives would not have closed it.
 
 **Reviewing.** `python mvp/gold/build_review.py` renders `mvp/out/gold_review.html`, a
 self-contained worksheet that opens from disk. It shows each row's narrative, its sources as
@@ -180,15 +204,27 @@ python mvp/gold/build_review.py --merge ~/Downloads/gold_reviewed.csv
 
 folds them into `multiagent_gold.csv`, where they survive later rebuilds.
 
-**Baselines to beat, measured and not affected by the review:**
+**Where the numbers live.** Every count in this section — how many rows are in scope, what
+recall the cheap baselines achieve, what the classifier scores — is computed from the
+reviewed gold file, and that file is the only authority. Figures are not restated here,
+because a label changing in review would silently make this page wrong. Read them from the
+file.
 
-- The MIT Navigator's rater: **33% false negative** on the 9 of our incidents in AIID.
-- The keyword prefilter arm alone: **78% recall** (21 of 27) against the PoC positives — a
-  figure that is only as good as those positives, so it is provisional too. The 6 it misses
-  are AIR-2025-0019, AIR-2025-0027, AIR-2025-0068, AIR-2025-0136, AIR-2026-0180 and LW-03.
+The reviewed set, as merged on 2026-11-13, is 60 rows judged `in`, `out` or `unclear`. The
+security rows in it were judged before `definitions.md` settled the presumption for
+coordinated attacks, so the in-scope count will move once they are re-judged against it;
+see `OPEN.md` item 31. Until that is done, no accuracy figure computed from this file is
+final.
 
-A classifier that does not beat 78% recall is not worth running, because the keyword net is
-free.
+**Baselines to beat.** Two, both cheap, and a classifier that cannot beat them is not worth
+running:
+
+- *An external human rater.* The MIT AI Risk Navigator's multi-agent facet, measured against
+  the index's own incidents that also appear in AIID, misses a third of them. That figure is
+  independent of the review, since it is about the rater's labels rather than ours.
+- *The keyword prefilter arm alone.* It catches most of the positives for free, which sets
+  the floor the model has to clear. Its recall is measured against the in-scope rows of the
+  reviewed file and has to be recomputed whenever those change.
 
 **End-to-end test.** AIID incident 7, the Wikipedia vandalism-prevention bot loop, is a
 textbook miscoordination case: two bots with the same objective reverting each other. It

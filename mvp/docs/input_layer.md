@@ -103,12 +103,13 @@ Required frontmatter: `id`, `title`, `canonical_source`, `sources`, `occurrence_
 `occurrence_date_precision`, `first_seen`, `last_verified`, `systems`, `actor_count`,
 `interaction_kind`, `evidence_type`, `multi_agent`, `multi_agent_basis`,
 `multi_agent_label_source`, `external_labels`, `failure_mode`, `failure_mode_source`,
-`instances`, `verification`, `legacy_id`.
+`instances`, `verification`.
 
 Sections, in this order: `## Context`, `## What happened`, `## Mechanism`,
 `## Agents and interaction`, `## Response`, `## Verification notes`, `## Sources`.
 
-**No evidence scores.** E1–E5 are parked and live in `poc/`.
+**No evidence scores.** The evidence-scoring rubric is parked, so a dossier carries no
+score fields.
 
 ## Vocabularies
 
@@ -142,5 +143,6 @@ A source may appear in all three. Each note belongs to exactly one.
   because a wrong merge is worse than a missing one.
 - Four migrated titles were truncated from a long summary sentence and want renaming by
   hand: the dossiers for AIR-2026-0101, AIR-2026-0219, AIR-2026-0194 and AIR-2026-0183.
-- `actor_count` and `interaction_kind` are `unclear` on all 27 migrated dossiers. The PoC
-  never captured them.
+- `actor_count` and `interaction_kind` are `unclear` on every carried-over dossier, because
+  the inventory they came from did not record either. Both have to be filled from the
+  primary sources; `interaction_kind` feeds the failure-mode assignment.

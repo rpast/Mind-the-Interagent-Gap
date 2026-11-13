@@ -25,7 +25,7 @@ For each batch of 10–20 queued records:
 
 1. Read the full record from `mvp/records/<source_id>.jsonl`, not the queue summary. The
    queue carries a truncated title; the record carries the text.
-2. Apply `mvp/prompts/extract_gate.v1.md` to each record. Follow that prompt exactly — it
+2. Apply `mvp/prompts/extract_gate.v2.md` to each record. Follow that prompt exactly — it
    is the versioned artifact, not a summary of one.
 3. Append one JSON object per record to
    `mvp/proposals/extract_gate.<YYYY-MM-DD>.jsonl`, adding `prompt_id`, `prompt_version`,
@@ -47,7 +47,7 @@ Only for records whose derived `multi_agent` is true.
 
 1. Load `mvp/taxonomy/instances.csv` in full — all 36 rows with their definitions — into the
    prompt context.
-2. Apply `mvp/prompts/assign_instances.v1.md`.
+2. Apply `mvp/prompts/assign_instances.v2.md`.
 3. Append to `mvp/proposals/assign_instances.<YYYY-MM-DD>.jsonl`.
 4. Derive the failure mode from `instances.risk_id` and compare it with the one call 1's
    tree produced. **If they disagree, flag the record for review.** Neither route wins.

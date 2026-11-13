@@ -240,7 +240,7 @@ Written 2026-11-07. **Run against the live API on 2026-11-09**, which returned
 1,803 incidents and 2,623 classifications; see `../raw/aiid/FETCHED.md` for the
 snapshot and the exact commands. The schema assumptions held.
 
-Moved from `build/` to `mvp/pipeline/` on 2026-11-12 with the PoC/mvp split. The
+Moved from `build/` to `mvp/pipeline/` on 2026-11-12 when this tree was started. The
 script is unchanged: `mvp/pipeline/run.py` imports it as a library (`Client`,
 `Schema`, `SelectionBuilder`, `fetch_all`, `resolve_token`) rather than wrapping
 or editing it. It has no incremental fetch — both outputs are overwritten every

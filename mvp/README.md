@@ -1,6 +1,6 @@
 # mvp
 
-The current build, started from zero on 2026-11-12. The PoC in `poc/` established the
+The current build, started from zero on 2026-11-12. An earlier exploratory pass established the
 ontology and is frozen; this tree carries forward its lessons rather than its structure.
 
 The **input layer** is built. Detection and mapping follow in this same tree until v1.0.
@@ -44,11 +44,11 @@ Three modes: `labelled-only` (AIID, external labels only, no classifier), `aiid-
 
 ## Where it stands
 
-27 dossiers, migrated from the PoC inventory. 1,830 records across four sources. 347
+27 dossiers, carried over from the index's earlier holdings and re-judged from the primary sources. 1,830 records across four sources. 347
 candidates in the queue. Both classifiers are designed and their prompts written; neither
 has been run, and neither should be until the gold set is reviewed.
 
-**The gold set is under review.** Every PoC label came from AI-assisted sessions and none
+**The gold set has been reviewed.** Every earlier label came from AI-assisted sessions and none
 was independently checked, so calibrating against it would measure agreement with an earlier
 model pass. `mvp/gold/multiagent_gold.csv` holds 60 rows in four strata, all `to_judge`;
 work through them with `python mvp/gold/build_review.py` and `mvp/out/gold_review.html`.
@@ -60,4 +60,4 @@ The things to know before extending it:
   scope.** `check` fails the build otherwise.
 - **Evidence reaches a risk only through an instance.** That is why the classifier assigns
   instance ids and the failure mode is derived, not stated.
-- **Scoring is parked.** No E1–E5 anywhere here; it lives in `poc/`.
+- **Scoring is parked.** The evidence-scoring rubric is not applied anywhere here.
