@@ -298,6 +298,46 @@
     stay in `mvp/incidents/` at all or move to a separate screened-out set — keeping them
     inflates "27 dossiers" as a headline count, since only 20 of the 27 are in scope.
 
+### New, 2026-11-14 (open question, not yet designed)
+
+53. **Where does the text the classifiers read come from? Undecided, and it blocks a useful
+    classifier run.** Raised 2026-11-14 and logged without a design.
+
+    The premise to clear up first: **dossiers are not classifier input.** The flow is
+    `raw/` → `records/` → `state/queue.jsonl` → classifier → `proposals/` → human promotes →
+    `incidents/`. `SKILL.md` has the classifier read the queue and then the full record from
+    `mvp/records/<source_id>.jsonl`, and it never writes a dossier field. A dossier exists only
+    after promotion, so there is by construction no dossier for an unclassified incident, and
+    there should not be.
+
+    **The problem is what it reads instead.** All 347 queued records are under 600 characters;
+    median 406, minimum 70. That is the thinness the gold review just showed to be
+    insufficient: the facts the gates require — agent count, whether the agents interacted, who
+    controlled the environment, what multiplicity contributed — are usually absent from text
+    that short. `extract_gate.v2.md` now asks for `multiplicity_role` and a verbatim quote per
+    fact, and records this thin frequently cannot supply either, so the run would yield mostly
+    review items rather than labels. `mvp/gold/context/` solves this for 41 rows out of 1,830.
+
+    **Sketched, not decided:** generalise `mvp/gold/context/` into a pipeline layer, e.g.
+    `mvp/context/<source>.jsonl`, keyed by `(source_id, source_record_id)` as records are,
+    written by a new `enrich` stage between `prefilter` and classification, holding the same
+    fields the gold context files already use. It is neither `raw/` (not verbatim) nor
+    `records/` (not content-hashed normalisation) but a third machine-written layer: sourced
+    facts with quotes, assembled for judgement. The classifier would read record plus context,
+    and the gold context files would become its first 41 rows.
+
+    **Open sub-questions.**
+    - Enrich the whole queue, or only records the classifier cannot settle? Enriching
+      everything is thorough but mostly wasted on clear negatives; enriching on demand is
+      cheaper but needs two passes. The gold review suggests the unsettled fraction is large
+      but not total.
+    - Fetching is partly blocked and rate-limited. Reuters refuses automated fetches outright,
+      and the Agent Incident Registry asks to be contacted before reuse, so `reuse_status` in
+      the registry has to gate what may be stored rather than merely read.
+    - Enrichment is an inference step over fetched text, so it needs a proposal's provenance
+      discipline: `prompt_id`, `prompt_version`, `model`, `run_date`, and a quote per field.
+    - Does `check` validate the context layer, and does a dossier have to cite it?
+
 ## Layer 2. Detection
 17. Write the one-page coding protocol: the definition of coverage and the 0–3 validity weight.
 18. Build `data/evals.csv` (technique, what it measures, method, access, validity note). Seed it from METR, Apollo Research, UK AISI, GovSim, Melting Pot, agent-security benchmarks and steganography evals.
