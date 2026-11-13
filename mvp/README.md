@@ -44,9 +44,15 @@ Three modes: `labelled-only` (AIID, external labels only, no classifier), `aiid-
 
 ## Where it stands
 
-27 dossiers, migrated from the PoC inventory with their verified narratives intact.
-1,830 records across four sources. 347 candidates in the queue. Both classifiers are
-designed and their prompts written; neither has been run.
+27 dossiers, migrated from the PoC inventory. 1,830 records across four sources. 347
+candidates in the queue. Both classifiers are designed and their prompts written; neither
+has been run, and neither should be until the gold set is reviewed.
+
+**The gold set is under review.** Every PoC label came from AI-assisted sessions and none
+was independently checked, so calibrating against it would measure agreement with an earlier
+model pass. `mvp/gold/multiagent_gold.csv` holds 60 rows in four strata, all `to_judge`;
+work through them with `python mvp/gold/build_review.py` and `mvp/out/gold_review.html`.
+See `docs/classifiers.md` → Calibration.
 
 The things to know before extending it:
 

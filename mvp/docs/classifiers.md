@@ -132,24 +132,60 @@ for review and is recorded in the proposal. Neither route wins automatically.
 
 ## Calibration, before any bulk run
 
-The gold set:
+**The gold set is under review and must not be used until it is.** Every label in the PoC
+came from AI-assisted sessions — all 8 commits in the repo carry a Claude co-author trailer —
+and none was independently checked. Calibrating against it would measure agreement with an
+earlier model pass, not accuracy. Worse, the PoC's own verification rule was not met: of the
+27 incidents, 6 carry an explicit *Verified*, 6 *Partially verified*, 8 have notes with no
+verdict, and **7 have no verification record at all**. Fourteen rest on a single source.
 
-| part | n | role |
+`mvp/gold/multiagent_gold.csv`, 60 rows in four strata, all `to_judge`:
+
+| stratum | n | what it is |
 |---|---|---|
-| The 27 migrated PoC incidents | 27 | positives, with failure modes from `poc/docs/mapping_2026-10-26.md` |
-| AIID CSETv1 `yes` — incidents 7, 19, 25, 44, 125, plus `maybe` 47 | 6 | independent external positives, and a test of whether CSETv1 means what we mean |
-| MIT Navigator candidates not already ours | 22 | unscreened, mixed |
-| Stratified sample of AIID records judged out of scope | ~50 | negatives |
+| `poc_positive` | 27 | the migrated incidents, being re-verified from primary sources |
+| `aiid_csetv1` | 6 | AIID's 5 `yes` and 1 `maybe` on `Multiple AI Interaction` — independent human annotators, but a different concept from Gate 1 |
+| `queue_boundary` | 18 | prefilter candidates that tripped the keyword arm: something looked multi-agent |
+| `queue_base_rate` | 9 | prefilter candidates with no signal at all, as a control |
 
-Report recall and precision **per gate**, not just end to end, so it is visible whether a
-miss came from extraction or from the counterfactual.
+The 27 negative candidates are drawn from the prefilter queue, dated 2025–2026, excluding
+anything AIID marks multi-agent (`mvp/gold/sample_negatives.py`, seeded). **They are
+unscreened, not negative.** AIID applies no multi-agent label to 2025–2026 records at all —
+CSETv1 stops in 2024 — so the absence of one carries no information, and a real multi-agent
+incident sitting in the pool becomes a false negative that unfairly penalises the classifier.
+Each needs a human verdict.
 
-**Baselines already measured, to beat:**
+The draw deliberately oversamples the keyword arm: only 32 of 267 pool members trip it, so a
+proportional sample would be almost all signal-free records. The consequence is a known bias
+in the other direction — precision measured against this set is **pessimistic**, and it
+describes the decision boundary rather than the population. `--hard 0` draws a base-rate
+sample instead.
+
+**Why there were no negatives before.** The gold set was 27 positives and nothing else, so
+recall was measurable and precision was not: a classifier that labelled everything
+multi-agent would have scored 100%. That hole was structural and independent of the
+provenance problem; fixing provenance alone would not have closed it.
+
+**Reviewing.** `python mvp/gold/build_review.py` renders `mvp/out/gold_review.html`, a
+self-contained worksheet that opens from disk. It shows each row's narrative, its sources as
+links and any external labels, and asks the gate questions in order; the failure mode is
+derived from the answers by the same tree the classifier uses. **The prior label is collapsed
+behind a toggle**, so a verdict is formed before the earlier pass is seen — the point of the
+review is independence. Verdicts persist in the browser, and **Export CSV** is the durable
+record:
+
+```
+python mvp/gold/build_review.py --merge ~/Downloads/gold_reviewed.csv
+```
+
+folds them into `multiagent_gold.csv`, where they survive later rebuilds.
+
+**Baselines to beat, measured and not affected by the review:**
 
 - The MIT Navigator's rater: **33% false negative** on the 9 of our incidents in AIID.
-- The keyword prefilter arm alone: **78% recall** (21 of 27) against our own positives. The
-  6 it misses are AIR-2025-0019, AIR-2025-0027, AIR-2025-0068, AIR-2025-0136, AIR-2026-0180
-  and LW-03.
+- The keyword prefilter arm alone: **78% recall** (21 of 27) against the PoC positives — a
+  figure that is only as good as those positives, so it is provisional too. The 6 it misses
+  are AIR-2025-0019, AIR-2025-0027, AIR-2025-0068, AIR-2025-0136, AIR-2026-0180 and LW-03.
 
 A classifier that does not beat 78% recall is not worth running, because the keyword net is
 free.

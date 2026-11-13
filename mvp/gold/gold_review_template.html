@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gold Set Review</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb; --plane: #f9f9f7;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7;
+  --seq-450: #2a78d6; --ours: #eb6834; --ok: #1baf7a;
+  --wash: rgba(137,135,129,0.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --plane: #0d0d0d;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835;
+    --seq-450: #3987e5; --ours: #d95926; --ok: #199e70;
+    --wash: rgba(137,135,129,0.20);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-1: #1a1a19; --plane: #0d0d0d;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835;
+  --seq-450: #3987e5; --ours: #d95926; --ok: #199e70;
+  --wash: rgba(137,135,129,0.20);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--plane); color: var(--ink);
+  font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, sans-serif; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 22px 16px 80px; }
+h1 { font-size: 18px; margin: 0 0 3px; }
+.sub { color: var(--ink-2); font-size: 12.5px; margin: 0 0 16px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.card { background: var(--surface-1); border: 1px solid var(--grid); border-radius: 8px;
+  padding: 16px 18px; margin-bottom: 14px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lab { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); }
+button { font: inherit; font-size: 12.5px; color: var(--ink); cursor: pointer;
+  background: var(--surface-1); border: 1px solid var(--axis); border-radius: 999px;
+  padding: 4px 12px; }
+button:hover { border-color: var(--seq-450); }
+button[aria-pressed="true"] { background: var(--seq-450); border-color: var(--seq-450); color: #fff; }
+button.v-in[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); }
+button.v-out[aria-pressed="true"] { background: var(--ours); border-color: var(--ours); }
+button.v-unclear[aria-pressed="true"] { background: var(--muted); border-color: var(--muted); }
+select, input[type=text] { font: inherit; font-size: 12.5px; color: var(--ink);
+  background: var(--surface-1); border: 1px solid var(--axis); border-radius: 6px;
+  padding: 4px 8px; }
+input[type=text] { width: 100%; }
+progress { width: 160px; height: 8px; }
+h2 { font-size: 15px; margin: 0 0 2px; line-height: 1.35; }
+.meta { color: var(--ink-2); font-size: 12px; margin-bottom: 12px; }
+.chip { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 999px;
+  background: var(--wash); color: var(--ink-2); margin-right: 4px; }
+.chip.warn { background: var(--ours); color: #fff; }
+.sect { margin: 0 0 11px; }
+.sect h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); margin: 0 0 3px; font-weight: 600; }
+.sect p { margin: 0; white-space: pre-wrap; }
+.q { border-top: 1px solid var(--grid); padding-top: 12px; margin-top: 4px; }
+.q .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 9px; }
+.q .row > .lab { min-width: 118px; }
+details { margin-top: 10px; border: 1px dashed var(--axis); border-radius: 6px; padding: 8px 11px; }
+summary { cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
+details[open] summary { margin-bottom: 7px; }
+a { color: var(--seq-450); }
+.nav { position: sticky; bottom: 0; background: var(--plane); padding: 10px 0 0;
+  border-top: 1px solid var(--grid); display: flex; gap: 8px; align-items: center; }
+.note { font-size: 11.5px; color: var(--muted); }
+.warnbox { border-left: 3px solid var(--ours); padding: 2px 0 2px 11px; margin: 0 0 12px;
+  font-size: 12.5px; color: var(--ink-2); }
+ul.inst { margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gold set review</h1>
+  <p class="sub">Judge each row against the two gates <b>before</b> revealing what the earlier
+     pass claimed. The prior label is hidden on purpose: the whole point is an independent
+     verdict. Progress is kept in this browser; <b>Export CSV</b> is the durable record.</p>
+
+  <div class="card">
+    <div class="bar">
+      <span class="lab">Stratum</span>
+      <select id="fstratum"><option value="">All</option></select>
+      <label class="note"><input type="checkbox" id="fundone"> unreviewed only</label>
+      <span style="flex:1"></span>
+      <progress id="prog" max="1" value="0"></progress>
+      <span class="note" id="progtext"></span>
+      <button id="export">Export CSV</button>
+      <button id="theme" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+
+  <div class="card" id="rowcard"></div>
+
+  <div class="nav">
+    <button id="prev">&larr; Prev</button>
+    <button id="next">Next &rarr;</button>
+    <span class="note" id="pos"></span>
+    <span style="flex:1"></span>
+    <span class="note">j / k to move, 1 in-scope, 2 out, 3 unclear</span>
+  </div>
+</div>
+
+<script>
+const D = __DATA__;
+const KEY = "mtig-gold-review-v1";
+
+let verdicts = {};
+try { verdicts = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { verdicts = {}; }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(verdicts)); } catch (e) { /* private window */ }
+}
+
+let idx = 0;
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function v(id) { return verdicts[id] || {}; }
+function done(r) { return !!v(r.gold_id).review_verdict; }
+
+function visible() {
+  const s = document.getElementById("fstratum").value;
+  const undone = document.getElementById("fundone").checked;
+  return D.rows.filter(r => (!s || r.stratum === s) && (!undone || !done(r)));
+}
+
+function group(label, options, field, row, onPick) {
+  const wrap = el("div", "row");
+  wrap.appendChild(el("span", "lab", label));
+  options.forEach(opt => {
+    const b = el("button", opt.cls || null, opt.label);
+    b.setAttribute("aria-pressed", String(v(row.gold_id)[field] === opt.value));
+    b.addEventListener("click", () => {
+      const cur = verdicts[row.gold_id] || (verdicts[row.gold_id] = {});
+      cur[field] = cur[field] === opt.value ? "" : opt.value;
+      cur.reviewed_on = new Date().toISOString().slice(0, 10);
+      save(); render(); if (onPick) onPick();
+    });
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
+function render() {
+  const rows = visible();
+  const card = document.getElementById("rowcard");
+  card.textContent = "";
+  if (!rows.length) { card.appendChild(el("p", "note", "Nothing matches this filter.")); return; }
+  if (idx >= rows.length) idx = rows.length - 1;
+  if (idx < 0) idx = 0;
+  const r = rows[idx];
+  const cur = v(r.gold_id);
+
+  const head = el("div");
+  head.appendChild(el("h2", null, r.title || "(untitled)"));
+  const meta = el("div", "meta");
+  meta.appendChild(el("span", "chip", r.stratum));
+  meta.appendChild(el("span", "chip", r.date || "no date"));
+  meta.appendChild(el("span", "chip", `${r.source_id}:${r.source_record_id}`));
+  if (r.dossier) meta.appendChild(el("span", "chip", r.dossier));
+  if (r._mit) meta.appendChild(el("span", "chip", "MIT " + r._mit));
+  if (done(r)) meta.appendChild(el("span", "chip", "✓ reviewed"));
+  head.appendChild(meta);
+  card.appendChild(head);
+
+  if (r.stratum.startsWith("queue_")) {
+    card.appendChild(el("p", "warnbox",
+      "Unscreened, not negative. AIID applies no multi-agent label to 2025–2026 "
+      + "records, so nothing here says this is single-agent. Your verdict is what makes "
+      + "it a negative."));
+  }
+
+  Object.keys(r._narrative || {}).forEach(name => {
+    const s = el("div", "sect");
+    s.appendChild(el("h3", null, name));
+    s.appendChild(el("p", null, r._narrative[name]));
+    card.appendChild(s);
+  });
+
+  const src = el("div", "sect");
+  src.appendChild(el("h3", null, `Sources (${(r._sources || []).length})`));
+  (r._sources || []).forEach(s => {
+    const p = el("p");
+    if (s.url) { const a = el("a", null, s.url); a.href = s.url; a.target = "_blank"; a.rel = "noreferrer"; p.appendChild(a); }
+    else p.textContent = `${s.source_id}:${s.record_id}`;
+    src.appendChild(p);
+  });
+  if ((r._sources || []).length < 2) src.appendChild(el("p", "note", "Single source — nothing corroborates this."));
+  card.appendChild(src);
+
+  if ((r._external || []).length) {
+    const ex = el("div", "sect");
+    ex.appendChild(el("h3", null, "External labels"));
+    r._external.forEach(l => ex.appendChild(el("p", "mono",
+      `${l.source}/${l.namespace || "-"} ${l.field} = ${l.value}  (${l.fetched_at})`)));
+    card.appendChild(ex);
+  }
+
+  // --- the questions ---
+  const q = el("div", "q");
+  q.appendChild(group("Gate 1", [
+    { label: "could not — needed the interaction", value: "could_not" },
+    { label: "could — one agent suffices", value: "could" },
+    { label: "unclear", value: "unclear" },
+  ], "review_gate1", r));
+  q.appendChild(group("Cooperation", [
+    { label: "expected", value: "expected" },
+    { label: "unexpected", value: "unexpected" },
+    { label: "unclear", value: "unclear" },
+  ], "review_gate2_cooperation", r));
+  q.appendChild(group("Objectives", [
+    { label: "identical", value: "identical" },
+    { label: "mixed", value: "mixed" },
+    { label: "opposing", value: "opposing" },
+    { label: "unclear", value: "unclear" },
+  ], "review_gate2_objectives", r));
+
+  const derived = deriveFM(cur);
+  if (derived) {
+    const d = el("div", "row");
+    d.appendChild(el("span", "lab", "Implies"));
+    d.appendChild(el("span", "chip", derived));
+    d.appendChild(el("span", "note", "from the gate 2 tree — override below if you disagree"));
+    q.appendChild(d);
+  }
+
+  q.appendChild(group("Verdict", [
+    { label: "In scope", value: "in", cls: "v-in" },
+    { label: "Out of scope", value: "out", cls: "v-out" },
+    { label: "Unclear", value: "unclear", cls: "v-unclear" },
+  ], "review_verdict", r, () => { if (autoAdvance) setTimeout(() => move(1), 120); }));
+
+  const fmRow = el("div", "row");
+  fmRow.appendChild(el("span", "lab", "Failure mode"));
+  const sel = el("select");
+  ["", "FM1", "FM2", "FM3", "none"].forEach(o => {
+    const opt = el("option", null, o || "(leave blank)"); opt.value = o; sel.appendChild(opt);
+  });
+  sel.value = cur.review_failure_mode || "";
+  sel.addEventListener("change", () => {
+    const c = verdicts[r.gold_id] || (verdicts[r.gold_id] = {});
+    c.review_failure_mode = sel.value; save();
+  });
+  fmRow.appendChild(sel);
+  fmRow.appendChild(el("span", "note", "optional — only if you judged it from the source"));
+  q.appendChild(fmRow);
+
+  const noteRow = el("div", "row");
+  noteRow.appendChild(el("span", "lab", "Note"));
+  const inp = el("input"); inp.type = "text"; inp.value = cur.review_note || "";
+  inp.placeholder = "what settled it, or what is missing";
+  inp.addEventListener("input", () => {
+    const c = verdicts[r.gold_id] || (verdicts[r.gold_id] = {});
+    c.review_note = inp.value; save();
+  });
+  noteRow.appendChild(inp);
+  q.appendChild(noteRow);
+  card.appendChild(q);
+
+  // --- prior label, hidden by default ---
+  if (r.prior_multi_agent || r.prior_basis) {
+    const det = el("details");
+    det.appendChild(el("summary", null, "Reveal what the earlier pass claimed"));
+    if (r.prior_multi_agent) det.appendChild(el("p", "mono", "multi_agent: " + r.prior_multi_agent));
+    if (r.prior_failure_mode) det.appendChild(el("p", "mono", "failure_mode: " + r.prior_failure_mode));
+    if (r.prior_instances) det.appendChild(el("p", "mono", "instances: " + r.prior_instances));
+    if (r.prior_verification) det.appendChild(el("p", "mono", "verification: " + r.prior_verification));
+    if (r.prior_basis) det.appendChild(el("p", null, r.prior_basis));
+    card.appendChild(det);
+  }
+
+  const inst = el("details");
+  inst.appendChild(el("summary", null, "Instance definitions"));
+  const ul = el("ul", "inst");
+  D.instances.forEach(i => ul.appendChild(el("li", null,
+    `${i.instance_id} ${i.instance} [${i.risk_id}] — ${i.definition}`)));
+  inst.appendChild(ul);
+  card.appendChild(inst);
+
+  const n = D.rows.filter(done).length;
+  document.getElementById("prog").max = D.rows.length;
+  document.getElementById("prog").value = n;
+  document.getElementById("progtext").textContent = `${n} / ${D.rows.length} reviewed`;
+  document.getElementById("pos").textContent = `${idx + 1} of ${rows.length} shown`;
+}
+
+function deriveFM(cur) {
+  if (cur.review_gate1 !== "could_not") return "";
+  const c = cur.review_gate2_cooperation, o = cur.review_gate2_objectives;
+  if (c === "unexpected") return "FM3 Collusion";
+  if (c !== "expected") return "";
+  if (o === "identical") return "FM1 Miscoordination";
+  if (o === "mixed") return "FM2 Conflict";
+  if (o === "opposing") return "out of scope — the architect built the conflict";
+  return "";
+}
+
+let autoAdvance = true;
+function move(d) { idx += d; render(); window.scrollTo(0, 0); }
+
+function exportCsv() {
+  const cols = ["gold_id", "stratum", "source_id", "source_record_id", "dossier", "date",
+    "title", "prior_multi_agent", "prior_failure_mode", "review_verdict", "review_gate1",
+    "review_gate2_cooperation", "review_gate2_objectives", "review_failure_mode",
+    "review_note", "reviewed_on"];
+  const esc = s => {
+    const t = (s === undefined || s === null) ? "" : String(s);
+    return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  const lines = [cols.join(",")];
+  D.rows.forEach(r => {
+    const c = v(r.gold_id);
+    lines.push(cols.map(k => esc(k in c ? c[k] : r[k])).join(","));
+  });
+  const blob = new Blob([lines.join("\n") + "\n"], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "gold_reviewed.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function init() {
+  const fs = document.getElementById("fstratum");
+  [...new Set(D.rows.map(r => r.stratum))].sort().forEach(s => {
+    const o = el("option", null, `${s} (${D.rows.filter(r => r.stratum === s).length})`);
+    o.value = s; fs.appendChild(o);
+  });
+  fs.addEventListener("change", () => { idx = 0; render(); });
+  document.getElementById("fundone").addEventListener("change", () => { idx = 0; render(); });
+  document.getElementById("prev").addEventListener("click", () => move(-1));
+  document.getElementById("next").addEventListener("click", () => move(1));
+  document.getElementById("export").addEventListener("click", exportCsv);
+  const tb = document.getElementById("theme");
+  tb.addEventListener("click", () => {
+    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+    tb.setAttribute("aria-pressed", String(!dark));
+    tb.textContent = dark ? "Dark" : "Light";
+  });
+  document.addEventListener("keydown", e => {
+    if (e.target && e.target.tagName === "INPUT") return;
+    const rows = visible();
+    if (!rows.length) return;
+    const r = rows[Math.min(idx, rows.length - 1)];
+    if (e.key === "j" || e.key === "ArrowRight") move(1);
+    else if (e.key === "k" || e.key === "ArrowLeft") move(-1);
+    else if (e.key === "1" || e.key === "2" || e.key === "3") {
+      const map = { "1": "in", "2": "out", "3": "unclear" };
+      const c = verdicts[r.gold_id] || (verdicts[r.gold_id] = {});
+      c.review_verdict = map[e.key];
+      c.reviewed_on = new Date().toISOString().slice(0, 10);
+      save(); render();
+      if (autoAdvance) setTimeout(() => move(1), 120);
+    }
+  });
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
