@@ -33,12 +33,16 @@ import run as pipeline  # noqa: E402
 MVP = Path(__file__).resolve().parents[1]
 ROOT = MVP.parent
 GOLD = MVP / "gold" / "multiagent_gold.csv"
+# The id registry: every gold id ever issued, including rows since dropped, so a
+# row restored or a dossier merged never changes anyone's id.
+GOLD_IDS = MVP / "gold" / "gold_ids.csv"
 TEMPLATE = MVP / "gold" / "gold_review_template.html"
 OUT = MVP / "out" / "gold_review.html"
 
 FIELDS = ["gold_id", "stratum", "source_id", "source_record_id", "dossier",
           "date", "title", "draw_note",
-          "review_verdict", "review_gate1", "review_gate2_cooperation",
+          "review_verdict", "review_gate1", "review_gate2_cooperated",
+               "review_gate2_cooperation",
           "review_gate2_objectives", "review_failure_mode", "review_note",
           "multiplicity_role", "duplicate_of", "review_round",
           "reviewed_by", "reviewed_on"]
@@ -63,7 +67,8 @@ def narrative(dossier_meta, body, record):
     return {"What happened": record.get("text", "")}
 
 
-REVIEW_COLS = ["review_verdict", "review_gate1", "review_gate2_cooperation",
+REVIEW_COLS = ["review_verdict", "review_gate1", "review_gate2_cooperated",
+               "review_gate2_cooperation",
                "review_gate2_objectives", "review_failure_mode", "review_note",
                "multiplicity_role", "duplicate_of", "review_round",
                "reviewed_by", "reviewed_on"]
@@ -101,7 +106,7 @@ def main():
         key = (src["source_id"], str(src["record_id"]))
         rec = records.get(key, {})
         rows.append({
-            "gold_id": f"G-{len(rows) + 1:03d}",
+            "gold_id": "",
             "stratum": "carried_over",
             "source_id": src["source_id"],
             "source_record_id": src["record_id"],
@@ -126,7 +131,7 @@ def main():
         if not cse:
             continue
         rows.append({
-            "gold_id": f"G-{len(rows) + 1:03d}",
+            "gold_id": "",
             "stratum": "aiid_csetv1",
             "source_id": sid, "source_record_id": rid, "dossier": "",
             "date": rec["date"], "title": rec["title"],
@@ -145,7 +150,7 @@ def main():
         rec = records.get((s["source_id"], s["source_record_id"]), {})
         why = s.get("keyword_terms") or ""
         rows.append({
-            "gold_id": f"G-{len(rows) + 1:03d}",
+            "gold_id": "",
             "stratum": f'queue_{s.get("stratum", "base_rate")}',
             "source_id": s["source_id"],
             "source_record_id": s["source_record_id"],
@@ -179,10 +184,36 @@ def main():
 
     # --- the label file, verdicts blank -----------------------------------
     existing = {}
+    ids = {}   # (source_id, source_record_id) -> gold_id, so an id never moves
+    if GOLD_IDS.exists():
+        for old in csv.DictReader(GOLD_IDS.open(encoding="utf-8")):
+            ids[(old["source_id"], old["source_record_id"])] = old["gold_id"]
+    if dropped_path.exists():
+        for old in csv.DictReader(dropped_path.open(encoding="utf-8")):
+            ids[(old["source_id"], old["source_record_id"])] = old["gold_id"]
     if GOLD.exists():
         for old in csv.DictReader(GOLD.open(encoding="utf-8")):
+            ids[(old.get("source_id"), old.get("source_record_id"))] = old["gold_id"]
             if old.get("review_verdict"):
                 existing[(old.get("source_id"), old.get("source_record_id"))] = old
+    # A gold id is permanent. Ids used to be dealt out by position, so removing or
+    # merging one dossier renumbered every row after it and silently broke every
+    # reference to a gold id elsewhere. Known rows keep their id; new rows take the
+    # next unused number.
+    used = {int(g[2:]) for g in ids.values() if g}
+    for r in rows:
+        key = (r["source_id"], str(r["source_record_id"]))
+        if key not in ids:
+            n = max(used, default=0) + 1
+            used.add(n)
+            ids[key] = f"G-{n:03d}"
+        r["gold_id"] = ids[key]
+    rows.sort(key=lambda r: r["gold_id"])
+    with GOLD_IDS.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["gold_id", "source_id", "source_record_id"])
+        for (sid, rid), gid in sorted(ids.items(), key=lambda kv: kv[1]):
+            w.writerow([gid, sid, rid])
     incoming = merged_verdicts(args.merge) if args.merge else {}
     existing.update(incoming)
 

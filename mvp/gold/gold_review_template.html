@@ -217,6 +217,11 @@ function render() {
     { label: "could — one agent suffices", value: "could" },
     { label: "unclear", value: "unclear" },
   ], "review_gate1", r));
+  q.appendChild(group("Cooperated", [
+    { label: "yes — they worked together", value: "yes" },
+    { label: "no", value: "no" },
+    { label: "unclear", value: "unclear" },
+  ], "review_gate2_cooperated", r));
   q.appendChild(group("Cooperation", [
     { label: "expected", value: "expected" },
     { label: "unexpected", value: "unexpected" },
@@ -300,9 +305,13 @@ function render() {
 
 function deriveFM(cur) {
   if (cur.review_gate1 !== "could_not") return "";
-  const c = cur.review_gate2_cooperation, o = cur.review_gate2_objectives;
-  if (c === "unexpected") return "FM3 Collusion";
-  if (c !== "expected") return "";
+  const did = cur.review_gate2_cooperated, c = cur.review_gate2_cooperation,
+        o = cur.review_gate2_objectives;
+  if (did !== "yes" && did !== "no") return "";
+  if (did === "yes") {
+    if (c === "unexpected") return "FM3 Collusion";
+    if (c !== "expected") return "";
+  }
   if (o === "identical") return "FM1 Miscoordination";
   if (o === "mixed") return "FM2 Conflict";
   if (o === "opposing") return "no failure mode — the architect built the conflict; still in scope";
@@ -315,8 +324,8 @@ function move(d) { idx += d; render(); window.scrollTo(0, 0); }
 function exportCsv() {
   const cols = ["gold_id", "stratum", "source_id", "source_record_id", "dossier", "date",
     "title", "prior_multi_agent", "prior_failure_mode", "review_verdict", "review_gate1",
-    "review_gate2_cooperation", "review_gate2_objectives", "review_failure_mode",
-    "review_note", "reviewed_on"];
+    "review_gate2_cooperated", "review_gate2_cooperation", "review_gate2_objectives",
+    "review_failure_mode", "review_note", "reviewed_on"];
   const esc = s => {
     const t = (s === undefined || s === null) ? "" : String(s);
     return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;

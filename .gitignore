@@ -28,3 +28,7 @@ mvp/notebooks/venv/
 # AIID fetches: the JSONL is the archive and is tracked; the CSV is a
 # convenience view that fetch_aiid.py regenerates from the same call.
 mvp/raw/aiid/*.csv
+
+# The front end's run state (run.py serve): local, per machine
+mvp/state/run.json
+mvp/state/run.json.tmp

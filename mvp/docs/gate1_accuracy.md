@@ -1,6 +1,6 @@
 # Gate 1 accuracy
 
-As of 2026-11-13, against the reviewed gold set after round 2.
+As of 2026-11-14, against the reviewed gold set after round 2, with G-024 restored.
 Numbers: `python mvp/gold/score_gate1.py` → `mvp/out/gate1_accuracy.json`.
 Regenerate before citing. Methodology and how to read them: `mvp/docs/gold_set.md`.
 
@@ -9,10 +9,11 @@ Regenerate before citing. Methodology and how to read them: `mvp/docs/gold_set.m
 Gate 1 only: in scope (multi-agent) against out of scope (not multi-agent). Gate 2 labels
 are not scored and will be reviewed by a human analyst later.
 
-**The gold set is 57 rows: 21 in, 33 out, 3 unclear.** The 3 unclear rows (G-007, G-025,
-G-031) are excluded from every figure, leaving **54 scorable rows**. Three further rows were
-dropped before scoring and are kept with their reasons in `mvp/gold/dropped.csv`: two
-duplicates and one row whose only source cannot be read.
+**The gold set is 58 rows: 22 in, 33 out, 3 unclear.** The 3 unclear rows (G-007, G-025,
+G-031) are excluded from every figure, leaving **55 scorable rows**. Two further rows were
+dropped before scoring and are kept with their reasons in `mvp/gold/dropped.csv`: one
+duplicate and one row whose only source cannot be read. The 22 in-scope rows cover 21
+distinct incidents: G-049 (Vanderbilt) is one incident with G-016 (DSEWiki).
 
 ## The headline: there is nothing of ours to score yet
 
@@ -22,7 +23,7 @@ model will have to beat.
 
 | predictor | n | precision | recall | accuracy |
 |---|---|---|---|---|
-| The index's earlier hand-curation (the ceiling) | 22 | **81.8%** | 100% by construction | 81.8% |
+| The index's earlier hand-curation (the ceiling) | 23 | **82.6%** | 100% by construction | 82.6% |
 | AIID CSETv1 `Multiple AI Interaction` (human annotators) | 5 | **20.0%** | 100% by construction | 20.0% |
 | Keyword prefilter arm | 32 | 11.1% | 66.7% | 46.9% | 
 | Prefilter queue membership, any arm | 32 | 9.4% | 100% | 9.4% |
@@ -33,11 +34,11 @@ precision means anything on those rows.
 
 ## Read each number with its caveat
 
-**The ceiling: 81.8% precision (18 of 22).** This is the one informative figure.
+**The ceiling: 82.6% precision (19 of 23).** This is the one informative figure.
 Four of its asserted positives do not survive review: G-002 (a tool that exists, with no
 event), G-013 (an ordinary cloud misconfiguration where no agent acted), G-014 (a game whose
 conflict the experimenters designed in) and G-005 (one agent moving through merged
-identities). An 18% false-positive rate in a hand-built inventory is the thing the classifier
+identities). A 17% false-positive rate in a hand-built inventory is the thing the classifier
 has to improve on, and it sets a realistic ceiling: these are hard calls, not sloppy ones.
 
 **CSETv1 scored 20% precision (1 of 5).** Independent human annotators, and four of their
@@ -54,24 +55,25 @@ missed), which is too few to carry a decimal point.
 
 **This supersedes the keyword arm's previously recorded 78% recall.** That figure was
 measured against the unreviewed inventory positives, most of which are not in the prefilter
-queue at all: 22 of 54 scorable rows have no queue row, including every carried-over row from
+queue at all: 23 of 55 scorable rows have no queue row, including every carried-over row from
 AI Village, the Agent Incident Registry and LessWrong. The keyword net runs over AIID, and
 most of the index's positives are not in AIID. The honest statement is that the keyword arm's
 recall is **unmeasured**, not 78%.
 
-## What 21 positives rest on
+## What 22 positives rest on
 
 | basis | n |
 |---|---|
 | Gate 1 on agent-to-agent interaction (not security rows) | 15 |
-| Stated evidence that multiplicity was load-bearing | 2 |
+| Stated evidence that multiplicity was load-bearing | 3 |
 | The multi-agent-attack presumption alone (`unreported`) | 4 |
 
-**Four of 21 positives — 19% — are in scope only because of the presumption**: G-017
+**Four of 22 positives — 18% — are in scope only because of the presumption**: G-017
 (RubyGems), G-019 (Taiwan intrusion), G-047 (Canada archives), G-049 (Vanderbilt). Any claim
 resting on the inventory should say so, because reversing that one rule moves a fifth of the
-positives. The two rows with stated evidence are G-020, where OpenAI's own report asserts it,
-and G-016.
+positives. The three rows with stated evidence are G-020, where OpenAI's own report asserts it,
+G-016 and G-024. G-049 is counted here on its own source, which is silent; as an incident
+it is part of G-016, which has stated evidence.
 
 ## Fixing the sample before the next run
 

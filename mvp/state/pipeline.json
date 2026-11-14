@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-12",
+  "generated": "2026-11-14",
   "incidents": [
     {
       "canonical_source": "aivillage",
@@ -10,8 +10,8 @@
       "first_seen": "2026-10-26",
       "id": "MIG-0001",
       "instances": "I34",
+      "instances_presumed": "",
       "last_verified": "2026-10-26",
-      "legacy_id": "AIV-02",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-04",
@@ -30,9 +30,9 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0002",
       "instances": "I26;I28",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2025-0019",
-      "multi_agent": "True",
+      "multi_agent": "False",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-04-07",
       "path": "mvp/incidents/MIG-0002.md",
@@ -50,8 +50,8 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0003",
       "instances": "I30",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2025-0027",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-04-23",
@@ -70,8 +70,8 @@
       "first_seen": "2026-10-26",
       "id": "MIG-0004",
       "instances": "I34;I12",
+      "instances_presumed": "",
       "last_verified": "2026-10-26",
-      "legacy_id": "AIV-01",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-06",
@@ -84,15 +84,15 @@
     {
       "canonical_source": "air_enkrypt",
       "date_precision": "day",
-      "evidence_type": "lab",
+      "evidence_type": "synthetic",
       "external_label_count": "0",
       "failure_mode": "",
       "first_seen": "2026-10-25",
       "id": "MIG-0005",
       "instances": "I13;I32",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2025-0068",
-      "multi_agent": "True",
+      "multi_agent": "False",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-07-30",
       "path": "mvp/incidents/MIG-0005.md",
@@ -104,14 +104,14 @@
     {
       "canonical_source": "air_enkrypt",
       "date_precision": "day",
-      "evidence_type": "lab",
+      "evidence_type": "synthetic",
       "external_label_count": "0",
       "failure_mode": "",
       "first_seen": "2026-10-25",
       "id": "MIG-0006",
       "instances": "I31",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2025-0070",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-07-31",
@@ -130,9 +130,9 @@
       "first_seen": "2026-10-26",
       "id": "MIG-0007",
       "instances": "I36",
+      "instances_presumed": "",
       "last_verified": "2026-10-26",
-      "legacy_id": "AIV-03",
-      "multi_agent": "True",
+      "multi_agent": "unclear",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-08",
       "path": "mvp/incidents/MIG-0007.md",
@@ -144,14 +144,14 @@
     {
       "canonical_source": "air_enkrypt",
       "date_precision": "day",
-      "evidence_type": "lab",
+      "evidence_type": "synthetic",
       "external_label_count": "0",
       "failure_mode": "",
       "first_seen": "2026-10-25",
       "id": "MIG-0008",
       "instances": "I31",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2025-0136",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-09-24",
@@ -164,14 +164,14 @@
     {
       "canonical_source": "air_enkrypt",
       "date_precision": "day",
-      "evidence_type": "lab",
+      "evidence_type": "synthetic",
       "external_label_count": "0",
       "failure_mode": "",
       "first_seen": "2026-10-25",
       "id": "MIG-0009",
       "instances": "I11;I31",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2025-0149",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-10-14",
@@ -184,14 +184,14 @@
     {
       "canonical_source": "air_enkrypt",
       "date_precision": "day",
-      "evidence_type": "lab",
+      "evidence_type": "synthetic",
       "external_label_count": "0",
       "failure_mode": "",
       "first_seen": "2026-10-25",
       "id": "MIG-0010",
       "instances": "I31",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2025-0177",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2025-11-19",
@@ -210,8 +210,8 @@
       "first_seen": "2026-10-26",
       "id": "MIG-0011",
       "instances": "I01",
+      "instances_presumed": "",
       "last_verified": "2026-10-26",
-      "legacy_id": "AIV-04",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-01",
@@ -230,8 +230,8 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0012",
       "instances": "I13;I27",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "LW-05",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-01-30",
@@ -250,9 +250,9 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0013",
       "instances": "I31",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2026-0029",
-      "multi_agent": "True",
+      "multi_agent": "False",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-02-02",
       "path": "mvp/incidents/MIG-0013.md",
@@ -270,15 +270,35 @@
       "first_seen": "2026-10-26",
       "id": "MIG-0014",
       "instances": "I11;I25",
+      "instances_presumed": "",
       "last_verified": "2026-10-26",
-      "legacy_id": "AIV-05",
-      "multi_agent": "True",
+      "multi_agent": "False",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-03",
       "path": "mvp/incidents/MIG-0014.md",
       "source_count": "1",
       "sources": "aivillage",
       "title": "Sabotage game",
+      "verification": "verified"
+    },
+    {
+      "canonical_source": "air_enkrypt",
+      "date_precision": "month",
+      "evidence_type": "real_world",
+      "external_label_count": "0",
+      "failure_mode": "FM3",
+      "first_seen": "2026-10-25",
+      "id": "MIG-0024",
+      "instances": "I35;I26",
+      "instances_presumed": "",
+      "last_verified": "2026-11-14",
+      "multi_agent": "True",
+      "multi_agent_label_source": "ours",
+      "occurrence_date": "2026-05",
+      "path": "mvp/incidents/MIG-0024.md",
+      "source_count": "1",
+      "sources": "air_enkrypt",
+      "title": "OpenAI agents turned internal Artifactory into a message board",
       "verification": "verified"
     },
     {
@@ -290,8 +310,8 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0015",
       "instances": "I31",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2026-0101",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-05-05",
@@ -310,15 +330,15 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0016",
       "instances": "I35;I26;I28",
-      "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2026-0219",
+      "instances_presumed": "",
+      "last_verified": "2026-11-14",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-05-11",
       "path": "mvp/incidents/MIG-0016.md",
-      "source_count": "1",
-      "sources": "air_enkrypt",
-      "title": "A swarm of internally deployed OpenAI agents made more than 15,000 edits to the",
+      "source_count": "2",
+      "sources": "air_enkrypt;lesswrong",
+      "title": "OpenAI agent swarm on DSEWiki and the Vanderbilt link shortener",
       "verification": "partially_verified"
     },
     {
@@ -330,8 +350,8 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0017",
       "instances": "",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "LW-03",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-05-11",
@@ -339,26 +359,6 @@
       "source_count": "1",
       "sources": "lesswrong",
       "title": "RubyGems attack",
-      "verification": "partially_verified"
-    },
-    {
-      "canonical_source": "lesswrong",
-      "date_precision": "day",
-      "evidence_type": "real_world",
-      "external_label_count": "0",
-      "failure_mode": "FM3",
-      "first_seen": "2026-10-25",
-      "id": "MIG-0018",
-      "instances": "I35;I28",
-      "last_verified": "2026-10-25",
-      "legacy_id": "LW-02",
-      "multi_agent": "True",
-      "multi_agent_label_source": "ours",
-      "occurrence_date": "2026-06-18",
-      "path": "mvp/incidents/MIG-0018.md",
-      "source_count": "1",
-      "sources": "lesswrong",
-      "title": "Vanderbilt link shortener operation",
       "verification": "partially_verified"
     },
     {
@@ -370,8 +370,8 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0019",
       "instances": "I28",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2026-0194",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-07-01",
@@ -379,7 +379,7 @@
       "source_count": "1",
       "sources": "air_enkrypt",
       "title": "Suspected China-linked actors used a multi-agent framework built on Hermes and",
-      "verification": "verified"
+      "verification": "partially_verified"
     },
     {
       "canonical_source": "lesswrong",
@@ -389,17 +389,17 @@
       "failure_mode": "FM3",
       "first_seen": "2026-10-25",
       "id": "MIG-0020",
-      "instances": "I35;I14;I26;I28",
-      "last_verified": "2026-10-25",
-      "legacy_id": "LW-01",
+      "instances": "I35;I14;I26;I29",
+      "instances_presumed": "",
+      "last_verified": "2026-11-14",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
-      "occurrence_date": "2026-07-07",
+      "occurrence_date": "2026-07-08",
       "path": "mvp/incidents/MIG-0020.md",
       "source_count": "1",
       "sources": "lesswrong",
       "title": "ExploitGym swarm and Hugging Face intrusion",
-      "verification": "unverified"
+      "verification": "verified"
     },
     {
       "canonical_source": "aivillage",
@@ -410,8 +410,8 @@
       "first_seen": "2026-10-26",
       "id": "MIG-0021",
       "instances": "I01;I09;I23",
+      "instances_presumed": "",
       "last_verified": "2026-10-26",
-      "legacy_id": "AIV-06",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-07-08",
@@ -430,9 +430,9 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0022",
       "instances": "",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "LW-04",
-      "multi_agent": "True",
+      "multi_agent": "unclear",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-07-24",
       "path": "mvp/incidents/MIG-0022.md",
@@ -450,8 +450,8 @@
       "first_seen": "2026-10-25",
       "id": "MIG-0023",
       "instances": "I31",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2026-0180",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-08-03",
@@ -464,35 +464,15 @@
     {
       "canonical_source": "air_enkrypt",
       "date_precision": "day",
-      "evidence_type": "real_world",
-      "external_label_count": "0",
-      "failure_mode": "FM3",
-      "first_seen": "2026-10-25",
-      "id": "MIG-0024",
-      "instances": "I35;I26;I28",
-      "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2026-0183",
-      "multi_agent": "True",
-      "multi_agent_label_source": "ours",
-      "occurrence_date": "2026-08-05",
-      "path": "mvp/incidents/MIG-0024.md",
-      "source_count": "1",
-      "sources": "air_enkrypt",
-      "title": "OpenAI evaluation agents turned an internal Artifactory service into a covert",
-      "verification": "unverified"
-    },
-    {
-      "canonical_source": "air_enkrypt",
-      "date_precision": "day",
       "evidence_type": "lab",
       "external_label_count": "0",
       "failure_mode": "",
       "first_seen": "2026-10-25",
       "id": "MIG-0025",
       "instances": "I13;I28",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2026-0189",
-      "multi_agent": "True",
+      "multi_agent": "unclear",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-08-07",
       "path": "mvp/incidents/MIG-0025.md",
@@ -504,14 +484,14 @@
     {
       "canonical_source": "air_enkrypt",
       "date_precision": "day",
-      "evidence_type": "lab",
+      "evidence_type": "synthetic",
       "external_label_count": "0",
       "failure_mode": "",
       "first_seen": "2026-10-25",
       "id": "MIG-0026",
       "instances": "I12;I32",
+      "instances_presumed": "",
       "last_verified": "2026-10-25",
-      "legacy_id": "AIR-2026-0193",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-08-10",
@@ -530,8 +510,8 @@
       "first_seen": "2026-10-26",
       "id": "MIG-0027",
       "instances": "I34;I11;I12",
+      "instances_presumed": "",
       "last_verified": "2026-10-26",
-      "legacy_id": "AIV-07",
       "multi_agent": "True",
       "multi_agent_label_source": "ours",
       "occurrence_date": "2026-09-10",
@@ -542,36 +522,352 @@
       "verification": "verified"
     }
   ],
+  "map": {
+    "aiid_snapshot": {
+      "fetched": "2026-11-09",
+      "present": true,
+      "records": 1803
+    },
+    "artifacts": {
+      "check": [
+        {
+          "exists": true,
+          "label": "The program that runs the check",
+          "path": "pipeline/run.py"
+        }
+      ],
+      "discover": [
+        {
+          "exists": true,
+          "label": "Where its finds would be saved",
+          "path": "raw/"
+        }
+      ],
+      "dossiers": [
+        {
+          "exists": true,
+          "label": "The incident files",
+          "path": "incidents/"
+        }
+      ],
+      "evtype": [
+        {
+          "exists": true,
+          "label": "The four evidence types",
+          "path": "taxonomy/evidence_types.csv"
+        },
+        {
+          "exists": false,
+          "label": "Where its answers will be saved",
+          "path": "proposals/"
+        }
+      ],
+      "extract": [
+        {
+          "exists": true,
+          "label": "The instructions the model follows",
+          "path": "prompts/extract_gate.v3.md"
+        },
+        {
+          "exists": false,
+          "label": "Where its output will be saved",
+          "path": "proposals/"
+        }
+      ],
+      "fetch": [
+        {
+          "exists": true,
+          "label": "Exact copies, as downloaded",
+          "path": "raw/aiid/"
+        }
+      ],
+      "gate1": [
+        {
+          "exists": true,
+          "label": "The written rule",
+          "path": "docs/definitions.md"
+        },
+        {
+          "exists": false,
+          "label": "Where its answers will be saved",
+          "path": "proposals/"
+        }
+      ],
+      "gate2": [
+        {
+          "exists": true,
+          "label": "The written rule",
+          "path": "docs/definitions.md"
+        },
+        {
+          "exists": false,
+          "label": "Where its answers will be saved",
+          "path": "proposals/"
+        }
+      ],
+      "gold": [
+        {
+          "exists": true,
+          "label": "The answer key",
+          "path": "gold/multiagent_gold.csv"
+        },
+        {
+          "exists": true,
+          "label": "The worksheet used to judge it",
+          "path": "out/gold_review.html"
+        }
+      ],
+      "index": [
+        {
+          "exists": true,
+          "label": "The finished table",
+          "path": "out/incident_index.csv"
+        }
+      ],
+      "instances": [
+        {
+          "exists": true,
+          "label": "The named patterns",
+          "path": "taxonomy/instances.csv"
+        },
+        {
+          "exists": true,
+          "label": "The instructions the model follows",
+          "path": "prompts/assign_instances.v2.md"
+        },
+        {
+          "exists": false,
+          "label": "Where its output will be saved",
+          "path": "proposals/"
+        }
+      ],
+      "manual": [
+        {
+          "exists": false,
+          "label": "Your write-ups, copied as given",
+          "path": "raw/manual/"
+        },
+        {
+          "exists": false,
+          "label": "Their records",
+          "path": "records/manual.jsonl"
+        },
+        {
+          "exists": false,
+          "label": "The curator's flag on each",
+          "path": "context/manual.jsonl"
+        }
+      ],
+      "normalise": [
+        {
+          "exists": true,
+          "label": "Records, one file per source",
+          "path": "records/"
+        }
+      ],
+      "orders": [
+        {
+          "exists": true,
+          "label": "The to-do notes",
+          "path": "state/work_orders.md"
+        }
+      ],
+      "prefilter": [
+        {
+          "exists": true,
+          "label": "The queue of candidates",
+          "path": "state/queue.jsonl"
+        }
+      ],
+      "proposals": [
+        {
+          "exists": false,
+          "label": "The suggestions",
+          "path": "proposals/"
+        }
+      ],
+      "readrec": [
+        {
+          "exists": true,
+          "label": "Readings, one file per source",
+          "path": "context/"
+        },
+        {
+          "exists": true,
+          "label": "The instructions the model follows",
+          "path": "prompts/enrich_context.v2.md"
+        }
+      ],
+      "readsrc": [
+        {
+          "exists": true,
+          "label": "Readings, one file per source",
+          "path": "context/"
+        },
+        {
+          "exists": true,
+          "label": "The instructions the model follows",
+          "path": "prompts/enrich_context.v2.md"
+        }
+      ],
+      "ready": [
+        {
+          "exists": true,
+          "label": "The readiness report",
+          "path": "state/readiness.jsonl"
+        },
+        {
+          "exists": true,
+          "label": "How the rule works",
+          "path": "docs/context_layer.md"
+        }
+      ],
+      "review": [
+        {
+          "exists": true,
+          "label": "The incident files a person writes",
+          "path": "incidents/"
+        }
+      ],
+      "score": [
+        {
+          "exists": true,
+          "label": "The latest scores",
+          "path": "out/gate1_accuracy.json"
+        },
+        {
+          "exists": true,
+          "label": "How to read them",
+          "path": "docs/gate1_accuracy.md"
+        }
+      ],
+      "sources": [
+        {
+          "exists": true,
+          "label": "The list of sources",
+          "path": "registry/sources.csv"
+        }
+      ],
+      "taxonomy": [
+        {
+          "exists": true,
+          "label": "The definitions",
+          "path": "docs/definitions.md"
+        },
+        {
+          "exists": true,
+          "label": "Risks, patterns and their links",
+          "path": "taxonomy/"
+        }
+      ]
+    },
+    "context_rows": 41,
+    "dossier_failure_modes": {
+      "FM1": 5,
+      "FM3": 3,
+      "none": 11
+    },
+    "dossier_scope": {
+      "in": 19,
+      "out": 4,
+      "unclear": 3
+    },
+    "dossier_verification": {
+      "partially_verified": 6,
+      "unverified": 13,
+      "verified": 7
+    },
+    "dossiers": 26,
+    "gold": {
+      "ceiling": 0.8260869565217391,
+      "ceiling_n": 23,
+      "in": 22,
+      "out": 33,
+      "rows": 58,
+      "unclear": 3
+    },
+    "instances": 36,
+    "manual": 0,
+    "prefilter_rules": {
+      "cutoff": "2024-01-01",
+      "keywords": [
+        "multi-?agent",
+        "agent[- ]to[- ]agent",
+        "\\bagents\\b",
+        "collusion|collude|colluding",
+        "coordinat(?:e|ion|ing)",
+        "negotiat(?:e|ion|ing)",
+        "bot[- ]to[- ]bot",
+        "swarm",
+        "prompt injection",
+        "trading algorithm|algorithmic trading|flash crash",
+        "price[- ]fixing|pricing algorithm"
+      ],
+      "label_values": [
+        "maybe",
+        "yes"
+      ],
+      "where": "mvp/pipeline/run.py:699"
+    },
+    "proposals": 0,
+    "queue": 347,
+    "queue_arms": {
+      "keyword": 62,
+      "label": 39,
+      "unclassified": 286
+    },
+    "queue_judge": {
+      "not_read": 333,
+      "read_full": 0,
+      "read_part": 11
+    },
+    "queue_ready": {
+      "not_ready": 333,
+      "provisional": 11,
+      "ready": 3
+    },
+    "queue_single": 3,
+    "queue_single_flagged": 0,
+    "records": 1830,
+    "records_by_source": {
+      "aiid": 1803,
+      "air_enkrypt": 15,
+      "aivillage": 7,
+      "lesswrong": 5
+    },
+    "risks": 10,
+    "sources": 23,
+    "sources_automatic": 1,
+    "sources_by_hand": 7,
+    "sources_fetchable": 12,
+    "sources_reference": 10,
+    "sources_unbuilt": 4
+  },
   "modes": {
-    "aiid-full": [
-      "fetch",
-      "normalise",
+    "update": [
+      "sources",
+      "records",
       "prefilter",
-      "queue",
-      "index",
-      "viz"
+      "classify",
+      "review",
+      "dossiers",
+      "index"
     ],
-    "all-sources": [
-      "fetch",
-      "normalise",
+    "update --discover": [
+      "sources",
+      "records",
       "discover",
       "prefilter",
-      "queue",
-      "index",
-      "viz"
-    ],
-    "labelled-only": [
-      "fetch",
-      "normalise",
-      "prefilter",
-      "index",
-      "viz"
+      "classify",
+      "review",
+      "dossiers",
+      "index"
     ]
   },
   "provenance": {
     "external": 0,
     "machine": 0,
-    "ours": 27,
+    "ours": 26,
     "unlabelled": 0
   },
   "queue": [
@@ -4138,6 +4434,16 @@
       "status": "fetchable"
     },
     {
+      "access_method": "manual",
+      "adapter": "manual",
+      "external_ma_label": "no",
+      "name": "Curator write-ups",
+      "reuse_status": "open",
+      "role": "discovery",
+      "source_id": "manual",
+      "status": "active"
+    },
+    {
       "access_method": "browser",
       "adapter": "work_order",
       "external_ma_label": "yes",
@@ -4276,10 +4582,10 @@
   ],
   "stages": [
     {
-      "count": 22,
+      "count": 23,
       "detail": {
         "baseline": 1,
-        "discovery": 11,
+        "discovery": 12,
         "reference": 10
       },
       "id": "sources",
@@ -4297,9 +4603,10 @@
       "label": "Records"
     },
     {
-      "count": 11,
+      "count": 12,
       "detail": {
         "implemented": 4,
+        "manual": 1,
         "work_order": 7
       },
       "id": "discover",
@@ -4332,15 +4639,15 @@
       "label": "Review"
     },
     {
-      "count": 27,
+      "count": 26,
       "detail": {
-        "ours": 27
+        "ours": 26
       },
       "id": "dossiers",
       "label": "Dossiers"
     },
     {
-      "count": 27,
+      "count": 26,
       "detail": {},
       "id": "index",
       "label": "Index"

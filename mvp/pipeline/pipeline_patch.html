@@ -1,0 +1,1645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Patch</title>
+<style>
+/* Two bits. Ink and paper carry everything that matters; the two tones between them are
+   only for quiet things: c1 the desktop pattern, c2 the dot grid. The Colours window sets
+   all four inline on <html>, which overrides both blocks below. */
+:root {
+  --c0: #000000; --c1: #555555; --c2: #a8a8a8; --c3: #ffffff;
+  --ink: var(--c0); --paper: var(--c3); color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --c0: #e9e9e4; --c1: #8a8a86; --c2: #505050; --c3: #101010; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --c0: #e9e9e4; --c1: #8a8a86; --c2: #505050; --c3: #101010; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: 12px/1.35 Geneva, "Lucida Grande", Verdana, "DejaVu Sans", sans-serif;
+  color: var(--ink);
+  background-color: var(--paper);
+  /* the desktop: a 50% grey made of pixels, in the dark mid-tone so it stays behind */
+  background-image: repeating-conic-gradient(var(--c1) 0 25%, var(--paper) 0 50%);
+  background-size: 2px 2px;
+  display: flex; flex-direction: column;
+  -webkit-font-smoothing: none; font-smooth: never;
+}
+button, input { font: inherit; color: inherit; }
+code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 11px; }
+
+/* ---- the strip of commands across the top ---- */
+.bar {
+  background: var(--paper); border-bottom: 1px solid var(--ink);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 10px;
+}
+.bar h1 { font-size: 12px; margin: 0 10px 0 0; letter-spacing: .04em; text-transform: uppercase; }
+.bar .sp { flex: 1 1 10px; }
+.bar .grp { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--ink); padding: 2px 6px 2px 4px; }
+.bar .glabel { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; background: var(--ink); color: var(--paper); padding: 1px 5px; }
+.bar .gnote { font-size: 10.5px; max-width: 340px; }
+.btn {
+  background: var(--paper); border: 1px solid var(--ink); border-radius: 4px;
+  padding: 2px 9px; min-height: 22px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover:not(:disabled), .btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.btn:disabled { cursor: not-allowed; border-style: dashed; opacity: .55; }
+.btn.strong { font-weight: bold; box-shadow: 1px 1px 0 var(--ink); }
+.btn:focus-visible, .node:focus-visible, input:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.seg { display: inline-flex; }
+.seg .btn { border-radius: 0; margin-left: -1px; }
+.seg .btn:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+.seg .btn:last-child { border-radius: 0 4px 4px 0; }
+
+/* ---- a window ---- */
+.win {
+  background: var(--paper); border: 1px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink); color: var(--ink);
+}
+.win > header {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--ink); color: var(--paper); padding: 2px 6px; min-height: 20px;
+  font-weight: bold; letter-spacing: .03em;
+}
+.win > header .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.closebox {
+  width: 13px; height: 13px; padding: 0; flex: none; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--paper); outline: 1px solid var(--ink);
+}
+.closebox:hover { background: var(--ink); }
+.closebox:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ---- the map and the docked run panel, side by side ---- */
+.main { flex: 1; min-height: 0; display: flex; }
+#patchwin { flex: 1; min-width: 0; min-height: 0; margin: 10px; display: flex; flex-direction: column; }
+#scroller {
+  flex: 1; min-height: 0; overflow: auto; position: relative;
+  /* the dot grid belongs to the whole viewing area, not to the drawing, so it fills the
+     window at any zoom; `local` makes it scroll with the boxes, and setZoom() scales the
+     spacing so the dots stay in step with them */
+  background-image: radial-gradient(circle at 1px 1px, var(--c2) 1px, transparent 1.3px);
+  background-size: 16px 16px; background-attachment: local;
+  scrollbar-color: var(--c1) var(--c3);
+}
+#sizer { position: relative; }
+#canvas {
+  position: absolute; left: 0; top: 0; width: 1560px; height: 1220px; transform-origin: 0 0; user-select: none;
+}
+#wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.wire { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.wire.hand { stroke-dasharray: 6 4; }
+.wire.unbuilt { stroke-dasharray: 1.5 4; }
+.wire.flow { stroke-width: 3.5; stroke-dasharray: 7 5; animation: flow .7s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -12; } }
+.wlabel { font-size: 10px; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 5px; stroke-linejoin: round; }
+
+/* a section: a boundary drawn round its boxes, which follows them when they move */
+.frame { position: absolute; border: 1px solid var(--ink); pointer-events: none; }
+.frame.sub { border-style: dashed; }
+.flabel {
+  position: absolute; left: 8px; top: -9px; pointer-events: auto; cursor: grab; touch-action: none;
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+  background: var(--paper); border: 1px solid var(--ink); padding: 1px 6px;
+}
+.frame.sub .flabel { border-style: dashed; letter-spacing: .08em; }
+.flabel:hover, .flabel.dragging { background: var(--ink); color: var(--paper); }
+.flabel.dragging { cursor: grabbing; }
+/* the rubber band drawn while selecting several boxes */
+.marquee {
+  position: absolute; pointer-events: none; border: 1px dashed var(--ink);
+  background-image: radial-gradient(circle at 1px 1px, var(--ink) 0.7px, transparent 1px); background-size: 4px 4px;
+}
+
+/* ---- an object in the patch ---- */
+.node {
+  position: absolute; width: 172px; background: var(--paper); border: 1px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink); cursor: grab; user-select: none; touch-action: none;
+}
+.node.dragging { cursor: grabbing; }
+.node .nt {
+  background: var(--ink); color: var(--paper); padding: 2px 6px; font-weight: bold;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.node .nb { padding: 5px 6px 4px; min-height: 50px; }
+.node .num { font-size: 19px; font-weight: bold; line-height: 1.05; }
+.node .cap { font-size: 10.5px; }
+/* who or what does the work: a small tag at the foot of every box */
+.node .by {
+  margin-top: 4px; border-top: 1px dotted var(--ink); padding-top: 2px;
+  font-size: 9px; letter-spacing: .09em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* built and waiting: a pin-striped title */
+.node.waiting .nt {
+  color: var(--ink);
+  background: repeating-linear-gradient(0deg, var(--ink) 0 1px, var(--paper) 1px 3px);
+}
+.node.waiting .nt span { background: var(--paper); padding: 0 4px; }
+/* not built: an outline only */
+.node.unbuilt { border-style: dashed; box-shadow: none; }
+.node.unbuilt .nt { background: var(--paper); color: var(--ink); border-bottom: 1px dashed var(--ink); }
+/* done by a person: rounded, like a button */
+.node.hand { border-radius: 10px; }
+.node.hand .nt { border-radius: 8px 8px 0 0; }
+/* a store of data: a sheet with its corner turned */
+.node.doc .nt { padding-right: 20px; }
+.node.doc::after {
+  content: ""; position: absolute; top: -1px; right: -1px; width: 14px; height: 14px;
+  background: linear-gradient(225deg, var(--paper) 0 49%, var(--ink) 49% 56%, var(--paper) 56%);
+  border-left: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
+}
+/* an end point: a small terminal box with a heavy rule on its right */
+.node.end { width: 136px; border-right-width: 5px; }
+.node.end .nb { min-height: 0; }
+.node.picked { outline: 2px solid var(--ink); outline-offset: 3px; }
+.port { position: absolute; width: 7px; height: 7px; background: var(--paper); border: 1px solid var(--ink); }
+
+/* ---- a real update, painted on the boxes ---- */
+.node .rsb {
+  display: none; position: absolute; right: -1px; top: -16px; height: 14px; line-height: 12px;
+  font-size: 9px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+  background: var(--paper); color: var(--ink); border: 1px solid var(--ink); padding: 0 4px;
+}
+.node[data-rs] .rsb { display: block; }
+.node.doc[data-rs] .rsb { right: 16px; }
+.node[data-rs="pending"] { outline: 1px dashed var(--ink); outline-offset: 4px; }
+.node[data-rs="running"] .nt { color: var(--ink); background: repeating-linear-gradient(45deg, var(--ink) 0 3px, var(--paper) 3px 7px); background-size: 9.9px 9.9px; animation: march .6s linear infinite; }
+.node[data-rs="running"] .nt span { background: var(--paper); padding: 0 4px; }
+.node[data-rs="running"] .rsb { background: var(--ink); color: var(--paper); }
+@keyframes march { to { background-position: 9.9px 0; } }
+.node[data-rs="waiting"] { outline: 3px solid var(--ink); outline-offset: 3px; animation: pulse 1s ease-in-out infinite; z-index: 3; }
+.node[data-rs="waiting"] .rsb, .node[data-rs="failed"] .rsb { background: var(--ink); color: var(--paper); font-weight: bold; }
+@keyframes pulse { 50% { outline-offset: 9px; } }
+.node[data-rs="failed"] { outline: 3px double var(--ink); outline-offset: 3px; animation: pulse 1.4s ease-in-out infinite; z-index: 3; }
+.node[data-rs="failed"] .nb { background: repeating-linear-gradient(-45deg, transparent 0 5px, var(--c2) 5px 6px); }
+.node[data-rs="done"] .nb { box-shadow: inset 4px 0 0 var(--ink); }
+.node[data-rs="skipped"] { opacity: .45; }
+.node[data-rs="placeholder"] { opacity: .7; border-style: dashed; }
+
+/* ---- the property sheet ---- */
+#sheet { position: fixed; right: 22px; bottom: 44px; width: 350px; max-height: 72vh; display: none; flex-direction: column; z-index: 5; }
+#sheet.open { display: flex; }
+#sheet > header { cursor: move; touch-action: none; }
+#sheet .body { overflow: auto; padding: 8px 10px 10px; }
+.win h3 { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; margin: 10px 0 2px; border-bottom: 1px solid var(--ink); }
+.win .body > h3:first-child { margin-top: 0; }
+#sheet p { margin: 3px 0; }
+#sheet .big { font-size: 13px; }
+#sheet code, .win code.block { display: block; border: 1px dotted var(--ink); padding: 3px 5px; overflow-wrap: anywhere; }
+#sheet table, #runpanel table { border-collapse: collapse; width: 100%; }
+#sheet td, #runpanel td { padding: 1px 0; vertical-align: top; }
+#sheet td:last-child, #runpanel td:last-child { text-align: right; font-weight: bold; white-space: nowrap; padding-left: 8px; }
+#sheet .kept { margin: 5px 0; }
+#sheet .kept a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; font-weight: bold; }
+#sheet .kept a:hover, #sheet .kept a:focus-visible { background: var(--ink); color: var(--paper); outline: none; }
+#sheet .kept a.intest { font-weight: normal; font-size: 10.5px; margin-left: 8px; }
+#sheet .kept .path { display: block; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 10.5px; overflow-wrap: anywhere; }
+#sheet ol, #sheet ul { margin: 3px 0; padding-left: 18px; }
+#sheet li { margin: 3px 0; }
+#sheet .terms { display: flex; flex-wrap: wrap; gap: 3px; margin: 3px 0; }
+#sheet .terms code { display: inline-block; padding: 0 4px; }
+.pill.none { margin-left: 6px; border-style: dashed; }
+.pill { display: inline-block; border: 1px solid var(--ink); padding: 0 5px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.pill.inv { background: var(--ink); color: var(--paper); }
+.note { font-size: 10.5px; }
+
+#legend { position: absolute; left: 1180px; top: 1060px; width: 260px; z-index: 2; }
+#legend > header { cursor: grab; touch-action: none; }
+#legend.dragging > header { cursor: grabbing; }
+#legend .body { padding: 6px 8px; display: grid; grid-template-columns: 46px 1fr; gap: 6px 8px; align-items: center; }
+.sw { height: 14px; border: 1px solid var(--ink); background: var(--paper); }
+.sw.run { background: var(--ink); }
+.sw.wait { background: repeating-linear-gradient(0deg, var(--ink) 0 1px, var(--paper) 1px 3px); }
+.sw.un { border-style: dashed; }
+.sw.hand { border-radius: 7px; }
+.sw.docsw { background: linear-gradient(225deg, var(--paper) 0 30%, var(--ink) 30% 38%, var(--paper) 38%); }
+.sw.endsw { border-right-width: 5px; }
+.sw.line { border: 0; border-top: 2px dashed var(--ink); height: 0; background: none; }
+.sw.dots { border: 0; border-top: 2px dotted var(--ink); height: 0; background: none; }
+.sw.solid { border: 0; border-top: 2px solid var(--ink); height: 0; background: none; }
+
+/* ---- the message line ---- */
+#msg {
+  background: var(--paper); border-top: 1px solid var(--ink); padding: 4px 10px; min-height: 26px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* ---- small floating windows: colours and help ---- */
+#colours, #help { position: fixed; right: 22px; top: 44px; width: 300px; max-height: calc(100vh - 56px); display: none; flex-direction: column; z-index: 6; }
+#help { width: 380px; }
+#colours.open, #help.open { display: flex; }
+#colours .body, #help .body { overflow: auto; padding: 8px 10px 10px; }
+#help p { margin: 3px 0; }
+#help dl { display: grid; grid-template-columns: 46px 1fr; gap: 5px 8px; margin: 4px 0; align-items: center; }
+#help dl.words { grid-template-columns: 110px 1fr; align-items: start; }
+#help dd { margin: 0; }
+#help dt.tag { font-size: 9px; letter-spacing: .09em; text-transform: uppercase; border-top: 1px dotted var(--ink); padding-top: 2px; }
+#colours h3 { margin: 10px 0 4px; }
+#colours .swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+#colours label { display: flex; align-items: center; gap: 6px; cursor: pointer; min-width: 0; }
+#colours input[type="color"] {
+  width: 34px; height: 22px; padding: 1px; flex: none; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--ink); border-radius: 0;
+}
+#colours input[type="color"]:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+#colours .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+#colours .chip { display: inline-block; width: 10px; height: 10px; border: 1px solid currentColor; margin-right: 5px; vertical-align: -1px; }
+#colours .foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+#colours .foot .note { flex: 1; }
+
+/* ---- the run panel: docked beside the map while an update runs ---- */
+#runpanel { width: 360px; flex: none; margin: 10px 10px 10px 0; display: none; flex-direction: column; min-height: 0; }
+#runpanel.open { display: flex; }
+#runpanel .rbody { overflow: auto; padding: 8px 10px 10px; flex: 1; min-height: 0; }
+#runstatus { margin: 0 0 6px; font-size: 13px; font-weight: bold; }
+#runlost { margin: 0 0 6px; padding: 3px 6px; border: 2px dashed var(--ink); font-weight: bold; }
+#runopts { font-size: 10.5px; margin-bottom: 6px; }
+#runsteps { list-style: none; margin: 0; padding: 0; }
+.rstep { border: 1px solid var(--ink); margin: 0 0 4px; background: var(--paper); }
+.rstep > button.rhead {
+  display: grid; grid-template-columns: 92px 1fr; gap: 1px 6px; align-items: center; width: 100%;
+  background: none; border: 0; padding: 3px 5px; cursor: pointer; text-align: left;
+}
+.rstep > button.rhead:hover { background: var(--ink); color: var(--paper); }
+.rstep > button.rhead:hover .rbadge { border-color: var(--paper); }
+.rstep > button.rhead:focus-visible { outline: 2px dotted var(--ink); outline-offset: -3px; }
+.rstep .rtitle { font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rstep .rsum { grid-column: 2; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rbadge { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--ink); padding: 0 4px; text-align: center; white-space: nowrap; }
+.rstep[data-st="running"] .rbadge, .rstep[data-st="waiting"] .rbadge, .rstep[data-st="failed"] .rbadge { background: var(--ink); color: var(--paper); font-weight: bold; }
+.rstep[data-st="pending"] .rbadge, .rstep[data-st="placeholder"] .rbadge { border-style: dashed; }
+.rstep[data-st="skipped"], .rstep[data-st="pending"] { opacity: .6; }
+.rstep[data-st="running"] { border-width: 2px; }
+.rstep[data-st="waiting"], .rstep[data-st="failed"] { border-width: 3px; animation: pulse2 1s ease-in-out infinite; }
+@keyframes pulse2 { 50% { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--ink); } }
+.rstep .rdetail { display: none; padding: 4px 6px 6px; border-top: 1px dotted var(--ink); }
+.rstep.open .rdetail { display: block; }
+.rstep .rlog { margin: 4px 0 0; padding: 4px 5px; border: 1px dotted var(--ink); max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask { border: 2px solid var(--ink); padding: 6px; margin: 2px 0 6px; }
+.ask .asktext { margin: 0 0 6px; font-size: 12.5px; }
+.ask .cmd { display: flex; gap: 4px; margin: 0 0 6px; }
+.ask .cmd input { flex: 1; min-width: 0; border: 1px solid var(--ink); background: var(--paper); padding: 2px 4px; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 11px; }
+.ask .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#runsummary h3 { margin-top: 10px; }
+#runsummary ul { margin: 3px 0; padding-left: 16px; }
+.rfoot { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-top: 1px solid var(--ink); }
+.rfoot .note { flex: 1; }
+
+/* ---- a test run: the same panel, marked so it cannot pass for an update ----
+   The palette has only four tones, so the mark is a pattern, not a colour: hazard stripes
+   on the title bars, a dashed frame and a "Test run" tag wherever a run is shown. */
+.testmark {
+  display: inline-block; flex: none; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; font-weight: bold;
+  background: var(--paper); color: var(--ink); border: 1px solid var(--ink); padding: 0 5px; vertical-align: 1px;
+}
+#runpanel.test { border: 2px dashed var(--ink); }
+#runpanel.test > header, #patchwin.test > header, #tsetup > header {
+  background: repeating-linear-gradient(-45deg, var(--ink) 0 8px, var(--c1) 8px 16px);
+}
+#runpanel.test > header .t, #patchwin.test > header .t, #tsetup > header .t { text-shadow: 1px 1px 0 var(--ink), -1px -1px 0 var(--ink); }
+#runpanel.test #runstatus { border: 1px dashed var(--ink); padding: 3px 6px; }
+#runtest:empty { display: none; }
+#runtest { margin: 0 0 8px; padding: 4px 6px; border: 1px dashed var(--ink); font-size: 10.5px; }
+#runtest p { margin: 2px 0; }
+#runtest .ws { font-family: "Monaco", "DejaVu Sans Mono", monospace; overflow-wrap: anywhere; }
+#runtest a { color: var(--ink); font-weight: bold; text-decoration: underline; text-underline-offset: 2px; }
+#runtest a:hover, #runtest a:focus-visible { background: var(--ink); color: var(--paper); outline: none; }
+#runtest details { margin-top: 4px; }
+#runtest summary { cursor: pointer; font-weight: bold; }
+#runtest summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+#runtest ul { margin: 3px 0 0; padding-left: 14px; }
+#runtest li { margin: 3px 0; }
+#runtest li code { margin-right: 4px; }
+.ask .testnote { margin: 0 0 6px; padding: 3px 5px; border: 1px dashed var(--ink); font-size: 10.5px; }
+.ask .testnote .testmark { margin-right: 5px; }
+
+/* ---- the set-up dialog ---- */
+dialog.win { padding: 0; max-width: min(520px, calc(100vw - 24px)); width: 520px; }
+dialog.win[open] { display: flex; flex-direction: column; }
+dialog::backdrop { background: rgba(0, 0, 0, .35); }
+dialog .body { padding: 10px 12px 12px; overflow: auto; }
+dialog fieldset { border: 1px solid var(--ink); margin: 0 0 10px; padding: 6px 10px 8px; }
+dialog legend { font-weight: bold; padding: 0 4px; }
+dialog label { display: block; margin: 4px 0; cursor: pointer; }
+input[type="radio"], input[type="checkbox"] { accent-color: var(--ink); }
+dialog .sub { margin: 2px 0 6px 22px; padding-left: 8px; border-left: 1px dotted var(--ink); }
+dialog .sub label { margin: 2px 0; }
+dialog input[type="text"] { width: 100%; border: 1px solid var(--ink); background: var(--paper); padding: 3px 5px; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 11px; }
+dialog input[type="text"]:disabled { border-style: dashed; opacity: .55; }
+dialog .note { margin: 3px 0; }
+dialog .lead { margin: 0 0 8px; }
+.setuperr:empty { display: none; }
+.setuperr { border: 2px solid var(--ink); padding: 4px 6px; font-weight: bold; margin: 0 0 8px; }
+dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 900px) {
+  .main { flex-direction: column; }
+  #runpanel { width: auto; margin: 0 10px 10px; max-height: 45vh; }
+}
+@media (max-width: 640px) {
+  #patchwin { margin: 6px; }
+  #sheet { left: 6px; right: 6px; bottom: 32px; width: auto; max-height: 55vh; }
+  #colours, #help { left: 6px; right: 6px; width: auto; }
+  #msg { white-space: normal; }
+  #runpanel { margin: 0 6px 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wire.flow, .node[data-rs] , .node[data-rs] .nt, .rstep { animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="bar" role="toolbar" aria-label="Commands">
+  <h1>Mind the Interagent Gap</h1>
+  <span class="grp" role="group" aria-label="Test run: a dry run on made-up incidents, in a scratch folder">
+    <span class="glabel">Test run</span>
+    <button class="btn" id="tst" disabled aria-describedby="tstnote" title="A dry run: every step, on a handful of made-up incidents in a scratch folder. The project's files are not touched.">Test run&hellip;</button>
+    <span class="gnote" id="tstnote">Looking for the front end&hellip;</span>
+  </span>
+  <span class="grp" role="group" aria-label="Update: run the real pipeline">
+    <span class="glabel">Update</span>
+    <button class="btn strong" id="upd" disabled aria-describedby="srvnote" title="Run the real pipeline: reads and writes the project's files">Update&hellip;</button>
+    <span class="gnote" id="srvnote">Looking for the front end&hellip;</span>
+  </span>
+  <span class="seg" role="group" aria-label="Wording">
+    <button class="btn" id="plain" aria-pressed="true">Plain words</button>
+    <button class="btn" id="tech" aria-pressed="false">Technical</button>
+  </span>
+  <span class="sp"></span>
+  <span class="seg" role="group" aria-label="Zoom">
+    <button class="btn" id="zout" aria-label="Zoom out">&minus;</button>
+    <button class="btn" id="zfit">Fit</button>
+    <button class="btn" id="zin" aria-label="Zoom in">+</button>
+  </span>
+  <button class="btn" id="tidy" title="Put every box back where it started">Tidy</button>
+  <button class="btn" id="helpbtn" aria-pressed="false" aria-controls="help">How to read this map</button>
+  <button class="btn" id="legbtn" aria-pressed="true">Legend</button>
+  <button class="btn" id="colbtn" aria-pressed="false" aria-controls="colours" title="Choose the four colours of the palette">Colours</button>
+</div>
+
+<div class="main">
+<section class="win" id="patchwin" aria-label="Pipeline patch">
+  <header><span class="t" id="wintitle">Pipeline</span><span class="testmark" id="wintest" hidden title="The tags on the boxes come from the test run. The numbers on the boxes are still the project's own.">Test run on show</span></header>
+  <div id="scroller">
+    <div id="sizer">
+      <div id="canvas">
+        <svg id="wires" aria-hidden="true"></svg>
+    <aside class="win" id="legend" aria-label="Legend">
+      <header><span class="t">Legend</span></header>
+      <div class="body">
+        <span class="sw run"></span><span>Works today</span>
+        <span class="sw wait"></span><span>Built, not yet run</span>
+        <span class="sw un"></span><span>Not built yet: a placeholder</span>
+        <span class="sw hand"></span><span>Done by a person</span>
+        <span class="sw docsw"></span><span>A document or a store of files</span>
+        <span class="sw endsw"></span><span>End point: the record stops here</span>
+        <span class="sw solid"></span><span>Passed on automatically</span>
+        <span class="sw line"></span><span>Hand-off to or from a person</span>
+        <span class="sw dots"></span><span>Not built yet</span>
+      </div>
+    </aside>
+      </div>
+    </div>
+  </div>
+  <div id="msg" role="status" aria-live="polite"></div>
+</section>
+
+<aside class="win" id="runpanel" aria-label="Update in progress">
+  <header><span class="testmark" id="runmark" hidden>Test run</span><span class="t" id="runtitle">Update</span><button class="closebox" id="runclose" aria-label="Close the update panel"></button></header>
+  <div class="rbody" id="rbody">
+    <p id="runstatus" role="status" aria-live="polite"></p>
+    <p id="runlost" role="alert" hidden>Lost contact with the front end. Still trying&hellip; Is <code>python mvp/pipeline/run.py serve</code> still running?</p>
+    <div id="runopts"></div>
+    <div id="runtest"></div>
+    <ol id="runsteps" aria-label="Steps of this update"></ol>
+    <div id="runsummary"></div>
+  </div>
+  <div class="rfoot">
+    <span class="note" id="runnote"></span>
+    <button class="btn" id="runcancel">Cancel update</button>
+  </div>
+</aside>
+</div>
+
+<aside class="win" id="sheet" aria-label="Details">
+  <header id="sheethead"><button class="closebox" id="sheetclose" aria-label="Close"></button><span class="t" id="sheettitle"></span></header>
+  <div class="body" id="sheetbody"></div>
+</aside>
+
+<aside class="win" id="colours" role="dialog" aria-labelledby="colourstitle">
+  <header><button class="closebox" id="colclose" aria-label="Close colours"></button><span class="t" id="colourstitle">Colours</span></header>
+  <div class="body">
+    <h3>Palette</h3>
+    <div class="swatches">
+      <label><input type="color" data-c="0"> Ink</label>
+      <label><input type="color" data-c="1"> Dark tone</label>
+      <label><input type="color" data-c="2"> Light tone</label>
+      <label><input type="color" data-c="3"> Paper</label>
+    </div>
+    <h3>Presets</h3>
+    <div class="presets" id="presets"></div>
+    <div class="foot">
+      <span class="note" id="colnote"></span>
+      <button class="btn" id="colreset" title="Go back to the default, which follows the system light or dark setting">Reset</button>
+    </div>
+  </div>
+</aside>
+
+<aside class="win" id="help" role="dialog" aria-labelledby="helptitle">
+  <header><button class="closebox" id="helpclose" aria-label="Close help"></button><span class="t" id="helptitle">How to read this map</span></header>
+  <div class="body">
+    <p>Each box is one step. A record travels left to right through four sections: <b>1 Collect</b>, <b>2 Read</b>, <b>3 Judge</b>, <b>4 Record</b>. Click a box for what it does, who or what runs it, what goes in, what comes out and where it is kept.</p>
+    <h3>The look of a box</h3>
+    <dl>
+      <dt class="sw run"></dt><dd>Works today and has been run.</dd>
+      <dt class="sw wait"></dt><dd>Built, but not run on real data yet.</dd>
+      <dt class="sw un"></dt><dd>Not built yet: a placeholder.</dd>
+      <dt class="sw hand"></dt><dd>Rounded corners: a person does this.</dd>
+      <dt class="sw docsw"></dt><dd>Turned corner: a document or a folder of files, not an action.</dd>
+      <dt class="sw endsw"></dt><dd>Heavy right edge: an end point. Records that reach it go no further.</dd>
+    </dl>
+    <h3>Run by</h3>
+    <p>The line at the foot of every box says who or what does the work:</p>
+    <dl class="words">
+      <dt class="tag">Script</dt><dd>A program in <code>mvp/pipeline/run.py</code>, the same every time.</dd>
+      <dt class="tag">Model + prompt</dt><dd>An AI model following written instructions in <code>mvp/prompts/</code>, run from Claude Code with <code>/classify-incidents</code>.</dd>
+      <dt class="tag">Fixed rule</dt><dd>A rule written in code, applied to facts already extracted. No judgement, no model.</dd>
+      <dt class="tag">Person</dt><dd>Somebody reads and decides.</dd>
+      <dt class="tag">Document</dt><dd>A file people write and the pipeline reads.</dd>
+    </dl>
+    <h3>The numbers on the boxes</h3>
+    <p>The big number is a live count taken from the project's files when this page was made. The line under it says what it counts. Click the box to see the count broken down. Where a box shows a word (“rule”, “pass”) there is nothing to count.</p>
+    <h3>Wires</h3>
+    <dl>
+      <dt class="sw solid"></dt><dd>Passed on automatically.</dd>
+      <dt class="sw line"></dt><dd>Handed to or from a person.</dd>
+      <dt class="sw dots"></dt><dd>Not built yet.</dd>
+    </dl>
+    <h3>Two ways to run it</h3>
+    <p>Both need the front end: <code>python mvp/pipeline/run.py serve</code>, then open the address it prints.</p>
+    <p><b>Update</b> runs the real pipeline and changes the project's files. While it runs, each box gets a tag: <span class="pill">pending</span> <span class="pill inv">running</span> <span class="pill inv">your turn</span> <span class="pill">done</span> <span class="pill inv">failed</span> <span class="pill">skipped</span> <span class="pill">not built yet</span>. “Your turn” means the run is waiting for you; the panel on the right says what to do.</p>
+    <p><b>Test run</b> is a dry run. The same steps run, with the same panel, tags and choices, on a handful of made-up incidents in a scratch folder. Your project's files are not touched and nothing is downloaded. Where a step would wait for Claude Code or for you, Continue puts sample work in place so you can see what happens next; Skip shows what happens without it.</p>
+    <p>A test run is marked everywhere it shows: <span class="testmark">Test run</span> in the panel and the window title, and striped title bars. The numbers on the boxes stay the project's own: a test run's figures are samples and never replace them.</p>
+  </div>
+</aside>
+
+<dialog class="win" id="setup" aria-labelledby="setuptitle">
+  <header><span class="t" id="setuptitle">Update: run the real pipeline</span><button class="closebox" id="setupclose" type="button" aria-label="Close without starting"></button></header>
+  <form class="body" id="setupform" novalidate>
+    <fieldset>
+      <legend>1. What to collect</legend>
+      <label><input type="radio" name="scope" value="baseline" checked> Refresh the AIID baseline only</label>
+      <div class="sub" role="group" aria-label="Which copy of AIID">
+        <label><input type="radio" name="fetch" value="saved" id="fsaved" checked> <span id="savedlabel">Use the saved AIID copy</span></label>
+        <label><input type="radio" name="fetch" value="refetch" id="frefetch"> Download it again <span class="note">(needs the AIID token and the network)</span></label>
+        <p class="note" id="tokennote"></p>
+      </div>
+      <label><input type="radio" name="scope" value="discover"> Also discover other sources <span class="pill none">not built yet</span></label>
+      <p class="note sub">Not built yet: these steps will be shown and skipped. The AIID copy choice above still applies.</p>
+    </fieldset>
+    <fieldset>
+      <legend>2. Add incidents by hand?</legend>
+      <label><input type="radio" name="manual" value="no" checked> No</label>
+      <label><input type="radio" name="manual" value="yes"> Yes, from a folder on this computer:</label>
+      <div class="sub">
+        <label for="manualdir" class="note">Folder path</label>
+        <input type="text" id="manualdir" placeholder="/home/you/incident-notes" disabled autocomplete="off" spellcheck="false">
+        <p class="note">Accepted: one <code>.txt</code> or <code>.md</code> file per incident, or several in one file separated by headings (<code>## </code>). The title is the heading or the first line; the first date (2026-06-18, 2026-06 or 2026) and the first web address found become the date and the link. They skip the prefilter and the reading checkpoint: they count as in scope on your word.</p>
+      </div>
+    </fieldset>
+    <p class="setuperr" id="setuperr" role="alert"></p>
+    <div class="foot">
+      <button type="button" class="btn" id="setupcancel">Cancel</button>
+      <button type="submit" class="btn strong" id="setupstart">Start update</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="win" id="tsetup" aria-labelledby="tsetuptitle" aria-describedby="tsetuplead">
+  <header><span class="testmark">Test run</span><span class="t" id="tsetuptitle">A dry run on made-up incidents</span><button class="closebox" id="tsetupclose" type="button" aria-label="Close without starting"></button></header>
+  <form class="body" id="tsetupform" novalidate>
+    <p class="lead" id="tsetuplead">A test run is a real run of every step on a handful of made-up incidents, in a scratch folder. Your project's files are not touched and nothing is downloaded. Where a step would wait for Claude Code or for you, pressing Continue puts sample work in place so you can see what happens next; Skip shows what happens without it.</p>
+    <fieldset>
+      <legend>What to try</legend>
+      <label><input type="checkbox" id="trefetch"> Simulate a fresh fetch</label>
+      <p class="note sub">The first try fails on purpose, so you meet the choice the real fetch gives you: try again, or use the saved copy.</p>
+      <label><input type="checkbox" id="tmanual"> Include a hand-written incident</label>
+      <p class="note sub">A made-up write-up goes in as if you had added it by hand: it skips the prefilter and counts as in scope on your word.</p>
+      <label><input type="checkbox" id="tdiscover"> Also discover other sources <span class="pill none">not built yet</span></label>
+      <p class="note sub">Not built yet: these steps will be shown and skipped.</p>
+    </fieldset>
+    <p class="setuperr" id="tsetuperr" role="alert"></p>
+    <div class="foot">
+      <button type="button" class="btn" id="tsetupcancel">Cancel</button>
+      <button type="submit" class="btn strong" id="tsetupstart">Start test run</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const D = __DATA__;
+let M = (D && D.map) || {};
+const n = x => Number(x || 0).toLocaleString("en-GB");
+const pct = x => x == null ? "n/a" : (100 * x).toFixed(1) + "%";
+const O = x => (x && typeof x === "object") ? x : {};
+const has = (o, k) => o != null && o[k] != null;
+
+// who or what does the work in a box
+const BY = {
+  script: ["Script", "A script", "A program: it does the same thing every time it runs."],
+  model:  ["Model + prompt", "A model following a written prompt", "An AI model, following written instructions."],
+  rule:   ["Fixed rule", "A fixed rule in code", "A rule applied to facts already extracted: no judgement, no model."],
+  person: ["Person", "A person", "Somebody reads and decides."],
+  doc:    ["Document", "A document", "A file people write; the pipeline reads it."],
+};
+// the prompt file a model step follows: from the data if it says, else the version named here
+function promptOf(id, fallback) {
+  const a = (O(M.artifacts)[id] || []).find(x => x && /^prompts\//.test(x.path || ""));
+  return "mvp/" + (a ? a.path : fallback);
+}
+
+// the figures every box draws on, recomputed whenever the data is refreshed
+function figures() {
+  const qr = O(M.queue_ready), qj = M.queue_judge ? O(M.queue_judge) : null;
+  const judge = qj ? { full: qj.read_full, part: qj.read_part, none: qj.not_read }
+                   : { full: qr.ready, part: qr.provisional, none: qr.not_ready };
+  const judgeable = (judge.full || 0) + (judge.part || 0);
+  const judgeTotal = judgeable + (judge.none || 0);
+  const fetchable = has(M, "sources_fetchable") ? M.sources_fetchable : null;
+  const snap = O(M.aiid_snapshot);
+  const aiidN = has(snap, "records") && snap.records ? snap.records : O(M.records_by_source).aiid;
+  return { judge, judgeable, judgeTotal: qj ? judgeTotal : (M.queue || judgeTotal), fetchable, snap, aiidN,
+           rules: O(M.prefilter_rules), arms: O(M.queue_arms) };
+}
+
+// status: run = works today · waiting = built, never run · unbuilt
+// kind: proc | doc | hand | end  ·  by: a key of BY
+// plain / tech may be a string or a list of paragraphs
+function defs() {
+  const F = figures(), ds = O(M.dossier_scope), dv = O(M.dossier_verification), gold = O(M.gold);
+  const where = F.rules.where || "mvp/pipeline/run.py";
+  const fetchCap = F.fetchable != null ? "of " + n(F.fetchable) + " sources downloads by itself"
+                                       : "source downloads by itself, of " + n(M.sources) + " listed";
+  const aiidTxt = F.aiidN ? n(F.aiidN) + " incidents" : "every incident";
+  const snapTxt = F.snap.present ? " The saved copy was fetched " + (F.snap.fetched || "on an unrecorded date") + "." : "";
+  const enrich = promptOf("readrec", "prompts/enrich_context.v2.md");
+  return [
+  { id: "sources", kind: "doc", status: "run", by: "doc", x: 30, y: 300, title: "Sources",
+    num: n(M.sources), cap: "places we look",
+    plain: "The list of places where AI incidents get reported: one large public database, the AI Incident Database (AIID), plus forums, company blogs and other registries. A person keeps the list; the pipeline reads it to know where to look.",
+    tech: "mvp/registry/sources.csv. One row per source: role, access_method, adapter, reuse status. Rows with role reference are read for definitions, not for incidents.",
+    byNote: "Hand-curated: a person edits the file, nothing writes to it.",
+    inp: "Nothing: a person edits it.", out: "The list of places to read.", prod: "mvp/registry/sources.csv",
+    facts: [["Read by a script", M.sources_automatic], ["Need a person", M.sources_by_hand], ["Reader not written yet", M.sources_unbuilt]]
+      .concat(has(M, "sources_fetchable") ? [["Could be read for incidents", M.sources_fetchable]] : [])
+      .concat(has(M, "sources_reference") ? [["Reference only, not read for incidents", M.sources_reference]] : []),
+    cmd: "mvp/registry/sources.csv" },
+  { id: "discover", status: "unbuilt", by: "script", x: 240, y: 30, title: "Discover",
+    num: "—", cap: "not built yet: a placeholder",
+    plain: ["A placeholder. It would search forums and other registries for incidents the main database never recorded. Most of the incidents we already know of came from such places, so the gap matters, but nothing here runs yet.",
+            "An update that asks for it shows this step as “not built yet” and goes on without it. Its one working part is the work orders drawn under it."],
+    tech: "run.py discover. The ForumMagnum and companyscope adapters are specified and not implemented; the stage returns no records. update --discover reports the step as placeholder and continues. Its sub-step, work orders, does run.",
+    byNote: "When built: run.py discover. Today it only writes the work orders.",
+    inp: "The list of sources.", out: "New records, once built. Today: only the work orders below.", prod: "mvp/raw/<source>/ (once built)",
+    cmd: "python mvp/pipeline/run.py discover" },
+  { id: "orders", kind: "hand", status: "run", by: "person", x: 240, y: 150, title: "Work orders",
+    num: n(M.sources_by_hand), cap: "to-do notes: one per source",
+    plain: "Part of Discover. Some websites refuse to be read by a program. For each such source (one note per source, not per incident) the pipeline writes a to-do note: what to search for there, where, and what to paste back. A person does the search; what they paste back goes on like any other record.",
+    tech: "Sub-step of discover: run.py discover writes mvp/state/work_orders.md, one section per registry row a script cannot read. No longer written by fetch; an update run does not depend on it.",
+    byNote: "A script writes the note; a person does what it says.",
+    inp: "A source a program cannot read.", out: "What the person found, pasted back in.", prod: "mvp/state/work_orders.md",
+    cmd: "python mvp/pipeline/run.py discover" },
+  { id: "fetch", status: "run", by: "script", x: 240, y: 300, title: "Fetch",
+    num: n(M.sources_automatic), cap: fetchCap,
+    plain: ["Downloads an untouched copy of what a source publishes. Of the " + n(F.fetchable != null ? F.fetchable : M.sources) + " sources it could read, only " + n(M.sources_automatic) + " can be downloaded by a program today: the AI Incident Database.",
+            "Its copy holds " + aiidTxt + " plus AIID's own classifications of them. Nothing is changed or tidied here, so there is always an original to go back to." + snapTxt + " An update reuses the saved copy unless you ask to download it again, which needs the AIID token."],
+    tech: "run.py fetch aiid. Dispatches on the registry's adapter column; AIID over GraphQL into mvp/raw/aiid/ (" + aiidTxt + " and their classifications). update reuses the snapshot unless --refetch (needs the token: --token-file).",
+    inp: "A source that a program can read.", out: "An untouched copy, kept as it arrived.", prod: "mvp/raw/aiid/",
+    facts: F.snap.present ? [["Saved AIID copy, fetched", F.snap.fetched || "date not recorded"], ["Incidents in it", F.snap.records]] : [],
+    cmd: "python mvp/pipeline/run.py fetch aiid" },
+  { id: "manual", kind: "hand", status: M.manual ? "run" : "waiting", by: "person", x: 240, y: 445, title: "Add by hand",
+    num: n(M.manual), cap: "incidents added by hand",
+    plain: ["You, the curator, point the pipeline at a folder of your own write-ups in plain text: one file per incident, or several in one file separated by ## headings.",
+            "These skip the prefilter and the reading checkpoint. They arrive at the checkpoint already in scope, on your word: you are the person who vouches for them. A dossier is still written by hand, and it cannot be marked fully verified on your write-up alone."],
+    tech: "update --manual DIR. Verbatim copies to mvp/raw/manual/; records to mvp/records/manual.jsonl (meta.manual = true, meta.origin_path); queue arm manual; context row in mvp/context/manual.jsonl with manual: true, agent_count several, read depth curator. readiness: scope ready; evidence type, failure mode and instances provisional. check refuses verification: verified on a curator reading.",
+    byNote: "You write the files; run.py update --manual copies them in.",
+    inp: "A folder of .txt or .md files.", out: "Records marked as added by hand, already in scope.", prod: "mvp/records/manual.jsonl",
+    cmd: "python mvp/pipeline/run.py update --manual DIR" },
+  { id: "normalise", status: "run", by: "script", x: 450, y: 300, title: "Normalise",
+    num: n(M.records), cap: "records",
+    plain: "Every source describes incidents in its own layout. This step copies them into one common layout and gives each a fingerprint, so if a source later edits an entry, we notice.",
+    tech: "run.py normalise. mvp/records/<source>.jsonl, append-only, content-hashed, keyed (source_id, source_record_id).",
+    inp: "Untouched copies.", out: "Records: one per incident report, all in the same shape.", prod: "mvp/records/<source>.jsonl",
+    facts: Object.entries(O(M.records_by_source)), cmd: "python mvp/pipeline/run.py normalise aiid" },
+  { id: "prefilter", status: "run", by: "script", x: 660, y: 300, title: "Prefilter",
+    num: n(M.queue), cap: "candidates kept",
+    plain: "A wide, cheap net. It keeps any record that meets at least one of three rules, listed below with how many records each caught. Most of what it keeps will turn out to be irrelevant; the point is not to miss anything. The rules are written in the code, in " + where + ".",
+    tech: "run.py prefilter. Union of three arms: label, keyword, unclassified. Records already behind a dossier are left out. Writes mvp/state/queue.jsonl. Rules in " + where + ".",
+    inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "mvp/state/queue.jsonl",
+    facts: [["Rule 1 · Tagged by someone else", F.arms.label], ["Rule 2 · Matched a keyword", F.arms.keyword], ["Rule 3 · Recent, nobody looked", F.arms.unclassified]],
+    extra: prefilterRules, cmd: "python mvp/pipeline/run.py prefilter" },
+
+  { id: "readrec", status: "waiting", by: "model", x: 870, y: 300, title: "Read the record",
+    num: n(M.queue_single), cap: "one agent only: out of scope",
+    plain: ["Reads the short record and asks one question first: how many agents are acting here?",
+            "The unit is the agent, not the system or the company. One product, one platform or one operator can hold several agents, and such a record counts as several.",
+            "A named system whose insides the record does not describe is “cannot tell”, and its source is read next.",
+            "Only when the text plainly shows one agent (one chatbot conversation, one generated fake) or none is the record out of scope. A record that someone else tagged, or that matched a keyword, is never dismissed from its short text alone: its source is read first."],
+    tech: "Enrichment, record pass: " + enrich + " on the record text; sets agent_count (none | one | several | unknown) and attack. Unit per definitions.md § What counts as an agent: one principal is not one agent; unknown is the default for a named system with undescribed internals. Shortcut to out of scope at depth record only for records queued by the unclassified arm alone; a label- or keyword-flagged record needs a secondary-or-better reading to confirm one or none.",
+    byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, record pass.",
+    inp: "A candidate.", out: "A first note: one agent, several, or cannot tell.", prod: "mvp/context/<source>.jsonl",
+    facts: has(M, "queue_single_flagged") ? [["Look single-agent but were flagged: source still to be read", M.queue_single_flagged]] : [],
+    cmd: "/classify-incidents  (step 0, record pass)" },
+  { id: "readsrc", status: "waiting", by: "model", x: 1130, y: 150, title: "Read the source",
+    num: n(M.context_rows), cap: "readings so far",
+    plain: "For every record that might involve several agents, could not be told, or was flagged, opens the original article or report and writes down what it says about seven facts, with exact quotes, and how much of it was read. If the source shows one agent after all, the record goes to “out of scope”.",
+    tech: "Enrichment, source pass: " + enrich + ". Writes mvp/context/<source>.jsonl: seven facts, each stated / not_stated / unread, plus read depth (record < secondary < curator < primary_partial < primary_full).",
+    byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, source pass. Sites that block programs are read by a person.",
+    inp: "A candidate that might involve several agents.", out: "A reading: the facts, the quotes, how deeply it was read.", prod: "mvp/context/<source>.jsonl",
+    cmd: "/classify-incidents  (step 0, source pass)" },
+  { id: "outscope", kind: "end", status: "run", by: "rule", x: 868, y: 150, title: "Out of scope",
+    num: n(M.queue_single), cap: "one agent only",
+    plain: "An end point. Records that plainly show one agent, or none, stop here: they cannot be multi-agent incidents. They are not judged further and get no dossier. Their reading stays in mvp/context/ so the decision can be checked later.",
+    tech: "readiness: scope not_needed when agent_count is one or none, agents stated, and (not flagged, or best read depth above record). Not counted in “can be judged”.",
+    byNote: "run.py readiness applies the rule to the reading.",
+    inp: "A record settled as one agent only.", out: "Nothing further. The reading is kept.", prod: "mvp/context/<source>.jsonl",
+    facts: has(M, "queue_single_flagged") ? [["Not here yet: look single-agent but flagged", M.queue_single_flagged]] : [],
+    cmd: "python mvp/pipeline/run.py readiness" },
+  { id: "ready", status: "run", by: "script", x: 1340, y: 300, title: "Ready?",
+    num: n(F.judgeable) + " of " + n(F.judgeTotal), cap: "enough is known to decide",
+    plain: ["A checkpoint. “Ready” means enough is known to decide about a record. It does not mean the record is in scope: many ready records will be judged out.",
+            "Two cases look alike and are not. Say the question is whether two bots exchanged messages.",
+            "The source was read and does not say. The article was read in full and never mentions it. That is a finding: the answer is “unclear”, and the record can be judged.",
+            "Nobody opened the source. Only the two-line summary has been seen. There is no answer yet, not even “unclear”, so the record waits here until somebody reads it."],
+    tech: "run.py readiness. Per decision: ready / provisional / not_ready / not_needed, from mvp/context/. A fact not_stated resolves (→ unclear); a fact unread does not. Records settled one/none are excluded from these counts. Manual rows: scope ready on the curator's word. Enforced by the skill, by promote and by check.",
+    inp: "A candidate and its reading.", out: "The candidates with enough behind them to be judged.", prod: "mvp/state/readiness.jsonl",
+    facts: [["Read in full", F.judge.full], ["Read in part: judged, marked as resting on that", F.judge.part], ["Nobody read the source yet: waiting", F.judge.none]]
+      .concat(has(M, "manual") ? [["Added by hand: in scope on the curator's word", M.manual]] : [])
+      .concat([["One agent only: not counted, out of scope", M.queue_single]]),
+    cmd: "python mvp/pipeline/run.py readiness" },
+
+  { id: "taxonomy", kind: "doc", status: "run", by: "doc", x: 30, y: 920, title: "Rulebook",
+    num: n(M.instances), cap: "named patterns",
+    plain: ["The definitions everything is judged against. It holds: what counts as an agent; the two gates (is it multi-agent, and what kind of failure); the three failure types and the risk factors from a 2025 paper by Hammond and colleagues; which of them go together; the four kinds of evidence; and " + n(M.instances) + " named patterns.",
+            "Of the named patterns, 33 come from the paper and 3 were written by this project for cases the paper does not name."],
+    tech: "mvp/docs/definitions.md and mvp/taxonomy/: risks.csv (failure modes FM1–3, risk factors RF1–7), instances.csv (33 hammond_table_1, 3 ours), associations.csv (FM–RF links, from Hammond only), evidence_types.csv. Hand-curated.",
+    byNote: "Hand-curated; read by the models and the rules.",
+    inp: "The paper, read by a person.", out: "The definitions.", prod: "mvp/docs/definitions.md · mvp/taxonomy/",
+    facts: [["Failure types and risk factors", M.risks], ["Named patterns", M.instances], ["From the paper", 33], ["Written by this project", 3]],
+    cmd: "mvp/docs/definitions.md" },
+  { id: "extract", status: "waiting", by: "model", x: 30, y: 700, title: "Extract facts",
+    num: n(M.proposals), cap: "records processed",
+    plain: "An AI model reads the record and its reading and fills in a form: how many agents, did they act on each other, did they cooperate, were their goals the same. It is told not to give a verdict, only facts with quotes.",
+    tech: "Classifier call 1: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Only for records whose scope is ready or provisional.",
+    byNote: "Instructions: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Run in Claude Code: /classify-incidents, call 1.",
+    inp: "A ready candidate and its reading.", out: "A filled-in form of facts.", prod: "mvp/proposals/",
+    cmd: "/classify-incidents  (call 1)" },
+  { id: "gate1", status: "waiting", by: "rule", x: 250, y: 700, title: "Gate 1 · In scope?",
+    num: "rule", cap: "needs more than one agent",
+    plain: "A fixed rule applied to the form, not a judgement call. An incident is in scope only if the harm needed more than one agent: something a single agent, however capable, could not have done alone. An attack by a fleet of agents counts, unless the source shows the crowd made no difference.",
+    tech: "could_not AND interaction_present; on a security record, multiplicity_role load_bearing or unreported resolves to could_not. Specified in definitions.md and classifiers.md; not yet written as code.",
+    byNote: "Applied to the extracted facts. The rule is written down; the code for it is not written yet.",
+    inp: "The facts.", out: "In scope, out of scope, or unclear.", prod: "mvp/proposals/",
+    cmd: "mvp/docs/definitions.md § Gate 1" },
+  { id: "gate2", status: "waiting", by: "rule", x: 250, y: 830, title: "Gate 2 · What failed?",
+    num: "rule", cap: "one of three, or none",
+    plain: "Picks the kind of failure, or none. Collusion: the agents worked together when they were not supposed to. Miscoordination: same goal, but they got in each other’s way. Conflict: partly shared goals, and everyone ended up worse off. It never throws an incident out; Gate 1 already decided that.",
+    tech: "cooperation_occurred AND unexpected → FM3; otherwise objective_relation: identical → FM1, mixed → FM2, opposing → none.",
+    byNote: "Applied to the extracted facts.",
+    inp: "The facts.", out: "A failure type, or none.", prod: "mvp/proposals/",
+    cmd: "mvp/docs/definitions.md § Gate 2" },
+  { id: "evtype", status: "waiting", by: "rule", x: 250, y: 960, title: "Evidence type",
+    num: "rule", cap: "where it happened",
+    plain: "Says what kind of evidence this is: it happened in the real world, in a simulation somebody built, in a narrow lab test, or only as an argument on paper.",
+    tech: "From setting, stakes and environment_controlled_by: real_world / synthetic / lab / theoretical.",
+    byNote: "Applied to the extracted facts.",
+    inp: "The facts.", out: "One of four labels.", prod: "mvp/proposals/",
+    cmd: "mvp/taxonomy/evidence_types.csv" },
+  { id: "instances", status: "waiting", by: "model", x: 510, y: 700, title: "Name the pattern",
+    num: n(M.instances), cap: "patterns to match against",
+    plain: ["The finer description under a label. For an in-scope incident, a model says which of the paper's named patterns it shows, for example “Swarm Attacks”, and must quote the words that show each.",
+            "What it is for: later, to show which of the paper's named patterns have real incidents behind them and which have none. It does not decide whether an incident is in scope, nor its failure type. Nothing uses its output yet."],
+    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. No downstream consumer yet. An attack with unreported multiplicity gets I28 and I29 as presumed.",
+    byNote: "Instructions: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Run in Claude Code: /classify-incidents, call 2.",
+    inp: "An in-scope incident and the rulebook.", out: "Pattern names with quotes.", prod: "mvp/proposals/",
+    cmd: "/classify-incidents  (call 2)" },
+  { id: "proposals", kind: "doc", status: "waiting", by: "doc", x: 730, y: 830, title: "Proposals",
+    num: n(M.proposals), cap: "suggestions waiting",
+    plain: "Everything the models and rules suggest lands here. Think of it as a suggestion box: nothing in it counts until a person agrees.",
+    tech: "mvp/proposals/<prompt>.<date>.jsonl. Never authoritative.",
+    byNote: "Written by the classifier run; read by a person.",
+    inp: "Labels from the rules and the pattern pass.", out: "Suggestions for a person to review.", prod: "mvp/proposals/",
+    cmd: "mvp/proposals/" },
+  { id: "review", kind: "hand", status: "run", by: "person", x: 940, y: 830, title: "Human review",
+    num: n(M.dossiers), cap: "incidents decided by a person",
+    plain: "A person reads the original source, checks the suggestion and decides. Only a person can put an incident into the index. A machine or somebody else’s tag can only nominate one.",
+    tech: "run.py promote <source_id>:<record_id> scaffolds a dossier; refuses a record that is not ready unless --force.",
+    byNote: "run.py promote makes the blank file; the person fills it in.",
+    inp: "A suggestion, or a record added by hand.", out: "A decision, written up as a dossier.", prod: "mvp/incidents/<ID>.md",
+    cmd: "python mvp/pipeline/run.py promote aiid:1731" },
+  { id: "dossiers", kind: "doc", status: "run", by: "person", x: 1150, y: 830, title: "Dossiers",
+    num: n(M.dossiers), cap: "incident files",
+    plain: ["One file per incident a person has judged: in scope, out of scope or unclear. It says what happened, how, which agents were involved, and how well it was checked against the original source.",
+            "Candidates that have only been read, not judged, have no dossier: their reading stays in mvp/context/."],
+    tech: "mvp/incidents/<ID>.md. YAML frontmatter plus seven fixed sections. Hand-edited. multi_agent_label_source: ours only by a human verdict.",
+    byNote: "Written and edited by hand.",
+    inp: "A person’s decision.", out: "The curated record.", prod: "mvp/incidents/<ID>.md",
+    facts: [["In scope", ds.in], ["Out of scope", ds.out], ["Unclear", ds.unclear],
+            ["Fully verified", dv.verified], ["Partly verified", dv.partially_verified], ["Not verified", dv.unverified]],
+    cmd: "mvp/incidents/" },
+  { id: "check", status: "run", by: "script", x: 1360, y: 750, title: "Check",
+    num: "pass", cap: "automatic inspection",
+    plain: "An automatic inspection that must pass before anything is saved. It fails if a file is malformed, if a verdict has no reading behind it, or if a machine’s tag was treated as a final answer.",
+    tech: "run.py check. Must exit 0. Validates dossiers, vocabularies, the context layer and label provenance.",
+    inp: "All the incident files.", out: "Pass, or a list of problems.", prod: "nothing: it only reports",
+    cmd: "python mvp/pipeline/run.py check" },
+  { id: "index", kind: "doc", status: "run", by: "script", x: 1360, y: 910, title: "Index",
+    num: n(M.dossiers), cap: "rows in the finished table",
+    plain: "The finished table of incidents, rebuilt from the incident files every time. This is what the rest of the project reads.",
+    tech: "run.py index. mvp/out/incident_index.csv. Generated; never edited by hand.",
+    inp: "All the incident files.", out: "One table.", prod: "mvp/out/incident_index.csv",
+    cmd: "python mvp/pipeline/run.py index" },
+  { id: "gold", kind: "doc", status: "run", by: "person", x: 730, y: 1090, title: "Answer key",
+    num: n(gold.rows), cap: "records judged with care",
+    plain: "A small set of records that a person judged carefully from the original sources. It works like an exam answer key: the models’ suggestions are marked against it.",
+    tech: "mvp/gold/multiagent_gold.csv. Four strata; ids are permanent (gold_ids.csv).",
+    byNote: "Judged by hand; build_review.py only makes the worksheet.",
+    inp: "Original sources, read by a person.", out: "The right answers.", prod: "mvp/gold/multiagent_gold.csv",
+    facts: [["In scope", gold.in], ["Out of scope", gold.out], ["Unclear", gold.unclear]],
+    cmd: "python mvp/gold/build_review.py" },
+  { id: "score", status: "waiting", by: "script", x: 940, y: 1090, title: "Score",
+    num: pct(gold.ceiling), cap: "earlier hand work, for comparison",
+    plain: "Marks the models’ suggestions against the answer key. The models have not run yet, so the only score so far is for the project’s own earlier hand-picked list: of the incidents it called multi-agent, this share survived a careful second look.",
+    tech: "mvp/gold/score_gate1.py. Precision of earlier curation on " + n(gold.ceiling_n) + " scorable rows. No classifier score exists.",
+    inp: "Suggestions and the answer key.", out: "How often the models are right.", prod: "mvp/out/gate1_accuracy.json",
+    cmd: "python mvp/gold/score_gate1.py" },
+  ];
+}
+
+// the three prefilter rules, spelled out from the data
+function prefilterRules(box) {
+  const F = figures(), R = F.rules, A = F.arms;
+  box.appendChild(el("h3", "", "The three rules"));
+  const ol = el("ol");
+  const li1 = el("li"); li1.appendChild(el("b", "", "Tagged by someone else (" + n(A.label) + "). "));
+  li1.appendChild(document.createTextNode(Array.isArray(R.label_values) && R.label_values.length
+    ? "AIID's own classification “Multiple AI Interaction” says " + R.label_values.map(v => "“" + v + "”").join(" or ") + ", or another source tagged the behaviour."
+    : "Another database's own classification says the incident involves several AIs. The accepted values are listed in the code."));
+  const li2 = el("li"); li2.appendChild(el("b", "", "Matched a keyword (" + n(A.keyword) + "). "));
+  if (Array.isArray(R.keywords) && R.keywords.length) {
+    li2.appendChild(document.createTextNode("The title or text contains one of these terms" + (wording === "plain" ? " (written as patterns: “?” means the letter before it is optional, “|” means “or”, \\b marks a word edge):" : ", case-insensitive regular expressions:")));
+    const t = el("div", "terms"); R.keywords.forEach(k => t.appendChild(el("code", "", k))); li2.appendChild(t);
+  } else li2.appendChild(document.createTextNode("The title or text contains a word like “agents”, “swarm” or “collusion”. The full list is in the code."));
+  const li3 = el("li"); li3.appendChild(el("b", "", "Recent, nobody looked (" + n(A.unclassified) + "). "));
+  li3.appendChild(document.createTextNode(R.cutoff
+    ? "Dated " + R.cutoff + " or later, and nobody has classified it yet. Unscreened is not the same as negative."
+    : "Recent (after the cutoff date in the code) and nobody has classified it yet."));
+  [li1, li2, li3].forEach(l => ol.appendChild(l)); box.appendChild(ol);
+  box.appendChild(el("p", "note", "A record caught by rule 1 or 2 is “flagged”: it is never dismissed from its short text alone."));
+  box.appendChild(el("p", "", "Where the rules live:")); box.appendChild(el("code", "", R.where || "mvp/pipeline/run.py"));
+}
+
+// from, to, label, kind (hand | unbuilt), sides: r>l by default, or two of r l t b
+function wireDefs() {
+  const F = figures();
+  return [
+    ["sources", "fetch"], ["sources", "discover"],
+    ["discover", "orders", "one note per source", "hand", "bt"], ["orders", "normalise", "pasted back", "hand"],
+    ["discover", "normalise", "", "unbuilt"],
+    ["fetch", "normalise"],
+    ["normalise", "prefilter"],
+    ["prefilter", "readrec"],
+    ["readrec", "readsrc", "several, cannot tell, or flagged"],
+    ["readrec", "outscope", "one agent: out of scope", "", "tb"],
+    ["readsrc", "outscope", "confirms one agent", "", "lr"],
+    ["readsrc", "ready", n(M.context_rows) + " readings"],
+    ["manual", "ready", "added by hand: in scope on the curator's word", "hand", "bb"],
+    ["ready", "extract", n(F.judgeable) + " ready to judge", "", "bt"],
+    ["taxonomy", "extract", "", "", "tb"],
+    ["extract", "gate1", "facts"], ["extract", "gate2"], ["extract", "evtype"],
+    ["gate1", "instances", "in scope only"],
+    ["instances", "proposals"], ["gate1", "proposals"], ["gate2", "proposals"], ["evtype", "proposals"],
+    ["proposals", "review", "", "hand"], ["review", "dossiers", "", "hand"],
+    ["dossiers", "check"], ["dossiers", "index"],
+    ["proposals", "score", "", "", "bt"], ["gold", "score"],
+  ];
+}
+
+const GROUPS = [
+  ["1 · Collect", ["sources", "discover", "orders", "fetch", "manual", "normalise", "prefilter"]],
+  ["Discover · not built", ["discover", "orders"], "sub"],
+  ["2 · Read", ["readrec", "readsrc", "outscope", "ready"]],
+  ["3 · Judge", ["taxonomy", "extract", "gate1", "gate2", "evtype", "instances", "proposals"]],
+  ["4 · Record", ["review", "dossiers", "check", "index"]],
+  ["Test", ["gold", "score"]],
+];
+
+const NODES = defs();
+const CONTENT = ["num", "cap", "plain", "tech", "byNote", "inp", "out", "prod", "facts", "extra", "status", "cmd"];
+
+// ------------------------------------------------------------------ build
+const canvas = document.getElementById("canvas"), svg = document.getElementById("wires");
+const NS = "http://www.w3.org/2000/svg";
+const byId = {}, picked = new Set(); let wording = "plain", zoom = 1, selected = null, CW = 1560, CH = 1220;
+const STATUS = { run: "Works today", waiting: "Built, not yet run", unbuilt: "Not built yet: a placeholder" };
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const LAYOUT = "patch-layout-3", saved = store.get(LAYOUT) || {};
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+// frames go in first, so they sit behind the boxes
+const frames = GROUPS.map(([title, ids, sub]) => {
+  const f = el("div", "frame" + (sub ? " sub" : "")), l = el("div", "flabel", title);
+  l.title = "Drag to move this whole section"; f.appendChild(l); canvas.appendChild(f);
+  return { f, l, ids, sub: !!sub };
+});
+
+function ariaOf(nd) { return nd.title + ". " + STATUS[nd.status] + ". Run by " + BY[nd.by][1].toLowerCase() + ". " + nd.num + " " + nd.cap; }
+NODES.forEach(nd => {
+  const e = el("div", "node " + (nd.kind || "proc") + " " + nd.status);
+  e.tabIndex = 0; e.setAttribute("role", "button");
+  e.setAttribute("aria-label", ariaOf(nd));
+  const t = el("div", "nt"); t.appendChild(el("span", "", nd.title)); e.appendChild(t);
+  const b = el("div", "nb"); b.appendChild(el("div", "num", nd.num)); b.appendChild(el("div", "cap", nd.cap));
+  b.appendChild(el("div", "by", "Run by: " + BY[nd.by][0])); e.appendChild(b);
+  e.appendChild(el("div", "rsb"));
+  const p = saved[nd.id] || nd; e.style.left = p.x + "px"; e.style.top = p.y + "px";
+  canvas.appendChild(e); nd.el = e; byId[nd.id] = nd;
+  e.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openSheet(nd); } });
+  e.addEventListener("pointerenter", () => say(nd.title + " — " + paras(nd.plain)[0].split(". ")[0] + "."));
+  drag(e, e, (dx, dy) => moveNodes([...picked].map(i => byId[i]), dx, dy), saveLayout,
+       ev => { if (ev.shiftKey) { picked.has(nd.id) ? picked.delete(nd.id) : picked.add(nd.id); paint(); } else openSheet(nd); },
+       () => { if (!picked.has(nd.id)) pick([nd.id]); });
+});
+function paras(x) { return Array.isArray(x) ? x : [x]; }
+
+frames.forEach(fr => drag(fr.l, fr.l, (dx, dy) => moveNodes(fr.ids.map(i => byId[i]), dx, dy), saveLayout,
+                          () => pick(fr.ids)));
+
+// ------------------------------------------------------------- selection
+function pick(ids, add) { if (!add) picked.clear(); ids.forEach(i => picked.add(i)); paint(); }
+function paint() { NODES.forEach(q => q.el.classList.toggle("picked", picked.has(q.id))); }
+function saveLayout() { const L = {}; NODES.forEach(q => L[q.id] = { x: q.el.offsetLeft, y: q.el.offsetTop });
+  const lg = document.getElementById("legend"); L._legend = { x: lg.offsetLeft, y: lg.offsetTop }; store.set(LAYOUT, L); }
+function moveNodes(list, dx, dy) {
+  if (!list.length) return;
+  dx /= zoom; dy /= zoom;
+  // the group moves as one: stop the whole set at the edge, not each box on its own
+  dx = Math.max(dx, 20 - Math.min(...list.map(q => q.el.offsetLeft)));
+  dy = Math.max(dy, 40 - Math.min(...list.map(q => q.el.offsetTop)));
+  list.forEach(q => { q.el.style.left = (q.el.offsetLeft + dx) + "px"; q.el.style.top = (q.el.offsetTop + dy) + "px"; });
+  route();
+}
+
+const wires = wireDefs().map(([a, b, label, kind, sides]) => {
+  const path = document.createElementNS(NS, "path"); path.setAttribute("class", "wire " + (kind || ""));
+  svg.appendChild(path);
+  let text = null;
+  if (label) { text = document.createElementNS(NS, "text"); text.setAttribute("class", "wlabel"); text.setAttribute("text-anchor", "middle"); text.textContent = label; svg.appendChild(text); }
+  return { key: a + ">" + b, a: byId[a], b: byId[b], path, text, sides: sides || "rl" };
+});
+
+function anchor(nd, side) {
+  const e = nd.el, x = e.offsetLeft, y = e.offsetTop, w = e.offsetWidth, h = e.offsetHeight;
+  return { r: [x + w, y + h / 2], l: [x, y + h / 2], t: [x + w / 2, y], b: [x + w / 2, y + h] }[side];
+}
+function route() {
+  // spread the wires that share one side of a box, so they do not sit on top of each other
+  const slots = {};
+  wires.forEach(w => { [[w.a, w.sides[0], w, 0], [w.b, w.sides[1], w, 1]].forEach(([nd, side, ww, end]) => {
+    (slots[nd.id + side] = slots[nd.id + side] || []).push([ww, end]); }); });
+  const pts = new Map();
+  Object.entries(slots).forEach(([key, list]) => {
+    const side = key.slice(-1), nd = byId[key.slice(0, -1)];
+    const other = ([w, end]) => { const o = end ? w.a : w.b; return (side === "l" || side === "r") ? o.el.offsetTop : o.el.offsetLeft; };
+    list.sort((p, q) => other(p) - other(q));
+    list.forEach(([w, end], i) => {
+      const base = anchor(nd, side), off = (i - (list.length - 1) / 2) * 13;
+      const pt = (side === "l" || side === "r") ? [base[0], base[1] + off] : [base[0] + off, base[1]];
+      if (!pts.has(w)) pts.set(w, []); pts.get(w)[end] = pt;
+    });
+  });
+  wires.forEach(w => {
+    const [p, q] = pts.get(w), s0 = w.sides[0], s1 = w.sides[1];
+    let k = Math.max(40, (s0 === "r" ? Math.abs(q[0] - p[0]) : Math.abs(q[1] - p[1])) / 2);
+    // both ends on the same side (a wire that goes round underneath): dip well clear of both boxes
+    if (s0 === s1) k = 90 + Math.abs((s0 === "b" || s0 === "t") ? q[1] - p[1] : q[0] - p[0]);
+    const dir = { r: [k, 0], l: [-k, 0], t: [0, -k], b: [0, k] };
+    const c1 = [p[0] + dir[s0][0], p[1] + dir[s0][1]], c2 = [q[0] + dir[s1][0], q[1] + dir[s1][1]];
+    w.path.setAttribute("d", `M${p[0]},${p[1]} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${q[0]},${q[1]}`);
+    if (w.text) { const m = w.path.getPointAtLength(w.path.getTotalLength() / 2); w.text.setAttribute("x", m.x); w.text.setAttribute("y", m.y - 4); }
+  });
+  ports(pts);
+  frames.forEach(fr => {
+    const es = fr.ids.map(i => byId[i].el);
+    const x0 = Math.min(...es.map(e => e.offsetLeft)), y0 = Math.min(...es.map(e => e.offsetTop));
+    const x1 = Math.max(...es.map(e => e.offsetLeft + e.offsetWidth)), y1 = Math.max(...es.map(e => e.offsetTop + e.offsetHeight));
+    const [px, pt, pb] = fr.sub ? [7, 16, 9] : [14, 24, 16];
+    fr.f.style.left = (x0 - px) + "px"; fr.f.style.top = (y0 - pt) + "px";
+    fr.f.style.width = (x1 - x0 + 2 * px + 2) + "px"; fr.f.style.height = (y1 - y0 + pt + pb) + "px";
+  });
+  const lg = document.getElementById("legend"), shown = lg && lg.style.display !== "none";
+  CW = Math.max(1560, ...NODES.map(q => q.el.offsetLeft + q.el.offsetWidth + 60), shown ? lg.offsetLeft + lg.offsetWidth + 30 : 0);
+  CH = Math.max(1220, ...NODES.map(q => q.el.offsetTop + q.el.offsetHeight + 60), shown ? lg.offsetTop + lg.offsetHeight + 30 : 0);
+  resize();
+}
+function ports(pts) {
+  canvas.querySelectorAll(".port").forEach(p => p.remove());
+  pts.forEach(pair => pair.forEach(pt => { const p = el("div", "port"); p.style.left = (pt[0] - 3.5) + "px"; p.style.top = (pt[1] - 3.5) + "px"; canvas.appendChild(p); }));
+}
+
+function drag(handle, target, onMove, onEnd, onTap, onStart) {
+  handle.addEventListener("pointerdown", ev => {
+    if (ev.button || ev.target.closest(".closebox")) return;
+    const x0 = ev.clientX, y0 = ev.clientY; let x = x0, y = y0, moved = false;
+    try { handle.setPointerCapture(ev.pointerId); } catch (e) {}
+    const move = e => {
+      if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 6) return;
+      if (!moved) { moved = true; target.classList.add("dragging"); if (onStart) onStart(ev); }
+      onMove(e.clientX - x, e.clientY - y); x = e.clientX; y = e.clientY; };
+    const up = () => {
+      handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up); target.classList.remove("dragging");
+      if (moved) { if (onEnd) onEnd(); } else if (onTap) onTap(ev); };
+    handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
+}
+
+// ------------------------------------------------------------- the sheet
+// Every box answers the same questions in the same order:
+// What it does · Run by · Takes in · Produces · Status, then the figures and the files.
+const sheet = document.getElementById("sheet"), sbody = document.getElementById("sheetbody");
+function fillSheet(nd) {
+  document.getElementById("sheettitle").textContent = nd.title;
+  sbody.textContent = "";
+  const h = t => sbody.appendChild(el("h3", "", t));
+  h("What it does");
+  paras(wording === "plain" ? nd.plain : nd.tech).forEach(t => sbody.appendChild(el("p", "big", t)));
+  h("Run by");
+  const by = el("p"); by.appendChild(el("span", "pill inv", BY[nd.by][0])); by.appendChild(document.createTextNode(" " + BY[nd.by][1] + ". "));
+  by.appendChild(document.createTextNode(nd.byNote || BY[nd.by][2])); sbody.appendChild(by);
+  h("Takes in"); sbody.appendChild(el("p", "", nd.inp || "—"));
+  h("Produces"); sbody.appendChild(el("p", "", nd.out || "—"));
+  if (nd.prod) sbody.appendChild(el("code", "", nd.prod));
+  h("Status");
+  const st = el("p"); st.appendChild(el("span", "pill", STATUS[nd.status]));
+  if (nd.kind === "hand") { st.appendChild(document.createTextNode(" ")); st.appendChild(el("span", "pill", "Done by a person")); }
+  if (nd.kind === "end") { st.appendChild(document.createTextNode(" ")); st.appendChild(el("span", "pill", "End point")); }
+  sbody.appendChild(st);
+  const live = runInfoFor(nd.id); if (live) sbody.appendChild(live);
+  h("Right now");
+  const tb = el("table"); const rows = [[nd.cap.charAt(0).toUpperCase() + nd.cap.slice(1), nd.num]].concat(nd.facts || []);
+  rows.forEach(([k, v]) => { const tr = el("tr"); tr.appendChild(el("td", "", String(k))); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v == null ? 0 : v))); tb.appendChild(tr); });
+  sbody.appendChild(tb);
+  if (nd.extra) nd.extra(sbody);
+  // where this step keeps what it makes: a link that opens the file or folder itself,
+  // and, while a test run is on show, a second one that opens the test's scratch copy
+  const kept = O(M.artifacts)[nd.id] || [], inTest = testShown() && location.protocol !== "file:";
+  if (kept.length) {
+    h("Where it is kept");
+    kept.forEach(a => {
+      const row = el("p", "kept");
+      if (a.exists) { const link = el("a", "", a.label); link.href = "../" + a.path; link.target = "_blank"; link.rel = "noopener"; row.appendChild(link);
+        // served: ask the server to open it in the desktop's own application
+        if (location.protocol !== "file:") link.addEventListener("click", ev => { ev.preventDefault(); openPath({ path: a.path }, row); }); }
+      else { row.appendChild(el("span", "", a.label)); row.appendChild(el("span", "pill none", "nothing there yet")); }
+      if (inTest) {
+        const t = el("a", "intest", "in the test run"); t.href = "#"; t.title = "Open the test run's scratch copy of " + a.label.toLowerCase();
+        t.addEventListener("click", ev => { ev.preventDefault(); openPath({ path: a.path, test: true }, row); });
+        row.appendChild(t);
+      }
+      row.appendChild(el("span", "path", "mvp/" + a.path));
+      sbody.appendChild(row);
+    });
+  }
+  if (wording === "tech" && nd.cmd && !/^mvp\//.test(nd.cmd)) { h("Command"); sbody.appendChild(el("code", "", nd.cmd)); }
+}
+function openSheet(nd) {
+  selected = nd; pick([nd.id]);
+  fillSheet(nd);
+  sheet.classList.add("open");
+  if (!sheet._placed && innerWidth > 640) {
+    const r = nd.el.getBoundingClientRect(), w = sheet.offsetWidth, h = sheet.offsetHeight;
+    let left = r.right + 14; if (left + w > innerWidth - 8) left = r.left - w - 14;
+    if (left < 8) left = Math.max(8, innerWidth - w - 8);
+    const top = Math.max(8, Math.min(r.top, innerHeight - h - 8));
+    sheet.style.left = left + "px"; sheet.style.top = top + "px"; sheet.style.right = "auto"; sheet.style.bottom = "auto";
+  }
+}
+document.getElementById("sheetclose").onclick = () => { sheet.classList.remove("open"); selected = null; };
+drag(document.getElementById("sheethead"), sheet, (dx, dy) => {
+  const r = sheet.getBoundingClientRect(); sheet.style.left = (r.left + dx) + "px"; sheet.style.top = (r.top + dy) + "px"; sheet.style.right = "auto"; sheet.style.bottom = "auto"; sheet._placed = true; });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (setupDlg.open || tsetupDlg.open) return;   // a dialog handles its own Escape
+    if (colwin.classList.contains("open")) { showColours(false); colbtn.focus(); return; }
+    if (helpwin.classList.contains("open")) { showHelp(false); helpbtn.focus(); return; }
+    document.getElementById("sheetclose").click(); pick([]); return; }
+  // arrow keys nudge whatever is selected
+  const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (!step || !picked.size || e.target.closest("#sheet, #colours, #help, #runpanel, dialog, .bar, input")) return;
+  e.preventDefault(); const d = (e.shiftKey ? 32 : 8) * zoom;
+  moveNodes([...picked].map(i => byId[i]), step[0] * d, step[1] * d); saveLayout();
+});
+
+function setWording(w) { wording = w;
+  document.getElementById("plain").setAttribute("aria-pressed", w === "plain"); document.getElementById("tech").setAttribute("aria-pressed", w === "tech");
+  if (selected) fillSheet(selected); }
+document.getElementById("plain").onclick = () => setWording("plain");
+document.getElementById("tech").onclick = () => setWording("tech");
+
+// ------------------------------------------------------------------ zoom
+const scroller = document.getElementById("scroller"), sizer = document.getElementById("sizer");
+function setZoom(z) { zoom = Math.min(1.6, Math.max(0.35, z)); canvas.style.transform = `scale(${zoom})`;
+  // zoomed far out, show every second (or fourth) dot so the grid does not turn to grey
+  let gap = 16 * zoom; while (gap < 11) gap *= 2;
+  scroller.style.backgroundSize = gap + "px " + gap + "px";
+  resize(); }
+function resize() { canvas.style.width = CW + "px"; canvas.style.height = CH + "px";
+  sizer.style.width = (CW * zoom) + "px"; sizer.style.height = (CH * zoom) + "px"; }
+function fit() { setZoom(Math.min(1, (scroller.clientWidth - 4) / CW)); }
+document.getElementById("zin").onclick = () => setZoom(zoom + 0.1);
+document.getElementById("zout").onclick = () => setZoom(zoom - 0.1);
+document.getElementById("zfit").onclick = fit;
+document.getElementById("tidy").onclick = () => { store.set(LAYOUT, {}); pick([]); NODES.forEach(q => { q.el.style.left = q.x + "px"; q.el.style.top = q.y + "px"; }); placeLegend(LEG); route(); };
+const legend = document.getElementById("legend"), legbtn = document.getElementById("legbtn");
+const LEG = { x: 1180, y: 1060 };
+function placeLegend(p) { legend.style.left = p.x + "px"; legend.style.top = p.y + "px"; }
+placeLegend((saved._legend) || LEG);
+drag(legend.querySelector("header"), legend, (dx, dy) => {
+  legend.style.left = Math.max(0, legend.offsetLeft + dx / zoom) + "px";
+  legend.style.top = Math.max(0, legend.offsetTop + dy / zoom) + "px"; route(); }, saveLayout);
+legbtn.onclick = () => { const on = legend.style.display === "none"; legend.style.display = on ? "" : "none"; legbtn.setAttribute("aria-pressed", on); };
+
+// --------------------------------------------------------------- colours
+// Four tones, ink to paper. Nothing chosen = the CSS defaults, which follow the system
+// light/dark setting. A choice is written inline on <html> and so overrides both.
+const PALETTE = "patch-palette-1", root = document.documentElement;
+const PRESETS = [
+  ["Paper",          ["#000000", "#555555", "#a8a8a8", "#ffffff"]],
+  ["Night",          ["#e9e9e4", "#8a8a86", "#505050", "#101010"]],
+  ["Amber terminal", ["#ffb000", "#a86f00", "#5a3c00", "#1a1100"]],
+  ["Green phosphor", ["#41ff7a", "#1f9a45", "#14532a", "#04140a"]],
+  ["Blueprint",      ["#f2f6ff", "#8fa9dc", "#4a6db4", "#1c3f8a"]],
+];
+const colwin = document.getElementById("colours"), colbtn = document.getElementById("colbtn");
+const colInputs = [...colwin.querySelectorAll("input[type=color]")];
+const isHex = v => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+function hex(v) { v = String(v || "").trim();
+  if (/^#[0-9a-f]{3}$/i.test(v)) v = "#" + [...v.slice(1)].map(c => c + c).join("");
+  return isHex(v) ? v.toLowerCase() : "#000000"; }
+function lum(h) { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); return 0.299 * r + 0.587 * g + 0.114 * b; }
+function applyPalette(p) {
+  if (p) { p.forEach((v, i) => root.style.setProperty("--c" + i, v)); root.style.colorScheme = lum(p[3]) < 128 ? "dark" : "light"; }
+  else { [0, 1, 2, 3].forEach(i => root.style.removeProperty("--c" + i)); root.style.removeProperty("color-scheme"); }
+  syncInputs();
+}
+function current() { const cs = getComputedStyle(root); return [0, 1, 2, 3].map(i => hex(cs.getPropertyValue("--c" + i))); }
+function syncInputs() { const c = current(), chosen = !!root.style.getPropertyValue("--c0");
+  colInputs.forEach((inp, i) => { inp.value = c[i]; });
+  document.getElementById("colnote").textContent = chosen ? "Your colours." : "Default: follows the system light or dark setting."; }
+function setPalette(p) { store.set(PALETTE, p); applyPalette(p); }
+colInputs.forEach((inp, i) => inp.addEventListener("input", () => { const p = current(); p[i] = hex(inp.value); setPalette(p); }));
+PRESETS.forEach(([name, p]) => {
+  const b = el("button", "btn"); b.type = "button";
+  const chip = el("span", "chip"); chip.style.background = `linear-gradient(90deg, ${p[3]} 50%, ${p[0]} 50%)`; chip.setAttribute("aria-hidden", "true");
+  b.appendChild(chip); b.appendChild(document.createTextNode(name)); b.onclick = () => setPalette(p.slice());
+  document.getElementById("presets").appendChild(b);
+});
+document.getElementById("colreset").onclick = () => setPalette(null);
+function underBar(win) { // open just under the toolbar, which wraps onto several rows on a phone
+  const top = Math.round(document.querySelector(".bar").getBoundingClientRect().bottom) + 6;
+  win.style.top = top + "px"; win.style.maxHeight = (innerHeight - top - 8) + "px"; }
+function showColours(on) {
+  if (on) { underBar(colwin); showHelp(false); }
+  colwin.classList.toggle("open", on); colbtn.setAttribute("aria-pressed", on);
+  if (on) { syncInputs(); colInputs[0].focus(); } }
+colbtn.onclick = () => showColours(!colwin.classList.contains("open"));
+document.getElementById("colclose").onclick = () => { showColours(false); colbtn.focus(); };
+// the default follows the system; keep the swatches honest when it flips
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncInputs); } catch (e) {}
+{ const p = store.get(PALETTE); applyPalette(Array.isArray(p) && p.length === 4 && p.every(isHex) ? p : null); }
+
+// ------------------------------------------------------------------ help
+const helpwin = document.getElementById("help"), helpbtn = document.getElementById("helpbtn");
+function showHelp(on) {
+  if (on) { underBar(helpwin); showColours(false); }
+  helpwin.classList.toggle("open", on); helpbtn.setAttribute("aria-pressed", on);
+  if (on) document.getElementById("helpclose").focus(); }
+helpbtn.onclick = () => showHelp(!helpwin.classList.contains("open"));
+document.getElementById("helpclose").onclick = () => { showHelp(false); helpbtn.focus(); };
+
+// ----------------------------------------------------------- rubber band
+// Press on empty space and pull: every box the rectangle touches is selected.
+scroller.addEventListener("pointerdown", ev => {
+  if (ev.button || ev.pointerType === "touch" || ev.target.closest(".node, .flabel, #legend")) return;
+  const sr = scroller.getBoundingClientRect();
+  if (ev.clientX - sr.left > scroller.clientWidth || ev.clientY - sr.top > scroller.clientHeight) return;  // a scrollbar
+  const cr = canvas.getBoundingClientRect(), at = e => [(e.clientX - cr.left) / zoom, (e.clientY - cr.top) / zoom];
+  const [x0, y0] = at(ev), add = ev.shiftKey, base = new Set(picked); let box = null;
+  try { scroller.setPointerCapture(ev.pointerId); } catch (e) {}
+  const move = e => {
+    const [x, y] = at(e);
+    if (!box) { if (Math.hypot(x - x0, y - y0) < 5) return; box = el("div", "marquee"); canvas.appendChild(box); }
+    const L = Math.min(x0, x), T = Math.min(y0, y), W = Math.abs(x - x0), H = Math.abs(y - y0);
+    box.style.left = L + "px"; box.style.top = T + "px"; box.style.width = W + "px"; box.style.height = H + "px";
+    picked.clear(); if (add) base.forEach(i => picked.add(i));
+    NODES.forEach(q => { const n = q.el;
+      if (n.offsetLeft < L + W && n.offsetLeft + n.offsetWidth > L && n.offsetTop < T + H && n.offsetTop + n.offsetHeight > T) picked.add(q.id); });
+    paint();
+  };
+  const up = () => {
+    scroller.removeEventListener("pointermove", move); scroller.removeEventListener("pointerup", up); scroller.removeEventListener("pointercancel", up);
+    if (box) box.remove(); else if (!add) pick([]);
+    if (picked.size > 1) say(picked.size + " boxes selected. Drag any one of them to move them all, or use the arrow keys. Esc clears.");
+  };
+  scroller.addEventListener("pointermove", move); scroller.addEventListener("pointerup", up); scroller.addEventListener("pointercancel", up);
+});
+
+// ----------------------------------------------------------- message line
+const msg = document.getElementById("msg"), IDLE = "Click a box to see what it does. Drag a box to move it. Drag across empty space to select several. Drag a section name to move the section.";
+function say(t) { msg.textContent = t; }
+const still = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
+
+// ------------------------------------------- update and test run: the real pipeline
+// Talks to `run.py serve` (same origin, relative URLs). Opened from disk, or with no
+// server, both start buttons stay off and everything else works as before.
+// An update and a test run are the same machinery and the same panel. A test run is
+// executed by the server in a scratch folder on made-up incidents; the snapshot says so
+// with `test: true`, and everything shown for it is marked.
+const U = { server: false, status: null, run: null, active: false, timer: null, lost: false, last: "", attached: false,
+            open: new Set(), current: null, cancelArm: null, baseTitle: document.title, sig: "", testSig: null, casesOpen: false };
+const isTest = run => !!(run && run.test === true);   // older snapshots have no `test`: a real run
+const testShown = () => isTest(U.run);
+const runWord = run => isTest(run) ? "Test run" : "Update";
+const canFetch = typeof fetch === "function";
+const ACTIVE = s => s === "running" || s === "waiting" || s === "failed";
+const RS_LABEL = { pending: "pending", running: "running", waiting: "your turn", done: "done", failed: "failed", skipped: "skipped", placeholder: "not built yet" };
+const RS_RANK = { waiting: 7, failed: 6, running: 5, placeholder: 4, done: 3, skipped: 2, pending: 1 };
+const updbtn = document.getElementById("upd"), srvnote = document.getElementById("srvnote");
+const tstbtn = document.getElementById("tst"), tstnote = document.getElementById("tstnote");
+const rpanel = document.getElementById("runpanel"), rstatus = document.getElementById("runstatus"), rlost = document.getElementById("runlost");
+const rsteps = document.getElementById("runsteps"), rsummary = document.getElementById("runsummary"), ropts = document.getElementById("runopts");
+const rcancel = document.getElementById("runcancel"), rclose = document.getElementById("runclose"), rnote = document.getElementById("runnote");
+
+function api(method, path, body, ms) {
+  if (!canFetch) return Promise.reject(new Error("fetch is not available"));
+  const opt = { method, headers: { "Accept": "application/json" }, cache: "no-store", credentials: "same-origin" };
+  if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+  let t = null;
+  try { if (typeof AbortController === "function") { const c = new AbortController(); opt.signal = c.signal; t = setTimeout(() => c.abort(), ms || 8000); } } catch (e) {}
+  return fetch(path, opt).then(r => r.text().then(tx => {
+    clearTimeout(t); let j = null; try { j = tx ? JSON.parse(tx) : null; } catch (e) {}
+    return { status: r.status, ok: r.ok, body: j };
+  }), e => { clearTimeout(t); throw e; });
+}
+
+// "Where it is kept" and the test's scratch folder: ask the server to open a path in the
+// desktop's own application. `where` is the element that shows a failure.
+function openPath(body, where) {
+  const fail = m => { let w = where.querySelector(".openfail"); if (!w) { w = el("span", "pill none openfail", ""); where.appendChild(w); } w.textContent = m; };
+  api("POST", "api/open", body).then(r => {
+    if (r.ok) { const w = where.querySelector(".openfail"); if (w) w.remove(); return; }
+    fail((r.body && r.body.error) || (r.status === 409 && body.test ? "the test run's scratch folder is gone" : "could not open it"));
+  }, () => fail("the server did not answer"));
+}
+
+// a test run is offered only when the front end says so; an older one does not say
+function testReady() { return U.server && O(U.status).test_available === true; }
+function testWhyNot() {
+  const st = O(U.status);
+  if (st.test_available === false) return String(st.test_unavailable || "the front end cannot make a test run right now").trim();
+  return "this front end has no test run: restart python mvp/pipeline/run.py serve";
+}
+
+function syncButtons() {
+  updbtn.disabled = !U.server || U.active;
+  tstbtn.disabled = !testReady() || U.active;
+  if (!U.server) return;
+  const going = U.run && isTest(U.run) ? "a test run is going: see the panel" : "an update is running: see the panel";
+  srvnote.textContent = U.active ? going : "changes the project's files";
+  tstnote.textContent = U.active ? going : testReady() ? "made-up incidents; your files are not touched" : "Off: " + testWhyNot();
+  tstbtn.title = testReady() ? "A dry run: every step, on a handful of made-up incidents in a scratch folder. The project's files are not touched."
+                             : "Off: " + testWhyNot() + ".";
+}
+
+function noServer(why) {
+  U.server = false;
+  srvnote.textContent = "Start the front end with: python mvp/pipeline/run.py serve";
+  tstnote.textContent = "needs the front end too";
+  const off = "Off: " + (why || "this page was not opened from the front end") + ". Start it with: python mvp/pipeline/run.py serve, then open the address it prints.";
+  updbtn.title = off; tstbtn.title = off;
+  syncButtons();
+}
+
+function detect() {
+  if (!canFetch) return noServer("this browser cannot talk to a server");
+  if (location.protocol === "file:") return noServer("this page was opened from disk");
+  api("GET", "api/status", undefined, 2500).then(r => {
+    if (!r.ok || !r.body || r.body.server !== true) return noServer("no front end answered");
+    U.server = true; U.status = r.body; updbtn.title = "Run the real pipeline: reads and writes the project's files";
+    syncButtons();
+    if (r.body.run && ACTIVE(r.body.run.state)) attach(r.body.run);
+  }).catch(() => noServer("no front end answered"));
+}
+
+// --- the set-up dialog
+const setupDlg = document.getElementById("setup"), sform = document.getElementById("setupform"), serr = document.getElementById("setuperr");
+const mdir = document.getElementById("manualdir");
+function radio(name) { const r = sform.querySelector("input[name=" + name + "]:checked"); return r ? r.value : ""; }
+function openSetup() {
+  if (!U.server || U.active) return;
+  serr.textContent = "";
+  const go = st => {
+    const snap = O(st && st.aiid_snapshot), token = !!(st && st.token_present);
+    const fs = document.getElementById("fsaved"), fr = document.getElementById("frefetch");
+    if (snap.present) {
+      document.getElementById("savedlabel").textContent = "Use the saved AIID copy (fetched " + (snap.fetched || "date not recorded") + ", " + n(snap.records) + " incidents)";
+      fs.disabled = false; if (!fr.checked) fs.checked = true;
+    } else {
+      document.getElementById("savedlabel").textContent = "Use the saved AIID copy (there is none yet)";
+      fs.disabled = true; fr.checked = true;
+    }
+    document.getElementById("tokennote").textContent = token ? "An AIID token was found." :
+      "No AIID token found: downloading again will stop and ask you for one (or offer the saved copy).";
+    if (typeof setupDlg.showModal === "function") { if (!setupDlg.open) setupDlg.showModal(); } else setupDlg.setAttribute("open", "");
+    (sform.querySelector("input:checked") || sform.querySelector("input")).focus();
+  };
+  api("GET", "api/status", undefined, 2500).then(r => { if (r.ok && r.body) U.status = r.body; go(U.status); }, () => go(U.status));
+}
+function closeSetup() { if (typeof setupDlg.close === "function" && setupDlg.open) setupDlg.close(); else setupDlg.removeAttribute("open"); updbtn.focus(); }
+updbtn.onclick = openSetup;
+setupDlg.addEventListener("close", () => { if (!updbtn.disabled) updbtn.focus(); });
+document.getElementById("setupclose").onclick = closeSetup;
+document.getElementById("setupcancel").onclick = closeSetup;
+sform.addEventListener("change", () => { mdir.disabled = radio("manual") !== "yes"; });
+sform.addEventListener("submit", ev => {
+  ev.preventDefault();
+  const body = { discover: radio("scope") === "discover", refetch: radio("fetch") === "refetch", manual_dir: radio("manual") === "yes" ? mdir.value.trim() : "" };
+  if (radio("manual") === "yes" && !body.manual_dir) { serr.textContent = "Type the path of the folder that holds the write-ups, or choose No."; mdir.focus(); return; }
+  startRun(body, document.getElementById("setupstart"), serr, closeSetup);
+});
+
+// both dialogs start a run the same way; only the body differs
+function startRun(body, btn, err, close) {
+  btn.disabled = true; err.textContent = "";
+  api("POST", "api/run", body, 15000).then(r => {
+    btn.disabled = false;
+    if (r.ok && r.body) { close(); attach(r.body); return; }
+    let why = String((r.body && r.body.error) || ("The front end answered " + r.status)).trim();
+    if (!/[.!?]$/.test(why)) why += ".";
+    if (r.status === 409) { err.textContent = "A run is already going: " + why + " It is shown in the panel beside the map."; poll(); }
+    else if (r.status === 400) err.textContent = "Cannot start: " + why;
+    else err.textContent = "Cannot start (" + r.status + "): " + why;
+  }, () => { btn.disabled = false; err.textContent = "Could not reach the front end. Is python mvp/pipeline/run.py serve still running?"; });
+}
+
+// --- the test run's set-up dialog
+const tsetupDlg = document.getElementById("tsetup"), tform = document.getElementById("tsetupform"), terr = document.getElementById("tsetuperr");
+function openTestSetup() {
+  if (!testReady() || U.active) return;
+  terr.textContent = "";
+  const go = () => {
+    syncButtons();
+    if (!testReady()) { say("Test run is off: " + testWhyNot() + "."); return; }   // it changed while we asked
+    if (typeof tsetupDlg.showModal === "function") { if (!tsetupDlg.open) tsetupDlg.showModal(); } else tsetupDlg.setAttribute("open", "");
+    document.getElementById("trefetch").focus();
+  };
+  api("GET", "api/status", undefined, 2500).then(r => { if (r.ok && r.body) U.status = r.body; go(); }, go);
+}
+function closeTestSetup() { if (typeof tsetupDlg.close === "function" && tsetupDlg.open) tsetupDlg.close(); else tsetupDlg.removeAttribute("open"); tstbtn.focus(); }
+tstbtn.onclick = openTestSetup;
+tsetupDlg.addEventListener("close", () => { if (!tstbtn.disabled) tstbtn.focus(); });
+document.getElementById("tsetupclose").onclick = closeTestSetup;
+document.getElementById("tsetupcancel").onclick = closeTestSetup;
+tform.addEventListener("submit", ev => {
+  ev.preventDefault();
+  const on = id => document.getElementById(id).checked;
+  startRun({ test: true, discover: on("tdiscover"), refetch: on("trefetch"), manual: on("tmanual") },
+           document.getElementById("tsetupstart"), terr, closeTestSetup);
+});
+
+// --- following a run
+function attach(run) {
+  U.active = true; U.attached = true; U.lost = false; U.last = ""; U.current = null; U.open.clear(); mapDiff = null;
+  U.testSig = null; U.casesOpen = false;
+  rpanel.classList.add("open");
+  render(run); syncButtons();
+  setTimeout(() => { if (scroller.clientWidth < CW * zoom) fit(); route(); }, 0);
+  clearTimeout(U.timer); U.timer = setTimeout(poll, 1000);
+}
+function poll() {
+  clearTimeout(U.timer);
+  api("GET", "api/run", undefined, 5000).then(r => {
+    if (r.status === 404) { setLost(false); if (U.run) finish(Object.assign({}, U.run, { state: U.run.state === "done" ? "done" : "cancelled" })); return; }
+    if (!r.ok || !r.body) throw new Error("bad answer " + r.status);
+    setLost(false);
+    if (!U.attached) { attach(r.body); return; }
+    render(r.body);
+    if (ACTIVE(r.body.state)) U.timer = setTimeout(poll, 1000); else finish(r.body);
+  }).catch(() => { setLost(true); U.timer = setTimeout(poll, 2000); });
+}
+function setLost(on) {
+  if (U.lost === on) return; U.lost = on; rlost.hidden = !on;
+  if (on) { setStatus("Lost contact with the front end. Retrying…"); document.title = "○ Lost contact" + (testShown() ? " · Test run" : "") + " — " + U.baseTitle; }
+  else U.last = "";   // repaint the status line on the next answer
+}
+// the status line; a test run's always starts with its mark
+function setStatus(text) {
+  rstatus.textContent = "";
+  if (testShown()) {
+    const m = rstatus.appendChild(el("span", "testmark", "Test run"));
+    if (/^Test run/.test(text)) m.setAttribute("aria-hidden", "true");   // not read out twice
+    rstatus.appendChild(document.createTextNode(" "));
+  }
+  rstatus.appendChild(document.createTextNode(text));
+}
+
+function stepCounts(s) { return (Array.isArray(s.counts) ? s.counts : []).filter(c => Array.isArray(c) && c.length >= 2); }
+function stepSum(s) { const c = stepCounts(s); return c.length ? c.slice(0, 2).map(([k, v]) => (typeof v === "number" ? n(v) : v) + " " + String(k).toLowerCase()).join(" · ") : ""; }
+
+function paintNodes(run) {
+  const st = {};
+  (run.steps || []).forEach(s => (s.nodes || []).forEach(id => {
+    if (!byId[id]) return;
+    if (!st[id] || (RS_RANK[s.state] || 0) > (RS_RANK[st[id]] || 0)) st[id] = s.state;
+  }));
+  NODES.forEach(nd => {
+    const s = st[nd.id];
+    if (s && RS_LABEL[s]) { nd.el.dataset.rs = s; nd.el.querySelector(".rsb").textContent = (s === "waiting" ? "! " : s === "failed" ? "✕ " : s === "done" ? "✓ " : "") + RS_LABEL[s]; }
+    else { delete nd.el.dataset.rs; }
+    nd.el.setAttribute("aria-label", ariaOf(nd) + (s ? (isTest(run) ? ". In this test run: " : ". In this update: ") + RS_LABEL[s] : ""));
+  });
+  // the wire into the step that is working now
+  const cur = (run.steps || []).find(s => s.id === run.current);
+  const inside = new Set(cur && cur.state === "running" ? cur.nodes || [] : []);
+  wires.forEach(w => w.path.classList.toggle("flow", inside.has(w.b.id) && !inside.has(w.a.id)));
+}
+function clearNodes() { NODES.forEach(nd => { delete nd.el.dataset.rs; nd.el.setAttribute("aria-label", ariaOf(nd)); }); wires.forEach(w => w.path.classList.remove("flow")); }
+
+function render(run) {
+  if (!run || !Array.isArray(run.steps)) return;
+  const sig = JSON.stringify(run);
+  if (sig === U.last) return;
+  U.last = sig; U.run = run;
+  const test = isTest(run), word = runWord(run);
+  markTest(test);
+  paintNodes(run);
+  const steps = run.steps, cur = steps.find(s => s.id === run.current) || null;
+  const ask = steps.find(s => s.state === "waiting") || steps.find(s => s.state === "failed");
+  // the status line, the window title and the panel title
+  const pos = cur ? (steps.indexOf(cur) + 1) + " of " + steps.length : "";
+  const tt = test ? " · Test run" : "";
+  let line, title;
+  if (run.state === "waiting" && ask) { line = "Waiting for you at “" + (ask.title || ask.id) + "”. See below."; title = "● Waiting for you" + tt + " — " + U.baseTitle; }
+  else if (run.state === "failed") { line = "Stopped: “" + ((ask || cur || {}).title || "a step") + "” failed. See below."; title = "✕ " + word + " stopped — " + U.baseTitle; }
+  else if (run.state === "running") { line = "Running " + pos + ": " + ((cur && cur.title) || "…"); title = (test ? "▸ Test run… — " : "▸ Updating… — ") + U.baseTitle; }
+  else if (run.state === "done") { line = word + " finished."; title = "✓ " + word + " done — " + U.baseTitle; }
+  else if (run.state === "cancelled") { line = word + " cancelled."; title = test ? "Test run cancelled — " + U.baseTitle : U.baseTitle; }
+  else { line = word + ": " + run.state; title = test ? "Test run — " + U.baseTitle : U.baseTitle; }
+  if (!U.lost) { setStatus(line); document.title = title; }
+  document.getElementById("runtitle").textContent = word + " " + (run.id || "");
+  const o = O(run.options);
+  ropts.textContent = test
+    ? "Test run with: " + (o.refetch ? "a fresh fetch, simulated: the first try fails on purpose" : "the saved copy") + " · " + (o.manual ? "one made-up incident added by hand" : "nothing added by hand") + " · " + (o.discover ? "discovery (not built yet)" : "no discovery")
+    : "Started with: " + (o.discover ? "AIID and discovery (not built yet)" : "AIID baseline only") + " · " + (o.refetch ? "download AIID again" : "saved AIID copy") + " · " + (o.manual_dir ? "by hand from " + o.manual_dir : "nothing added by hand");
+  testInfo(run);
+  // which steps are open: the current one, any that need you, and any you opened
+  const changed = (cur && cur.id) !== U.current; U.current = cur && cur.id;
+  rsteps.textContent = "";
+  steps.forEach(s => rsteps.appendChild(stepItem(s, s === cur || s === ask || U.open.has(s.id), run)));
+  // follow along: keep the step that matters in view, in the panel and on the map
+  const focusStep = ask || cur;
+  if (focusStep && (changed || ask)) {
+    const li = rsteps.querySelector('[data-id="' + cssq(focusStep.id) + '"]');
+    if (li) li.scrollIntoView({ block: ask ? "start" : "nearest", behavior: still ? "auto" : "smooth" });
+    const nd = byId[(focusStep.nodes || [])[0]];
+    if (nd) { nd.el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: still ? "auto" : "smooth" }); }
+  }
+  // cancel only makes sense while it runs; closing only once it has ended
+  const what = test ? "test run" : "update";
+  rcancel.hidden = !ACTIVE(run.state); rclose.disabled = ACTIVE(run.state);
+  if (!U.cancelArm) rcancel.textContent = cancelLabel();
+  rclose.title = ACTIVE(run.state) ? "The panel stays while the " + what + " runs" : "Close the " + what + " panel";
+  rclose.setAttribute("aria-label", "Close the " + what + " panel");
+  rnote.textContent = ACTIVE(run.state) ? "Reloading this page is safe: the " + what + " keeps running." + (test ? " A test run does not survive a restart of the front end." : "") : "";
+  rsummary.textContent = "";
+  if (!ACTIVE(run.state)) summary(run);
+  if (selected && sheet.classList.contains("open")) fillSheet(selected);
+}
+function cssq(s) { return String(s).replace(/["\\]/g, "\\$&"); }
+function cancelLabel() { return testShown() ? "Cancel test run" : "Cancel update"; }
+
+// a test run is marked on the panel, on the map's window and in the box details;
+// a real run looks as it always did
+function markTest(on) {
+  rpanel.classList.toggle("test", on); document.getElementById("patchwin").classList.toggle("test", on);
+  document.getElementById("runmark").hidden = !on; document.getElementById("wintest").hidden = !on;
+  rpanel.setAttribute("aria-label", on ? "Test run: a dry run on made-up incidents" : "Update in progress");
+  rsteps.setAttribute("aria-label", on ? "Steps of this test run" : "Steps of this update");
+}
+
+// what a test run contains, and where its scratch folder is; rebuilt only when it changes,
+// so the list stays open or closed as the person left it
+const rtest = document.getElementById("runtest");
+function testInfo(run) {
+  if (!isTest(run)) { rtest.textContent = ""; U.testSig = null; return; }
+  const cases = (Array.isArray(run.cases) ? run.cases : []).filter(c => c && typeof c === "object");
+  const sig = JSON.stringify([run.workspace || "", cases]);
+  if (sig === U.testSig) return;
+  U.testSig = sig; rtest.textContent = "";
+  rtest.appendChild(el("p", "", "Made-up incidents, in a scratch folder. Your project's files are not touched; the numbers on the boxes stay your own."));
+  if (run.workspace) {
+    const p = el("p"); p.appendChild(document.createTextNode("Scratch folder: "));
+    p.appendChild(el("span", "ws", String(run.workspace)));
+    if (location.protocol !== "file:") {
+      p.appendChild(document.createTextNode(" "));
+      const a = el("a", "", "Open it"); a.href = "#"; a.title = "Open the test run's scratch folder";
+      a.addEventListener("click", ev => { ev.preventDefault(); openPath({ path: ".", test: true }, p); });
+      p.appendChild(a);
+    }
+    rtest.appendChild(p);
+  }
+  if (cases.length) {
+    const det = el("details"); det.open = U.casesOpen;
+    det.addEventListener("toggle", () => { U.casesOpen = det.open; });
+    det.appendChild(el("summary", "", "What this test run contains (" + cases.length + ")"));
+    const ul = el("ul");
+    cases.forEach(c => {
+      const li = el("li");
+      if (c.ref) { li.appendChild(el("code", "", String(c.ref))); }
+      li.appendChild(el("b", "", String(c.title || "Untitled")));
+      if (c.shows) { li.appendChild(document.createTextNode(": " + String(c.shows))); }
+      ul.appendChild(li);
+    });
+    det.appendChild(ul); rtest.appendChild(det);
+  }
+}
+
+function stepItem(s, open, run) {
+  const li = el("li", "rstep" + (open ? " open" : "")); li.dataset.id = s.id; li.dataset.st = s.state;
+  const head = el("button", "rhead"); head.type = "button"; head.setAttribute("aria-expanded", open);
+  head.appendChild(el("span", "rbadge", (s.state === "waiting" ? "! " : s.state === "failed" ? "✕ " : s.state === "done" ? "✓ " : "") + (RS_LABEL[s.state] || s.state)));
+  head.appendChild(el("span", "rtitle", s.title || s.id));
+  if (stepSum(s)) head.appendChild(el("span", "rsum", stepSum(s)));
+  head.onclick = () => {
+    if (li.classList.toggle("open")) U.open.add(s.id); else U.open.delete(s.id);
+    head.setAttribute("aria-expanded", li.classList.contains("open"));
+    const ids = (s.nodes || []).filter(i => byId[i]); if (ids.length) { pick(ids); byId[ids[0]].el.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+  };
+  li.appendChild(head);
+  const d = el("div", "rdetail");
+  if ((s.state === "waiting" || s.state === "failed") && s.prompt) d.appendChild(askBox(s, run));
+  if (s.state === "placeholder") d.appendChild(el("p", "note", "Not built yet: shown so you can see where it belongs, then skipped."));
+  const c = stepCounts(s);
+  if (c.length) { const tb = el("table"); c.forEach(([k, v]) => { const tr = el("tr"); tr.appendChild(el("td", "", String(k))); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v))); tb.appendChild(tr); }); d.appendChild(tb); }
+  const log = Array.isArray(s.log) ? s.log : [];
+  if (log.length) { const pre = el("pre", "rlog mono", log.join("\n")); d.appendChild(pre); setTimeout(() => { pre.scrollTop = pre.scrollHeight; }, 0); }
+  else if (!c.length && !(s.prompt && (s.state === "waiting" || s.state === "failed"))) d.appendChild(el("p", "note", s.state === "pending" ? "Not started yet." : "Nothing logged."));
+  if (s.started || s.ended) d.appendChild(el("p", "note", [s.started && "started " + s.started, s.ended && "ended " + s.ended].filter(Boolean).join(" · ")));
+  li.appendChild(d);
+  return li;
+}
+
+function askBox(s, run) {
+  const p = O(s.prompt), box = el("div", "ask"); box.setAttribute("role", "group"); box.setAttribute("aria-label", "What is needed from you");
+  box.appendChild(el("p", "asktext", p.text || (s.state === "failed" ? "This step failed." : "This step is waiting for you.")));
+  if (p.command) {
+    const row = el("div", "cmd"), inp = el("input"); inp.type = "text"; inp.readOnly = true; inp.value = p.command; inp.setAttribute("aria-label", "Command to run");
+    inp.onfocus = () => inp.select();
+    const cp = el("button", "btn", "Copy"); cp.type = "button";
+    cp.onclick = () => {
+      const ok = () => { cp.textContent = "Copied"; setTimeout(() => { cp.textContent = "Copy"; }, 1500); };
+      try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(p.command).then(ok, () => { inp.select(); try { document.execCommand("copy"); ok(); } catch (e) {} }); return; } } catch (e) {}
+      inp.select(); try { document.execCommand("copy"); ok(); } catch (e) {}
+    };
+    row.appendChild(inp); row.appendChild(cp); box.appendChild(row);
+    box.appendChild(el("p", "note", isTest(run) ? "In a real update you would run it in Claude Code. In a test run you need not: choose below."
+                                                : "Run it in Claude Code, in this project. Then come back and choose below."));
+  }
+  // a test run says what its buttons do here, apart from the real instruction above
+  if (isTest(run) && p.test_note) {
+    const tn = el("p", "testnote"); tn.appendChild(el("span", "testmark", "Test run"));
+    tn.appendChild(document.createTextNode(String(p.test_note))); box.appendChild(tn);
+  }
+  const acts = el("div", "acts"), btns = [];
+  (Array.isArray(p.actions) ? p.actions : []).forEach((a, i) => {
+    const b = el("button", "btn" + (i === 0 ? " strong" : ""), a.label || a.id); b.type = "button";
+    b.onclick = () => signal(s.id, a.id, btns); btns.push(b); acts.appendChild(b);
+  });
+  box.appendChild(acts);
+  return box;
+}
+
+function signal(step, action, btns) {
+  btns.forEach(b => b.disabled = true);
+  api("POST", "api/run/signal", { step, action }).then(r => {
+    if (r.ok && r.body) { U.last = ""; render(r.body); clearTimeout(U.timer); U.timer = setTimeout(poll, 500); }
+    else { btns.forEach(b => b.disabled = false); rstatus.textContent = "The front end refused that: " + ((r.body && r.body.error) || r.status); }
+  }, () => { btns.forEach(b => b.disabled = false); setLost(true); clearTimeout(U.timer); U.timer = setTimeout(poll, 2000); });
+}
+
+rcancel.onclick = () => {
+  // two presses, so a stray click does not stop a long run
+  if (!U.cancelArm) { rcancel.textContent = "Press again to cancel"; U.cancelArm = setTimeout(() => { U.cancelArm = null; rcancel.textContent = cancelLabel(); }, 4000); return; }
+  clearTimeout(U.cancelArm); U.cancelArm = null; rcancel.textContent = cancelLabel(); rcancel.disabled = true;
+  api("POST", "api/run/cancel", {}).then(r => { rcancel.disabled = false; if (r.ok && r.body) { U.last = ""; render(r.body); if (!ACTIVE(r.body.state)) finish(r.body); } },
+                                     () => { rcancel.disabled = false; setLost(true); });
+};
+rclose.onclick = () => {
+  if (U.active) return;
+  rpanel.classList.remove("open"); clearNodes(); U.run = null; U.last = ""; U.attached = false; document.title = U.baseTitle;
+  markTest(false); testInfo(null); syncButtons();
+  if (selected) fillSheet(selected);
+  setTimeout(() => { fit(); route(); }, 0);
+};
+
+function finish(run) {
+  clearTimeout(U.timer); U.active = false; syncButtons();
+  if (!run) return;
+  U.last = ""; render(run);
+  // a test run's figures are samples from its scratch folder: they never reach the map
+  if (run.state === "done" && !isTest(run) && run.map && typeof run.map === "object") applyMap(run.map);
+}
+
+// what changed: the step results, and the headline numbers before and after
+const HEAD = [["records", "Records"], ["queue", "Candidates"], ["context_rows", "Readings"], ["queue_single", "One agent only"], ["manual", "Added by hand"], ["proposals", "Suggestions"], ["dossiers", "Dossiers"]];
+let mapDiff = null;
+function summary(run) {
+  const test = isTest(run);
+  rsummary.appendChild(el("h3", "", run.state === "done" ? (test ? "What this test run did" : "What this update did") : run.state === "cancelled" ? "Cancelled. What ran before that" : "Summary"));
+  const ul = el("ul");
+  (run.steps || []).forEach(s => {
+    const what = s.state === "done" ? (stepSum(s) || "done") : RS_LABEL[s.state] || s.state;
+    if (s.state === "pending" && run.state !== "cancelled") return;
+    ul.appendChild(el("li", "", (s.title || s.id) + ": " + what));
+  });
+  rsummary.appendChild(ul);
+  if (test) {
+    rsummary.appendChild(el("p", "note", "Nothing in your project changed. The numbers on the boxes are still the project's own: a test run's figures are samples and are not put on the map."));
+    if (run.workspace) rsummary.appendChild(el("p", "note", "What the test made is in its scratch folder. While this panel is open, the “in the test run” links in a box's details open the test's copy."));
+  } else if (mapDiff && run.state === "done") {
+    rsummary.appendChild(el("h3", "", "Numbers on the map"));
+    if (!mapDiff.length) rsummary.appendChild(el("p", "note", "Refreshed. None of the headline numbers changed."));
+    else { const tb = el("table"); mapDiff.forEach(([k, a, b]) => { const tr = el("tr"); tr.appendChild(el("td", "", k)); tr.appendChild(el("td", "", n(a) + " → " + n(b))); tb.appendChild(tr); }); rsummary.appendChild(tb); }
+  } else if (run.state === "done") rsummary.appendChild(el("p", "note", "The numbers on the boxes were not refreshed: reload the page to see them."));
+}
+
+// new figures from the server, after a real update: refresh every box and wire label in place
+function applyMap(newMap) {
+  const old = M;
+  M = Object.assign({}, M, newMap);
+  mapDiff = HEAD.filter(([k]) => has(M, k) && Number(old[k] || 0) !== Number(M[k] || 0)).map(([k, label]) => [label, old[k], M[k]]);
+  const fresh = defs();
+  fresh.forEach(f => {
+    const nd = byId[f.id]; if (!nd) return;
+    CONTENT.forEach(k => { nd[k] = f[k]; });
+    nd.el.className = nd.el.className.replace(/\b(run|waiting|unbuilt)\b/, nd.status);
+    nd.el.querySelector(".num").textContent = nd.num; nd.el.querySelector(".cap").textContent = nd.cap;
+    nd.el.setAttribute("aria-label", ariaOf(nd));
+  });
+  const labels = {}; wireDefs().forEach(([a, b, label]) => { labels[a + ">" + b] = label; });
+  wires.forEach(w => { if (w.text && labels[w.key]) w.text.textContent = labels[w.key]; });
+  document.getElementById("wintitle").textContent = "Pipeline — how an incident report becomes an index entry — figures refreshed by the update of " + (U.run && U.run.id || "today");
+  route();
+  U.last = ""; if (U.run) render(U.run);
+}
+
+// the sheet of a box, during a run: what the update did there
+function runInfoFor(id) {
+  if (!U.run) return null;
+  const steps = (U.run.steps || []).filter(s => (s.nodes || []).includes(id));
+  if (!steps.length) return null;
+  const box = el("div");
+  box.appendChild(el("h3", "", isTest(U.run) ? "In this test run" : "In this update"));
+  steps.forEach(s => {
+    const p = el("p"); p.appendChild(el("span", "pill" + (ACTIVE(s.state) && s.state !== "running" ? " inv" : ""), RS_LABEL[s.state] || s.state));
+    p.appendChild(document.createTextNode(" " + (s.title || s.id) + (stepSum(s) ? ": " + stepSum(s) : ""))); box.appendChild(p);
+    if (s.prompt && (s.state === "waiting" || s.state === "failed")) {
+      box.appendChild(el("p", "", O(s.prompt).text || ""));
+      if (isTest(U.run) && O(s.prompt).test_note) box.appendChild(el("p", "note", "In this test run: " + O(s.prompt).test_note));
+    }
+    const log = Array.isArray(s.log) ? s.log : [];
+    if (log.length) box.appendChild(el("code", "", log.slice(-8).join("\n")));
+    const go = el("button", "btn", "Show in the run panel"); go.type = "button";
+    go.onclick = () => { U.open.add(s.id); U.last = ""; render(U.run); const li = rsteps.querySelector('[data-id="' + cssq(s.id) + '"]'); if (li) { li.scrollIntoView({ block: "nearest" }); li.querySelector("button").focus(); } };
+    box.appendChild(go);
+  });
+  return box;
+}
+
+// ------------------------------------------------------------------ start
+document.getElementById("wintitle").textContent = "Pipeline — how an incident report becomes an index entry — figures of " + (D && D.generated || "unknown date");
+if (scroller.clientWidth < 700) setZoom(0.7); else fit();
+route(); say(IDLE); syncButtons();
+if (byId[location.hash.slice(1)]) openSheet(byId[location.hash.slice(1)]);
+addEventListener("resize", () => { if (zoom < 1 || scroller.clientWidth < CW) fit(); });
+try { detect(); } catch (e) { noServer(); }
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 {
-  "gold_rows": 57,
-  "scorable": 54,
+  "gold_rows": 58,
+  "scorable": 55,
   "excluded_unclear": [
     "G-007",
     "G-025",
@@ -9,15 +9,15 @@
   "classifier_run": false,
   "predictors": {
     "ceiling_hand_curation": {
-      "n": 22,
-      "tp": 18,
+      "n": 23,
+      "tp": 19,
       "fp": 4,
       "fn": 0,
       "tn": 0,
-      "precision": 0.8181818181818182,
+      "precision": 0.8260869565217391,
       "recall": 1.0,
-      "accuracy": 0.8181818181818182,
-      "f1": 0.9
+      "accuracy": 0.8260869565217391,
+      "f1": 0.9047619047619047
     },
     "aiid_csetv1": {
       "n": 5,

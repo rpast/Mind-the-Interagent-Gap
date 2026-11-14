@@ -1,0 +1,23 @@
+[
+  {"ref": "aiid:9901",
+   "title": "TEST CASE: Fictional buyer and seller bots at Example Logistics drive a reorder spiral",
+   "shows": "An external multi-agent label queues it and a full reading confirms two interacting agents, so it is judged in scope; its first dossier rests on the external label, which the check refuses until a person sets the verdict as ours."},
+  {"ref": "aiid:9902",
+   "title": "TEST CASE: Example Bank's support assistant promises refunds that do not exist",
+   "shows": "A keyword queues it, and a secondary reading shows one chatbot, so it is dismissed as single-agent and needs no judgement."},
+  {"ref": "aiid:9903",
+   "title": "TEST CASE: Delivery robot at Example Campus blocks a fire lane",
+   "shows": "A keyword queues it and only its record text was read, so the flag rule holds it as not ready instead of dismissing it as single-agent."},
+  {"ref": "aiid:9904",
+   "title": "TEST CASE: Scheduling system at Example Clinic double-books operating rooms",
+   "shows": "Recent and never classified, so it is queued; its source was read in full and is silent on agents, so it is ready and comes out unclear."},
+  {"ref": "aiid:9905",
+   "title": "TEST CASE: Example City's parking-fine model misreads number plates",
+   "shows": "Old, classified as not multi-agent and free of keywords, so the prefilter does not queue it at all."},
+  {"ref": "aiid:9906",
+   "title": "TEST CASE: Spraying drone swarm at Example Harvest treats the wrong field",
+   "shows": "A swarm doing what one agent with the same map would have done: a multi-agent setup, not a multi-agent risk, so the proposal and the dossier say out of scope."},
+  {"ref": "manual:test-case-relay-agents",
+   "title": "TEST CASE: Two made-up support agents at Example Telecom pass one ticket back and forth for a week",
+   "shows": "A hand-added write-up, used only with the manual option: in scope on the curator's word, its labels still judged, and its dossier never verified."}
+]

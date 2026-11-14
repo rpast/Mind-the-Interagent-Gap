@@ -300,8 +300,22 @@
 
 ### New, 2026-11-14 (open question, not yet designed)
 
-53. **Where does the text the classifiers read come from? Undecided, and it blocks a useful
-    classifier run.** Raised 2026-11-14 and logged without a design.
+53. ~~**Where does the text the classifiers read come from?**~~ **Decided 2026-11-14: a
+    context layer, gated by readiness.** `mvp/context/<source>.jsonl` holds what each source
+    says about the seven gate facts, each `stated`, `not_stated` or `unread`, with the depth
+    read. `run.py readiness` says per record whether each decision can be made; the
+    classifier, `promote` and `check` enforce it. Enrichment runs in two passes — the record
+    text for everything, the fetched source only for records not settled as single-system.
+    Design, rationale and the alternatives rejected: `mvp/docs/context_layer.md`. Baseline:
+    333 of 347 queued records are not ready; 13 of 27 dossier sources are ready, 13
+    provisional. The original note follows for the record.
+
+    Still to do: (a) measure the record pass on the gold rows — no `in` row may come out
+    single-system; (b) run the record pass over the queue; (c) run the source pass on what
+    survives, which needs fetch access the sandbox does not give the pipeline; (d) read the
+    primary sources behind the 11 dossiers that rest on a registry entry alone.
+
+    *Original note.* Raised 2026-11-14 and logged without a design.
 
     The premise to clear up first: **dossiers are not classifier input.** The flow is
     `raw/` → `records/` → `state/queue.jsonl` → classifier → `proposals/` → human promotes →
@@ -337,6 +351,107 @@
     - Enrichment is an inference step over fetched text, so it needs a proposal's provenance
       discipline: `prompt_id`, `prompt_version`, `model`, `run_date`, and a quote per field.
     - Does `check` validate the context layer, and does a dossier have to cite it?
+
+54. **Multi-agent attacks carry presumed instances I28 and I29.** **Decided 2026-11-14.**
+    G-017, G-019, G-047 and G-049 are confirmed as multi-agent attack cases under the special
+    rule: in scope by the presumption, no failure mode, and presumed to show I28 Swarm Attacks
+    or I29 Heterogeneous Attacks until the source states otherwise. Written up in
+    `definitions.md` § "The presumed instances" and `classifiers.md`. Two consequences fixed
+    in the same edit: presumed instances live in `instances_presumed`, apart from quoted ones,
+    and Gate 1 no longer requires `interaction_present` on the security branch — the old rule
+    would have rejected all four rows, whose sources describe no interaction.
+
+    **Done 2026-11-14:** `instances_presumed` is a required dossier key, empty on all 27;
+    `run.py check` accepts it only as empty or exactly I28 and I29, on an in-scope dossier
+    with no failure mode and neither id also in `instances`; `SKILL.md` is synced.
+
+    Not yet done: set it on the in-scope security dossiers. MIG-0019 lists I28 as an
+    ordinary instance though its source is `unreported`; MIG-0016, MIG-0018 and MIG-0020
+    list I28 too and each needs its quote confirmed or the id moved. `check` cannot yet tie
+    the field to `multiplicity_role`, which is not in the schema (item 35).
+
+55. ~~**The Gate 2 tree labelled competition as collusion.**~~ **Fixed 2026-11-14.** The
+    tree sent every case where cooperation was unexpected to FM3, so two rival agents that
+    never cooperated came out as colluding. FM3 now needs two facts: cooperation occurred
+    and it was not expected. Everything else goes to the objectives branch. Adds the
+    extracted fact `cooperation_occurred` ∈ yes / no / unclear. Changed in
+    `definitions.md` (tree and the paragraph under it), `classifiers.md`, `SKILL.md`, a new
+    `extract_gate.v3.md` (v2 frozen, never run), and the review worksheet, which gains a
+    "Cooperated" question and the gold column `review_gate2_cooperated`, empty on all 57
+    rows. No existing gold verdict changed.
+
+    **Dossiers re-checked 2026-11-14 against the primary sources**, with quotes in each
+    dossier's verification notes. Read: collusion.wiki in full, OpenAI's technical report
+    pp. 1-20 of 32, the METR investigation, both Hugging Face posts, the Nextgov article,
+    kennethdegraff.com/swarm (first 85 per cent verbatim), swarmtraces.org, AIID 1668 and 1800.
+    - FM3 stands on MIG-0016, MIG-0020 and MIG-0024, each on a quoted instance of one agent
+      acting on another's message.
+    - FM3 and I35 are withdrawn on MIG-0018 (Vanderbilt): the source shows agents writing to
+      a shared place and no agent acting on another's entry. No failure mode; I28 and I29
+      presumed.
+    - I28: kept on MIG-0016, now quoted (page creation outran the moderator's deletions);
+      replaced by a quoted I29 on MIG-0020; removed from MIG-0024.
+    - Corrected: MIG-0016's "more than 15,000 edits" is not in the report (it gives ~17,000
+      DSEWiki edits and ~18,000 posts); MIG-0020's date is 2026-07-08; MIG-0024's date was
+      the disclosure date and is now 2026-05. Two truncated titles renamed (item 26).
+      MIG-0020 and MIG-0024 are now `verified`.
+
+    Follow-ups this raised:
+    - **MIG-0024 and MIG-0020 are two events in one chain, not duplicates.** OpenAI's report
+      separates the May-July Artifactory activity from the Hugging Face intrusion of 8-13
+      July. `mvp/gold/dropped.csv` dropped G-024 as a duplicate of G-020 (item 37); revisit.
+    - **MIG-0018 may be one operation with MIG-0016** (391 Vanderbilt log addresses appear
+      verbatim in the DSEWiki posts). Decide under item 4; if merged, FM3 rests on the wiki.
+    - swarmtraces.org does not cover Vanderbilt; the earlier note preferring it was wrong.
+    - Not read: OpenAI report pp. 21-32, the last 15 per cent of the DeGraff page, the
+      OpenAI blog posts (403), OpenAI's X statement on DSEWiki. `mvp/gold/context/` was not
+      updated with these readings.
+    - Answer the new "Cooperated" question on the gold rows whenever Gate 2 is reviewed.
+      MIG-0019 still lists an unquoted I28 (item 54).
+
+56. **Gold set and dossier changes of 2026-11-14.**
+    - **G-024 restored** to the gold set (item 37 reversed for that pair): 58 rows, 22 in,
+      33 out, 3 unclear, 55 scorable, 21 distinct incidents. The ceiling is now 19 of 23,
+      82.6%. `score_gate1.py` reads a restored row's earlier assertion from the dropped
+      archive.
+    - **MIG-0018 merged into MIG-0016** (decides item 4 for this pair): one dossier for the
+      DSEWiki and Vanderbilt activity, on the 391 shared addresses. G-049 is marked one
+      incident with G-016. The primary source calls them "two operations", so the merge is a
+      curatorial judgement and says so in the dossier. 26 dossiers.
+    - **Gold ids are now permanent** (`mvp/gold/gold_ids.csv`). They were dealt out by
+      position, so removing any dossier would have renumbered every later row.
+    - MIG-0019 lowered to `partially_verified`: its verdict rests on a registry entry.
+
+57. **Pipeline decisions of 2026-11-14.** **Decided 2026-11-14** with the user.
+    - **The record pass counts agents, not systems.** v1 asked how many "AI systems" acted,
+      while Gate 1 counts agents, so a product or operator running several agents could be
+      dismissed as single-agent. `enrich_context.v2.md` (v1 kept) counts agents: one
+      principal is not one agent, a named system with undescribed insides is `unknown`, and
+      `one` needs the text to show a single-agent kind of event. A one-agent record is out of
+      scope and is not counted among those that can be judged.
+    - **The flag rule.** A record the `label` or `keyword` arm queued is never dismissed on
+      its record text alone: if the record pass says `one` or `none`, the source pass still
+      runs, and the shortcut holds only once a `secondary` or better reading confirms it.
+      Dossier sources with no queue row count as flagged.
+    - **`update` modes replaced.** `labelled-only`, `aiid-full` and `all-sources` are gone.
+      `update` refreshes the AIID baseline from the saved snapshot; `--refetch`,
+      `--manual DIR` and `--discover` add to it.
+    - **Discover is a placeholder.** Searching the discovery sources is not being built now;
+      `--discover` reports "not built yet" and the run continues. Work orders, one note per
+      source, become a sub-step of discover; `run.py discover` still writes them.
+    - **Manual incidents.** The curator can add incidents by hand from a directory of
+      write-ups. They go straight to the ready, in-scope list on the curator's word, with a
+      new read depth `curator` between `secondary` and `primary_partial`. Gate 2, evidence
+      type and instances are still judged from the write-up, as provisional; a dossier
+      resting on it may not be `verified`.
+    - **The map page is the front end.** `run.py serve` serves it on 127.0.0.1 with live
+      numbers, starts runs, and waits for a person at the steps that need one.
+    Documented in `context_layer.md`, `input_layer.md`, `SKILL.md`, `mvp/README.md` and
+    `CLAUDE.md`. Also fixed there: the stale claim that evidence reaches a risk only through
+    an instance (item 33).
+
+    Still to do: measure v2's record pass on the gold rows before it runs over the queue
+    (item 53a); design the discover module.
 
 ## Layer 2. Detection
 17. Write the one-page coding protocol: the definition of coverage and the 0–3 validity weight.

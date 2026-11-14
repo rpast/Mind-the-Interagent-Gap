@@ -25,18 +25,29 @@ Project-level files stay at the root: `resources/` (source documents),
   trail. A source may appear in all three, but each note belongs to exactly one.
 - `mvp/taxonomy/` holds risks, the instance repository, FM–RF associations and the evidence
   types. The pipeline and the classifiers read it; it is hand-curated.
-- `mvp/raw/<source>/` is verbatim fetch output. Never hand-edit it.
+- `mvp/raw/<source>/` is verbatim fetch output. Never hand-edit it. `mvp/raw/manual/` holds
+  machine-made copies of the curator's hand write-ups.
 - `mvp/records/<source>.jsonl` is normalised, append-only and content-hashed. Machine-written.
-- `mvp/incidents/<ID>.md` is the curated record: one dossier per incident. Hand-edited.
+  `mvp/records/manual.jsonl` holds the incidents added by hand.
+- `mvp/context/<source>.jsonl` is what each source says about the facts the gates need: a
+  reading, with quotes and the depth read. Machine-written. See `mvp/docs/context_layer.md`.
+- `mvp/incidents/<ID>.md` is the curated record: one dossier per judged incident, whatever
+  the verdict. Hand-edited.
 - `mvp/proposals/` holds classifier output. It is never authoritative; a human promotes.
 - `mvp/out/` is generated. Never edit it by hand.
+- `mvp/testenv/` holds the test run's fixtures: made-up incidents and the stand-ins for
+  skill and human work. `run.py testrun` runs the real steps on them in a temp folder. Never
+  put real incidents there. See `mvp/testenv/README.md`.
 
 ## Workflow
 
-1. `python mvp/pipeline/run.py update --mode <labelled-only|aiid-full|all-sources>`
-2. Review `mvp/proposals/`, promote what passes the inclusion test.
-3. `python mvp/pipeline/run.py check` — must exit 0.
-4. Commit the records, the dossiers and the rebuilt `mvp/out/` together.
+1. `python mvp/pipeline/run.py update [--refetch] [--manual DIR] [--discover]`, or start the
+   same run from the page `python mvp/pipeline/run.py serve` puts on 127.0.0.1. Default: the
+   AIID baseline from the saved snapshot. `--discover` is a placeholder, not built yet.
+2. Run `/classify-incidents` in Claude Code to read the sources and write proposals.
+3. Review `mvp/proposals/`, promote what passes the inclusion test.
+4. `python mvp/pipeline/run.py check` — must exit 0.
+5. Commit the records, the dossiers and the rebuilt `mvp/out/` together.
 
 ## Rules
 
@@ -49,10 +60,25 @@ Project-level files stay at the root: `resources/` (source documents),
   incident in scope.** Only a human verdict sets `multi_agent: true` with
   `multi_agent_label_source: ours`. Inherited labels go in `external_labels`, never
   overwritten and never merged with ours.
+- **Read before you judge.** No label is derived from a fact nobody looked for. A source that
+  was read and is silent is `not_stated` and yields `unclear`; a fact not looked for is
+  `unread` and yields nothing. `run.py readiness` says which records can be classified.
+- **Count agents, not systems.** One product, platform or operator can hold several agents.
+  A record that shows one agent only, or none, is out of scope.
+- **The flag rule.** A record queued by the `label` or `keyword` prefilter arm is never
+  dismissed as single-agent on its record text alone; a `secondary` or better reading must
+  confirm it.
+- **Manual incidents**, added with `update --manual DIR`, are in scope on the curator's word, which is a
+  human verdict. Their failure mode, evidence type and instances are still judged, and a
+  dossier resting only on the write-up is never `verified`.
+- For file changes, use the Edit tool, not python/sed/heredoc scripts. If you need a script,
+  write it to a file first, then run it.
 - One fact per field. Never encode information in parentheses.
 - Multi-value fields hold `;`-separated IDs. Dates are ISO, partial allowed (`2026`,
   `2026-06`, `2026-06-18`). Use the event date, or the publication date for studies.
 - `evidence_type` is one of: `real_world` · `synthetic` · `lab` · `theoretical`.
-- Evidence reaches a risk only through an instance. Never infer an FM–RF link from two tags
-  on one row; associations come only from Hammond et al., with `basis` recording which.
+- The failure mode comes only from the Gate 2 tree. Instances are descriptive and assigned
+  independently; neither is derived from the other (`mvp/docs/definitions.md` § Instances).
+- Never infer an FM–RF link from two tags on one row; associations come only from Hammond
+  et al., with `basis` recording which.
 - Scoring is parked. No E1–E5 anywhere in `mvp/`.

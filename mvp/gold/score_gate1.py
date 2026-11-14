@@ -23,6 +23,7 @@ from pathlib import Path
 MVP = Path(__file__).resolve().parents[1]
 GOLD = MVP / "gold" / "multiagent_gold.csv"
 ARCHIVE = MVP / "gold" / "archive" / "ceiling_input_multiagent_gold_20261113.csv"
+ARCHIVE_DROPPED = MVP / "gold" / "archive" / "ceiling_input_dropped_20261113.csv"
 QUEUE = MVP / "state" / "queue.jsonl"
 
 
@@ -85,6 +86,12 @@ def main():
     # --- the ceiling: the index's own earlier hand-curation -----------------
     if ARCHIVE.exists():
         prior = {r["gold_id"]: r for r in csv.DictReader(ARCHIVE.open(encoding="utf-8"))}
+        # Rows once dropped from the set keep their earlier assertion in a second
+        # archive file. A row restored to the set is scored like any other, so read
+        # both; rows still dropped have no truth and fall out below.
+        if ARCHIVE_DROPPED.exists():
+            for r in csv.DictReader(ARCHIVE_DROPPED.open(encoding="utf-8")):
+                prior.setdefault(r["gold_id"], r)
         pairs = [(True, truth[g]) for g, r in prior.items()
                  if g in truth and r["prior_multi_agent"] == "true"]
         out["ceiling_hand_curation"] = score(

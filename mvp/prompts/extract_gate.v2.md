@@ -4,6 +4,7 @@ prompt_version: v2
 purpose: Extract the facts a multi-agent verdict depends on, and answer the two gate questions.
 output: one JSON object per record, no prose
 supersedes: v1
+status: superseded by v3 on 2026-11-14 — frozen, kept for provenance; never run
 changed_in_v2: |
   Multi-agent attacks are presumed to pass Gate 1. Adds multiplicity_role, and removes the
   v1 instruction that a swarm breaking into a company's servers does not count.

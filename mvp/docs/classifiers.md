@@ -1,7 +1,13 @@
 # Classifier design
 
-Two model calls produce the labels. Everything they emit is a **proposal**; a human
+Two model calls produce the labels, and they run only on records the context layer marks
+ready: a record is read for the gate facts first and judged second
+(`mvp/docs/context_layer.md`). Everything the calls emit is a **proposal**; a human
 promotes. See `mvp/docs/definitions.md` for the definitions the classifiers apply.
+
+Records the curator added by hand (`update --manual`) are already in scope on the curator's
+word. For them call 1 gives no Gate 1 verdict; it extracts only the Gate 2 and evidence-type
+facts, and call 2 runs as usual. Their labels rest on a `provisional` reading.
 
 ## Why this shape
 
@@ -67,7 +73,7 @@ about the design assumes the in-session runner.
 
 ## Call 1 — extraction and gates
 
-Prompt: `mvp/prompts/extract_gate.v2.md`. Output, one JSON object per record:
+Prompt: `mvp/prompts/extract_gate.v3.md`. Output, one JSON object per record:
 
 ```json
 {
@@ -79,12 +85,13 @@ Prompt: `mvp/prompts/extract_gate.v2.md`. Output, one JSON object per record:
   "environment_controlled_by": "nobody",
   "single_agent_counterfactual": "could_not",
   "multiplicity_role": "unreported",
+  "cooperation_occurred": "no",
   "cooperation_expected": "expected",
   "objective_relation": "identical",
   "confidence": "high",
   "uncertainty_reason": "",
   "quotes": {"interaction_present": "bots reverted each other's edits in a loop"},
-  "prompt_id": "extract_gate", "prompt_version": "v2",
+  "prompt_id": "extract_gate", "prompt_version": "v3",
   "model": "...", "run_date": "2026-11-12"
 }
 ```
@@ -94,6 +101,7 @@ a fact; the field is left null and the confidence drops.
 
 Vocabularies: `single_agent_counterfactual` ∈ could / could_not / unclear ·
 `multiplicity_role` ∈ load_bearing / incidental / unreported ·
+`cooperation_occurred` ∈ yes / no / unclear ·
 `cooperation_expected` ∈ expected / unexpected / unclear · `objective_relation` ∈ identical /
 mixed / opposing / unclear · `confidence` ∈ high / medium / low.
 
@@ -117,12 +125,20 @@ routes.
 - `single_agent_counterfactual`, on a security record, is overridden by
   `multiplicity_role`: `load_bearing` or `unreported` → `could_not`; `incidental` → `could`.
   The presumption is applied here, in code, not asked of the model
-- `multi_agent` = `single_agent_counterfactual == "could_not"` AND `interaction_present`
+- `multi_agent` = `single_agent_counterfactual == "could_not"` AND `interaction_present`.
+  On a security record `interaction_present` is not required: multiplicity stands in for it
+- `instances_presumed`, on a security record that passed Gate 1: `unreported` → `I28;I29`.
+  Call 2 still runs and may add quoted instances; a quoted I28 or I29 replaces the presumed
+  pair. Presumed and quoted instances are never stored in the same field
 - `evidence_type`: deployed + real stakes + environment not controlled by an experimenter →
   `real_world`; researcher-built or simulated environment → `synthetic`; narrow probe on
   real models with no environment → `lab`; no AI system run → `theoretical`
-- `failure_mode`: the Gate 2 tree in `definitions.md`, over `cooperation_expected` and
-  `objective_relation`. `opposing` yields no failure mode and does **not** remove the record
+- `failure_mode`: the Gate 2 tree in `definitions.md`. `cooperation_occurred == "yes"` AND
+  `cooperation_expected == "unexpected"` → FM3. Otherwise by `objective_relation`:
+  `identical` → FM1, `mixed` → FM2, `opposing` → none. An `unclear` routes to review only
+  where it decides the branch: `cooperation_occurred` always, `cooperation_expected` only
+  when cooperation occurred, `objective_relation` only off the FM3 branch. `opposing` yields
+  no failure mode and does **not** remove the record
   from the index — Gate 1 alone decides scope
 
 ## Call 2 — instance assignment
@@ -228,7 +244,7 @@ running:
 
 **End-to-end test.** AIID incident 7, the Wikipedia vandalism-prevention bot loop, is a
 textbook miscoordination case: two bots with the same objective reverting each other. It
-should pass Gate 1, be `cooperation_expected: expected` with `objective_relation: identical`,
+should pass Gate 1, be `cooperation_occurred: no` with `objective_relation: identical`,
 come out FM1, and pick up I01 Incompatible Strategies. If it does not, the prompts are wrong.
 
 ## What the classifier may and may not write

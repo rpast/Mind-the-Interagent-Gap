@@ -20,17 +20,6 @@
 
 **To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/air_enkrypt/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise air_enkrypt`.
 
-## AI Agent Incident Register (companyscope) (`companyscope`)
-
-- URL: https://companyscope.io/api/register
-- Access: json_feed — a script cannot reach this.
-- Last fetched: never
-- Reuse: cc_by_4_0
-- Multi-agent label: no
-- Caveat: Its own ids also use the AIR- prefix, so its records need a distinct source_id namespace. Carries legal analysis and OWASP agentic mapping.
-
-**To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/companyscope/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise companyscope`.
-
 ## AI Village operator write-ups (`aivillage`)
 
 - URL: https://aivillageblog.substack.com/archive

@@ -56,18 +56,22 @@ sources were then read properly and written up field by field in `mvp/gold/conte
 every row was re-judged against them. Five verdicts changed. Nineteen rows carry a round-2
 note recording the basis; `review_round` says which round settled each row.
 
-**Three rows were removed before scoring**, with reasons, to `mvp/gold/dropped.csv`: two
-duplicates of rows that survive, and one whose only source cannot be read (Reuters refuses
-automated fetches).
+**Two rows are removed from scoring**, with reasons, in `mvp/gold/dropped.csv`: one
+duplicate of a row that survives, and one whose only source cannot be read (Reuters refuses
+automated fetches). A third, G-024, was dropped as a duplicate of G-020 and restored on
+2026-11-14: the primary source treats the two as separate events in one chain.
+
+**Gold ids are permanent.** `mvp/gold/gold_ids.csv` registers every id ever issued, so
+dropping, restoring or merging a row never renumbers another.
 
 ## The set as it stands
 
-**57 rows: 21 in · 33 out · 3 unclear.** The 3 unclear rows are excluded from every figure,
-leaving **54 scorable**.
+**58 rows: 22 in · 33 out · 3 unclear.** The 3 unclear rows are excluded from every figure,
+leaving **55 scorable**. The 22 in-scope rows cover 21 distinct incidents.
 
 | stratum | n |
 |---|---|
-| `carried_over` | 24 |
+| `carried_over` | 25 |
 | `aiid_csetv1` | 6 |
 | `queue_boundary` | 18 |
 | `queue_base_rate` | 9 |
@@ -83,7 +87,7 @@ The ceiling is **not a classifier score.** No classifier has been run against th
 `mvp/proposals/` does not exist.
 
 It is the accuracy of **the index's own earlier hand-curation**, measured against the
-independent review. The 24 `carried_over` rows were each added to the index by a human
+independent review. The 25 `carried_over` rows were each added to the index by a human
 applying the same inclusion test, and each asserted the event was multi-agent. The review then
 re-decided every one from the primary sources. The ceiling is how often those two human
 passes agree.
@@ -93,7 +97,7 @@ passes agree.
 1. Take the `carried_over` stratum only. Other strata were not curated this way, so they
    cannot speak to curation quality.
 2. Drop rows whose review verdict is `unclear`: with no ground truth there is nothing to
-   score against. 24 → **22 scorable**.
+   score against. 25 → **23 scorable**.
 3. The prediction for every one of these rows is **in scope**, because each was added to the
    index as a multi-agent incident.
 4. The truth is the review verdict.
@@ -110,8 +114,8 @@ and it is the only one that should be quoted.
 ### The numbers
 
 ```
-n = 22    TP = 18    FP = 4    FN = 0    TN = 0
-precision = 18 / 22 = 81.8%
+n = 23    TP = 19    FP = 4    FN = 0    TN = 0
+precision = 19 / 23 = 82.6%
 ```
 
 The four the review rejected, and why:
@@ -123,7 +127,7 @@ The four the review rejected, and why:
 | G-013 | An ordinary cloud misconfiguration on a platform that happens to serve agents. No agent acted at all. |
 | G-014 | A game whose adversarial roles the experimenters designed in. The conflict was built, not produced by interaction. |
 
-### How to read 81.8%
+### How to read 82.6%
 
 As a **realistic target, not a floor to clear trivially.** Careful hand-curation against the
 same definitions put roughly one in five of its positives wrong, and the four misses above are
@@ -131,17 +135,17 @@ genuinely hard calls rather than carelessness: each turns on a distinction the d
 make but a headline does not show — a tool against an event, one agent against two, a designed
 conflict against an emergent one.
 
-Two consequences. A screen scoring far below 81.8% is not usable. A screen scoring far
+Two consequences. A screen scoring far below 82.6% is not usable. A screen scoring far
 **above** it should be treated as suspect until checked, because the comparison is against
 human judgement that has itself been revised once, on a set small enough that one row moves
-the figure by 4.5 points.
+the figure by about 4 points.
 
 ### What the ceiling is not
 
 - Not a measure of any automatic classifier.
 - Not a population estimate. The stratum is the whole of the index's earlier holdings, so it
   describes that inventory and nothing wider.
-- Not stable to one more review round. 22 rows is small; the confidence interval is wide and
+- Not stable to one more review round. 23 rows is small; the confidence interval is wide and
   no decimal place should be trusted.
 
 ## A second measured comparison
@@ -159,7 +163,7 @@ arm, because the stratum was defined that way. The predictor is the sampling fra
 precision on those rows is just the stratum's base rate — circular. Its recall rests on 3
 positives in total.
 
-**It cannot measure any screen's recall over the index's subject matter.** 22 of the 54
+**It cannot measure any screen's recall over the index's subject matter.** 23 of the 55
 scorable rows have no prefilter queue row at all: the keyword net runs over AIID, and most of
 the index's positives are not in AIID.
 

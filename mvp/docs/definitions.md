@@ -35,6 +35,11 @@ This means implementation does not decide the question:
 - A rule-based bot with no machine learning in it is an agent on the same grounds.
 - A model invoked once to classify a string is not: nothing is explained by giving it a goal.
 
+**Agents are counted, not systems.** One product, platform, workflow or operator can hold
+several agents, so one principal is not one agent. A company's "AI system" may be a pipeline
+of agents passing work to each other. The record pass of the context layer counts on this
+basis (`context_layer.md`).
+
 **Why set it here.** The alternative threshold — some minimum of autonomy, learning or
 model sophistication — would have to be drawn somewhere, and every line would be arbitrary
 and would keep moving as systems change. It would also exclude cases that plainly show the
@@ -146,6 +151,35 @@ definitions themselves: nothing about a fleet attack satisfies any of the three,
 incidents cannot inflate the FM evidence base no matter how many of them arrive. They
 accumulate against one risk factor, which is where the paper puts them.
 
+#### The presumed instances: I28 and I29
+
+**Decided 2026-11-14.** The presumption carries through to the instance layer. A multi-agent
+attack that passes Gate 1 is presumed to show **I28 Swarm Attacks or I29 Heterogeneous
+Attacks** until its source states otherwise. These two are the mechanisms the presumption
+rests on, so an attack admitted under it is an instance of one or the other by the same
+reasoning that admitted it.
+
+| `multiplicity_role` | what the source shows | instances recorded |
+|---|---|---|
+| `load_bearing` | the count did the work | I28, quoted |
+| `load_bearing` | the mix of affordances did the work | I29, quoted |
+| `unreported` | a fleet, contribution not stated | I28 and I29, both **presumed** |
+| `incidental` | multiplicity played no role | neither; the record is out of scope |
+
+A presumed instance is a different kind of claim from a quoted one and is never stored with
+it. Quoted instances go in `instances`; presumed ones go in `instances_presumed`. When a
+source later settles the mechanism, the presumed pair is replaced by the one quoted
+instance, or removed with the record if the answer is `incidental`. Any count of evidence
+for I28 or I29 reports the two kinds separately.
+
+This is the single exception to the rule that an instance needs a verbatim quote. It is
+applied in code from `multiplicity_role`, not by the model.
+
+**Interaction is not required on this branch.** Elsewhere Gate 1 needs agents acting on or
+communicating with each other. A fleet attack passes on multiplicity instead: the agents'
+joint effect on the target is what one agent could not produce, whether or not the source
+shows them exchanging anything.
+
 Two narrower exceptions, where the counterparty is itself an agent rather than
 infrastructure: one agent coercing another is FM2, and agents cooperating to get past a
 safeguard is FM3. Both need an agent on the receiving end.
@@ -159,19 +193,30 @@ record goes to review, and it is never guessed.
 ### Gate 2 — which failure mode
 
 Gate 2 runs only on events that already passed Gate 1, and it cannot send one back. Its job
-is to pick the failure mode, from two facts about the setting:
+is to pick the failure mode, from three facts about the setting:
 
 ```
-                     was cooperation expected?
-                       /                  \
-                 no (unexpected)        yes (expected)
-                      |                      |
-                 FM3 Collusion          objectives?
-                                   /         |         \
-                            identical      mixed     opposing
-                                |            |           |
-                   FM1 Miscoordination  FM2 Conflict  no failure mode
+          did the agents cooperate, where cooperation was not expected?
+                       /                          \
+                     yes                           no
+                      |                             |
+                 FM3 Collusion                 objectives?
+                                        /           |          \
+                                 identical        mixed      opposing
+                                     |              |            |
+                        FM1 Miscoordination   FM2 Conflict   no failure mode
 ```
+
+**Collusion needs cooperation that happened.** The first question is two facts joined:
+the agents *did* cooperate, and cooperation between them was *not expected* in that setting.
+Unexpected cooperation that never occurred is not collusion. Two rival trading agents that
+crash a market were not expected to cooperate and did not; they go down the right-hand
+branch and come out FM2 Conflict. An earlier version of this tree asked only whether
+cooperation was expected and sent every such case to FM3, which labelled competition as
+collusion. Corrected 2026-11-14.
+
+Agents that cooperated as expected also take the right-hand branch: a team working together
+as designed can still miscoordinate.
 
 **Identical objectives are not the same as a shared team.** Agents on one team can want the
 same outcome and still differ over who achieves it — "I would like to be the one who scores
@@ -185,9 +230,10 @@ to realise. This is the branch most attacks land on, and it is the reason an in-
 usually carries risk factors only. It does **not** put the event out of the index; Gate 1
 already settled that.
 
-This tree is applied **in code**, from two extracted facts, and it works from the failure
-mode definitions directly — the three definitions in the table below are what the two
-questions decompose. It is not a judgement a model is asked to make in one step, so it is
+This tree is applied **in code**, from three extracted facts — `cooperation_occurred`,
+`cooperation_expected` and `objective_relation` — and it works from the failure mode
+definitions directly: the three definitions in the table below are what the questions
+decompose. It is not a judgement a model is asked to make in one step, so it is
 auditable and it always gives the same answer for the same facts.
 
 ### Risk factors without a failure mode
