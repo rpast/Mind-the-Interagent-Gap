@@ -86,3 +86,6 @@ Project-level files stay at the root: `resources/` (source documents),
 - Never infer an FM–RF link from two tags on one row; associations come only from Hammond
   et al., with `basis` recording which.
 - Scoring is parked. No E1–E5 anywhere in `mvp/`.
+- Never read `mvp/pipeline/pipeline_patch.html` whole: it is about 140 KB.
+  Search it (`grep -n`), or read only the lines you need with an offset
+  and limit.
