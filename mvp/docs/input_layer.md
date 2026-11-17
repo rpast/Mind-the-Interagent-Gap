@@ -120,7 +120,7 @@ requests only from its own page, and runs no shell commands. Run state is kept i
 - A verbatim copy of each file goes to `mvp/raw/manual/`. Records go to
   `mvp/records/manual.jsonl` by the normal append and content-hash path, with
   `meta.manual: true` and the original path.
-- Each record goes straight into the queue (`arms: "manual"`, whatever the prefilter says)
+- Each record goes straight into the queue (`basis: "manual"`, whatever the prefilter says)
   and gets a context row in `mvp/context/manual.jsonl` with read depth `curator`.
 
 They land on the **ready, in-scope** list on the curator's word: the curator is the human
@@ -152,36 +152,45 @@ all three `CSETv1_Annotator-*` namespaces, so rater disagreement stays visible. 
 adds the Navigator's label from `mvp/registry/labels/navigator_multiagent.tsv`. What the two
 AIID files hold is described in `mvp/pipeline/fetch_aiid.md`.
 
-**prefilter** is a union of three arms, because no single net has acceptable recall:
+**prefilter** queues a record for one reason (its `basis`) and flags it for another (its
+`flags`):
 
-| arm | rule | 2026-11-16 |
+| basis | a record is queued when | 2026-11-17 |
+|---|---|---|
+| `recent` | it is an AIID record dated on or after 2024-01-01, whatever any outside label says | 1,103 |
+| `frozen` | its `record_key` is on the frozen list, `mvp/registry/frozen_pre2024.csv` | 34 |
+| `manual` | the curator added it by hand | 0 |
+
+The queue is 1,137 records. Each has exactly one basis.
+
+| flag | a queued record is flagged when | 2026-11-17 |
 |---|---|---|
 | `label` | any external label says `yes` or `maybe`, including one dissenting annotator, or the Navigator lists it | 39 |
-| `keyword` | the recall-first regex net, lifted from the exploratory notebook | 64 |
-| `unasked` | an AIID record dated on or after 2024-01-01 that no AIID taxonomy asked the multi-agent question: no `Multiple AI Interaction` label at all | 1,099 |
+| `keyword` | the recall-first regex net, lifted from the exploratory notebook, matches its title or text | 64 |
 
-The queue is the union: 1,133 records. A record caught by two arms counts under both.
+A flag never queues a record by itself and never takes one out. A record can carry both
+flags, so the two counts add up to more than the 93 flagged records.
 
-The third arm exists because a record nobody asked the multi-agent question is unscreened,
-not negative — which is a different thing from a record CSETv1 looked at and called `no`.
-Until 2026-11-16 it was `unclassified`, "no classification of any kind", and queued 361
-records in all. That missed a group: 772 AIID incidents dated 2024 or later were classified
-by MIT or GMF only, so the old arm skipped them, yet neither of those taxonomies asks the
-multi-agent question. A random sample of 100 of them, read from the record text, gave 22
-that need a source read (18 `unknown`, 4 `several`). So the arm now asks whether anybody
-asked, not whether anybody classified, and the queue grew from 361 to 1,133. The 361 keep
-their readiness; the 772 have no reading yet. Queue rows written before the rename still
-say `unclassified`; `run.py` reads them as `unasked`.
+**Why the prefilter was simplified (2026-11-17).** It used to be a union of three arms,
+`label`, `keyword` and `unasked`, and `unasked` skipped an AIID record that CSETv1 had
+answered `no`. CSETv1 stops in 2024, so for 2024 onwards the arms came to "every AIID
+record". Four records that a CSETv1 `no` had kept out are queued now (`aiid:631`, `633`,
+`642`, `676`), because an outside label may never decide scope. The 1,133 records queued
+before keep their readiness; the 34 dated before 2024 were copied once into the frozen
+list, which is now kept by hand. Normalise still harvests the CSETv1 labels into
+`external_labels` exactly as before; they just no longer decide queue membership. For 2024
+onwards the only multi-agent signals are our own classification and the MIT Navigator list
+(`mvp/registry/labels/navigator_multiagent.tsv`, copied by hand and refreshed from time to
+time).
 
 The rules are constants at the top of `mvp/pipeline/run.py`: `KEYWORD_TERMS` (the regexes),
-`UNCLASSIFIED_CUTOFF` (the date), `MA_FIELD` (the label field that counts as asking) and
-`MA_POSITIVE` (the label values that count). The queue row records which arms caught each
-record. A record caught by `label` or `keyword` is **flagged**, and the record pass may not
-dismiss it on its text alone (`context_layer.md` § The flag rule). `unasked` flags nothing.
-Manual records bypass the arms and are queued with `arms: "manual"`.
+`RECENT_FROM` (the date) and `MA_POSITIVE` (the label values that count). The queue row
+records the `basis` and the `flags` of each record. A flagged record may not be dismissed
+on its record text alone (`context_layer.md` § The flag rule). Manual records are queued
+with `basis: "manual"`, whatever the prefilter says.
 
-Measured, which is why there are three arms and not one: the MIT Navigator's rater has a
-**33% false-negative rate** on the 9 of our incidents that are in AIID. The keyword arm's
+Measured, which is why there are two flags and not one: the MIT Navigator's rater has a
+**33% false-negative rate** on the 9 of our incidents that are in AIID. The keyword flag's
 recall is unmeasured; an earlier 78% figure was withdrawn (`mvp/docs/gate1_accuracy.md`).
 
 **readiness** reports, per record, whether enough has been read to classify it, from the

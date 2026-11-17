@@ -67,7 +67,10 @@ def score(pairs, name, note="", only_precision=False):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", default=str(MVP / "out" / "gate1_accuracy.json"))
+    ap.add_argument("--run", default=str(GATE_RUN),
+                    help="extract_gate run over the gold rows to score as the classifier")
     args = ap.parse_args()
+    gate_run = Path(args.run).resolve()
 
     gold = list(csv.DictReader(GOLD.open(encoding="utf-8")))
     scorable = [r for r in gold if r["review_verdict"] in ("in", "out")]
@@ -119,8 +122,8 @@ def main():
         if q is None:
             missing.append(r["gold_id"])
             continue
-        arms = [a for a in (q.get("arms") or "").split(";") if a]
-        pairs.append(("keyword" in arms, truth[r["gold_id"]]))
+        flags = [a for a in (q.get("flags") or "").split(";") if a]
+        pairs.append(("keyword" in flags, truth[r["gold_id"]]))
     out["keyword_arm"] = score(
         pairs, "3. Keyword prefilter arm",
         "DO NOT QUOTE THESE. Every queue_boundary row tripped this arm by definition, "
@@ -129,8 +132,8 @@ def main():
 
     # --- the classifier: a gold gate run, labels derived by the rules ----------
     classifier_run = None
-    if GATE_RUN.exists():
-        rows = [json.loads(l) for l in GATE_RUN.open(encoding="utf-8") if l.strip()]
+    if gate_run.exists():
+        rows = [json.loads(l) for l in gate_run.open(encoding="utf-8") if l.strip()]
         verdicts = sorted((r["gold_id"], derive.derive(r)) for r in rows
                           if r.get("gold_id") in truth)
         pairs = [(derive.labels_of(v)["multi_agent"] is True, truth[g]) for g, v in verdicts]
@@ -141,7 +144,8 @@ def main():
                  + (" by presumption" if v["by_presumption"] else "")
                  for g, v in verdicts if (derive.labels_of(v)["multi_agent"] is True)
                  != truth[g]]
-        rel = GATE_RUN.relative_to(MVP.parent)
+        rel = (gate_run.relative_to(MVP.parent) if gate_run.is_relative_to(MVP.parent)
+               else gate_run)
         out["classifier"] = score(
             pairs, f"4. CLASSIFIER - extract_gate.v3 on gold, labels by derive.py "
                    f"(rules {derive.RULES_VERSION})",
@@ -156,7 +160,7 @@ def main():
                           "rows": len(verdicts), "review_items": len(review_ids),
                           "wrong": wrong}
     else:
-        print(f"\n4. CLASSIFIER - skipped, no {GATE_RUN.name}")
+        print(f"\n4. CLASSIFIER - skipped, no {gate_run.name}")
 
     print("\n" + "=" * 72)
     print("Read mvp/docs/gold_set.md before quoting any of these.")

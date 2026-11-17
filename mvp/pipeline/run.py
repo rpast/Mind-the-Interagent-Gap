@@ -133,18 +133,22 @@ KEYWORD_TERMS = [
 ]
 KEYWORD_RE = [(t, re.compile(t, re.I)) for t in KEYWORD_TERMS]
 
-# A record nobody asked the multi-agent question of is unscreened, not negative.
-# The `unasked` arm queues every such record dated on or after this cutoff.
-UNCLASSIFIED_CUTOFF = "2024-01-01"
+# Every AIID record dated on or after this day is queued, whatever any outside label
+# says. AIID's own multi-agent label (CSETv1) stops in 2024, so from here on the only
+# multi-agent signal is our own classification. An outside label may flag a record;
+# it never decides whether the record is in scope.
+RECENT_FROM = "2024-01-01"
 
 MA_FIELD = "Multiple AI Interaction"
 MA_POSITIVE = {"yes", "maybe"}
-# The source whose taxonomies can carry MA_FIELD. Only its records can be "asked".
+# The source whose taxonomies carry MA_FIELD.
 MA_SOURCE = "aiid"
 
-# The third prefilter arm was `unclassified` until 2026-11-16. Queue rows written
-# before then still carry the old name; they are read as `unasked`.
-ARM_ALIASES = {"unclassified": "unasked"}
+# Why a queued record is in the queue: one of these, in this order of precedence.
+BASIS_RECENT = "recent"
+BASIS_FROZEN = "frozen"
+BASIS_MANUAL = "manual"
+BASES = [BASIS_RECENT, BASIS_FROZEN, BASIS_MANUAL]
 
 
 # The context layer: what a source says, read for the facts the gates need.
@@ -162,9 +166,10 @@ READ_DEPTH = ["unreadable", "record", "secondary", "curator", "primary_partial",
 DECISIONS = ["scope", "evidence_type", "failure_mode", "instances"]
 READY_LEVELS = ["ready", "provisional", "not_ready", "not_needed"]
 
-# Prefilter arms that flag a record as a likely multi-agent case. A flagged record
-# may not be dismissed as single-agent on its record text alone.
-FLAG_ARMS = {"label", "keyword"}
+# Why a queued record is flagged as a likely multi-agent case: an outside label calls
+# it multi-agent (`label`), or a keyword matches (`keyword`). A flagged record may not
+# be dismissed as single-agent on its record text alone.
+FLAGS = ["label", "keyword"]
 
 # Hand-written incident write-ups (update --manual DIR).
 MANUAL = "manual"
@@ -786,89 +791,98 @@ def stage_discover(source_ids):
 
 # ---------------------------------------------------------------- prefilter
 
-def row_arms(row):
-    """The arms of a queue row, as a list, old names read as the new ones."""
-    return [ARM_ALIASES.get(a, a) for a in str(row.get("arms") or "").split(";") if a]
+def frozen_path():
+    return MVP / "registry" / "frozen_pre2024.csv"
 
 
-def arm_counts(queue):
-    """Queue rows per arm. A row caught by two arms counts under both."""
+def read_frozen():
+    """The frozen pre-2024 list: record_key -> row. Hand-curated; empty if absent."""
+    path = frozen_path()
+    return {r["record_key"]: r for r in read_csv(path)} if path.exists() else {}
+
+
+def split_flags(value):
+    """The flags of a queue row, as a list."""
+    return [f for f in str(value or "").split(";") if f]
+
+
+def basis_counts(queue):
+    """Queue rows per basis."""
     out = {}
     for row in queue:
-        for arm in row_arms(row):
-            out[arm] = out.get(arm, 0) + 1
+        if row.get("basis"):
+            out[row["basis"]] = out.get(row["basis"], 0) + 1
     return out
 
 
-def ma_asked(rec):
-    """Did any AIID taxonomy ask this record the multi-agent question? True when it
-    carries an external label for MA_FIELD from the AIID namespaces, whatever the
-    answer was."""
-    return any(l.get("source") == MA_SOURCE and l.get("field") == MA_FIELD
-               for l in rec.get("external_labels") or [])
+def flag_counts(queue):
+    """Queue rows per flag. A row with both flags counts under both."""
+    out = {}
+    for row in queue:
+        for flag in split_flags(row.get("flags")):
+            out[flag] = out.get(flag, 0) + 1
+    return out
 
 
 def stage_prefilter():
-    """Three arms, union. No single net has acceptable recall.
+    """Queue a record for one reason (its `basis`) and flag it for another.
+
+    Basis, one per queued record:
+
+      recent   an AIID record dated on or after RECENT_FROM, whatever any outside
+               label says
+      frozen   its record_key is on the frozen pre-2024 list (registry/frozen_pre2024.csv)
+      manual   added by hand (update --manual)
+
+    Flags, any number, computed live for every queued record:
 
       label    an external label says yes or maybe (MA_POSITIVE), or the Navigator's
                multi-agent facet lists it
       keyword  the recall-first regex net, KEYWORD_TERMS
-      unasked  an AIID record dated on or after UNCLASSIFIED_CUTOFF that no AIID
-               taxonomy asked the multi-agent question (no MA_FIELD label at all)
 
-    Only `label` and `keyword` flag a record (FLAG_ARMS); `unasked` does not.
+    A flagged record may not be dismissed as single-agent on its record text alone.
+    A flag never queues a record by itself and an outside label never takes one out.
 
-    Measured: the keyword net matched 3 of 200 sampled AIID incidents; the
-    Navigator's rater missed 3 of the 9 of our incidents that are in AIID; and
-    305 of 1,803 AIID incidents carry no classification at all, skewed recent.
-
-    Until 2026-11-16 the third arm was `unclassified`: no classification of any kind.
-    Measured that day: 772 AIID incidents dated 2024-01-01 or later were classified
-    by MIT or GMF only, so that arm skipped them, yet neither taxonomy asks the
-    multi-agent question. A random sample of 100 of them, read from record text, gave
-    22 that need a source read (18 `unknown`, 4 `several`). So the arm now asks
-    whether anybody asked, not whether anybody classified: 361 + 772 = 1,133 queued.
+    Until 2026-11-17 there were three arms (label, keyword, unasked) and an AIID
+    record that a CSETv1 label had answered "no" was not queued. CSETv1 stops in 2024,
+    so for 2024 onwards the arms came to "every AIID record"; the 4 that a "no" had
+    kept out are queued now.
     """
     records = latest_records()
     if not records:
         info("  skip  prefilter: no records; run normalise first")
         return []
     known = dossier_source_refs()
+    frozen = read_frozen()
     rows = []
     for (sid, rid), rec in sorted(records.items()):
         if (sid, rid) in known:
             continue
+        key = record_key(sid, rid)
         if sid == MANUAL or (rec.get("meta") or {}).get("manual"):
-            # the curator put it here; no net needs to catch it
-            rows.append({"source_id": sid, "source_record_id": rid,
-                         "record_key": record_key(sid, rid),
-                         "date": rec.get("date", ""), "title": rec.get("title", ""),
-                         "arms": MANUAL, "label_values": "", "keyword_terms": "",
-                         "url": rec.get("url", "")})
+            basis = BASIS_MANUAL
+        elif sid == MA_SOURCE and rec.get("date", "") >= RECENT_FROM:
+            basis = BASIS_RECENT
+        elif key in frozen:
+            basis = BASIS_FROZEN
+        else:
             continue
-        arms = []
         label_hits = [l for l in rec.get("external_labels", [])
                       if str(l.get("value", "")).lower() in MA_POSITIVE
                       or l.get("field") == "behaviour"]
-        if label_hits:
-            arms.append("label")
+        flags = ["label"] if label_hits else []
         haystack = f"{rec.get('title', '')} {rec.get('text', '')}"
         terms = [t for t, rx in KEYWORD_RE if rx.search(haystack)]
         if terms:
-            arms.append("keyword")
-        if sid == MA_SOURCE and not ma_asked(rec) \
-                and rec.get("date", "") >= UNCLASSIFIED_CUTOFF:
-            arms.append("unasked")
-        if not arms:
-            continue
+            flags.append("keyword")
         rows.append({
             "source_id": sid,
             "source_record_id": rid,
-            "record_key": record_key(sid, rid),
+            "record_key": key,
             "date": rec.get("date", ""),
             "title": rec.get("title", ""),
-            "arms": ";".join(arms),
+            "basis": basis,
+            "flags": ";".join(flags),
             "label_values": ";".join(
                 f"{l.get('namespace') or l.get('source')}={l.get('value')}"
                 for l in label_hits),
@@ -877,10 +891,11 @@ def stage_prefilter():
         })
     STATE.mkdir(parents=True, exist_ok=True)
     write_jsonl(STATE / "queue.jsonl", rows)
-    by_arm = arm_counts(rows)
     info(f"  ok    prefilter: {len(rows)} candidates of {len(records)} records")
-    for arm, n in sorted(by_arm.items()):
-        info(f"          {arm}: {n}")
+    for basis, n in sorted(basis_counts(rows).items()):
+        info(f"          {basis}: {n}")
+    for flag, n in sorted(flag_counts(rows).items()):
+        info(f"          flagged {flag}: {n}")
     return rows
 
 
@@ -905,15 +920,15 @@ def load_context():
     return out
 
 
-def is_flagged(arms):
-    """A record the label or keyword arm put in the queue is flagged."""
-    return bool(FLAG_ARMS & set(str(arms or "").split(";")))
+def is_flagged(flags):
+    """A queued record whose `flags` field is not empty is flagged."""
+    return bool(split_flags(flags))
 
 
 def queue_flags(queue=None):
     """(source_id, source_record_id) -> flagged, for every queued record."""
     queue = read_jsonl(STATE / "queue.jsonl") if queue is None else queue
-    return {row_pair(r): is_flagged(r.get("arms")) for r in queue}
+    return {row_pair(r): is_flagged(r.get("flags")) for r in queue}
 
 
 def best_depth(ctx):
@@ -941,7 +956,7 @@ def readiness(ctx, flagged=False):
       not_ready    a needed fact is unread, or nothing usable has been read
       not_needed   the decision does not arise (the record is out of scope)
 
-    `flagged`: the label or keyword arm queued the record (a dossier's sources count
+    `flagged`: the record has a label or keyword flag (a dossier's sources count
     as flagged). Its record text alone may not dismiss it as single-agent.
     """
     if ctx is None:
@@ -1275,8 +1290,6 @@ def pipeline_state(index_rows):
         else:
             provenance["external"] += 1
 
-    queue_arms = arm_counts(queue)
-
     return {
         "generated": TODAY,
         "map": pipeline_map(reg, records, queue, proposals, index_rows),
@@ -1304,7 +1317,8 @@ def pipeline_state(index_rows):
                                           if r["role"] == "discovery"
                                           and r["adapter"] == "work_order")}},
             {"id": "prefilter", "label": "Prefilter", "count": len(queue),
-             "detail": queue_arms},
+             "detail": {**basis_counts(queue),
+                        **{f"flagged {f}": n for f, n in flag_counts(queue).items()}}},
             {"id": "classify", "label": "Classify", "count": proposals,
              "detail": {"proposals": proposals}},
             {"id": "review", "label": "Review", "count": max(len(queue) - proposals, 0),
@@ -1318,8 +1332,8 @@ def pipeline_state(index_rows):
         "sources": sorted(per_source),
         "incidents": index_rows,
         "queue": [{k: row.get(k, "") for k in
-                   ("source_id", "source_record_id", "record_key", "date", "title", "arms",
-                    "label_values", "keyword_terms", "url")} for row in queue],
+                   ("source_id", "source_record_id", "record_key", "date", "title",
+                    "basis", "flags", "label_values", "keyword_terms", "url")} for row in queue],
         "registry": [{"source_id": r["source_id"], "name": r["name"],
                       "role": r["role"], "access_method": r["access_method"],
                       "adapter": r["adapter"], "status": r["status"],
@@ -1392,9 +1406,9 @@ def queue_stage(row, ctx):
       unresolved    read deeper than the record, but a needed fact is still unread
       ready         scope ready or provisional: ready to judge
     """
-    verdict = readiness(ctx, flagged=is_flagged(row.get("arms")))
+    verdict = readiness(ctx, flagged=is_flagged(row.get("flags")))
     level = verdict["scope"]["level"]
-    if MANUAL in row_arms(row) and level in ("ready", "provisional") \
+    if row.get("basis") == BASIS_MANUAL and level in ("ready", "provisional") \
             and not out_of_scope(verdict):
         return "bypass", verdict
     if ctx is None:
@@ -1507,11 +1521,9 @@ def map_flow(reg, records, queue, context, index_rows):
     for k in extracted:
         c = gates[k].get("confidence") or "not given"
         conf[c] = conf.get(c, 0) + 1
-    arms = {}
-    for k in queued:
-        for a in row_arms(qrows[k]):
-            arms[a] = arms.get(a, 0) + 1
-    flagged = sum(1 for k in queued if is_flagged(qrows[k].get("arms")))
+    basis = basis_counts([qrows[k] for k in queued])
+    flag_n = flag_counts([qrows[k] for k in queued])
+    flagged = sum(1 for k in queued if is_flagged(qrows[k].get("flags")))
     levels = {}
     for k in src_ready:
         lv = verdicts_r[k]["scope"]["level"]
@@ -1558,19 +1570,23 @@ def map_flow(reg, records, queue, context, index_rows):
                  ("Not queued: no rule caught it", len(not_queued),
                   "neither in the queue nor behind a dossier"))},
              {"title": "Why each candidate was queued",
-              "note": "A record can be caught by several rules, so these add up to more than the candidates.",
+              "note": "Each candidate has exactly one reason, so these add up to the candidates.",
               "rows": rows(
-                  ("Tagged multi-agent by someone else", arms.get("label", 0), "arm label"),
-                  ("Matched a keyword", arms.get("keyword", 0), "arm keyword"),
-                  ("Unasked: nobody asked the multi-agent question", arms.get("unasked", 0),
-                   f"arm unasked: AIID, dated {UNCLASSIFIED_CUTOFF} or later, no {MA_FIELD} label"),
-                  ("Added by hand", arms.get(MANUAL, 0), "arm manual"))},
-             {"title": "Flagged", "rows": rows(
-                 ("Flagged by a tag or a keyword: never dismissed on the record text alone",
-                  flagged, "is_flagged(arms): label or keyword"),
-                 ("Not flagged", len(queued) - flagged, ""))}],
-         "files": ["state/queue.jsonl", "incidents/"],
-         "rule": "stage_prefilter(): union of the label, keyword and unasked arms; records behind a dossier are left out"},
+                  (f"Recent: an AIID record dated {RECENT_FROM} or later, whatever any outside label says",
+                   basis.get(BASIS_RECENT, 0), "basis recent"),
+                  ("Frozen: a pre-2024 record on the hand-kept list",
+                   basis.get(BASIS_FROZEN, 0), "basis frozen: registry/frozen_pre2024.csv"),
+                  ("Added by hand", basis.get(BASIS_MANUAL, 0), "basis manual"))},
+             {"title": "Flagged",
+              "note": "A flag never queues a record by itself. A record can carry both flags, so the two counts can add up to more than the flagged.",
+              "rows": rows(
+                  ("Tagged multi-agent by someone else", flag_n.get("label", 0), "flag label"),
+                  ("Matched a keyword", flag_n.get("keyword", 0), "flag keyword"),
+                  ("Flagged by a tag or a keyword: never dismissed on the record text alone",
+                   flagged, "is_flagged(flags): flags is not empty"),
+                  ("Not flagged", len(queued) - flagged, ""))}],
+         "files": ["state/queue.jsonl", "registry/frozen_pre2024.csv", "incidents/"],
+         "rule": "stage_prefilter(): queued = recent AIID, frozen pre-2024 or manual; flagged = an outside label or a keyword; records behind a dossier are left out"},
         {"id": "notqueued", "n": len(not_queued), "in": len(not_queued), "out": [],
          "stop": [{"label": "no rule caught it", "n": len(not_queued)}], "held": 0,
          "pop": not_queued, "groups": [],
@@ -1629,7 +1645,7 @@ def map_flow(reg, records, queue, context, index_rows):
              ("Original source read in full", levels.get("ready", 0), "scope ready"),
              ("Facts from a partial or secondary reading", levels.get("provisional", 0),
               "scope provisional"),
-             ("Added by hand: in scope on the curator's word", len(bypass), "arm manual"))}],
+             ("Added by hand: in scope on the curator's word", len(bypass), "basis manual"))}],
          "files": ["state/readiness.jsonl"],
          "rule": "readiness() scope ready or provisional, not out of scope"},
         {"id": "extract", "n": len(extracted), "in": len(ready),
@@ -1756,7 +1772,6 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
     equations that must hold. See map_flow."""
     context = load_context()
     flow, checks, counts = map_flow(reg, records, queue, context, index_rows)
-    arms = arm_counts(queue)
     verdicts = {s: 0 for s in rules.STATUSES}
     for v in read_verdicts().values():
         if v.get("status") in verdicts:
@@ -1798,12 +1813,13 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
         "sources_unbuilt": sum(1 for r in reg.values()
                                if r["adapter"] in ("forummagnum", "companyscope")),
         "records": len(records), "records_by_source": per_source,
-        "queue": len(queue), "queue_arms": arms,
+        "queue": len(queue), "queue_basis": basis_counts(queue),
+        "queue_flags": flag_counts(queue),
         "flow": flow, "checks": checks, "flow_counts": counts,
         "sources_with_records": len(per_source),
         "manual": per_source.get(MANUAL, 0),
         "prefilter_rules": {
-            "keywords": list(KEYWORD_TERMS), "cutoff": UNCLASSIFIED_CUTOFF,
+            "keywords": list(KEYWORD_TERMS), "recent_from": RECENT_FROM,
             "label_values": sorted(MA_POSITIVE),
             "where": f"mvp/pipeline/run.py:{inspect.getsourcelines(stage_prefilter)[1]}"},
         "aiid_snapshot": aiid_snapshot(),
@@ -1845,6 +1861,23 @@ def stage_check():
     reg = registry()
     records = latest_records()
     seen_ids = set()
+
+    frozen_rel = frozen_path().relative_to(ROOT)
+    seen_frozen = set()
+    for n, row in enumerate(read_frozen().values(), 1):
+        key = row.get("record_key", "")
+        pair = (row.get("source_id"), str(row.get("source_record_id")))
+        if key != record_key(*pair):
+            problems.append(f"{frozen_rel}: record_key {key!r} does not match its "
+                            f"source_id and source_record_id")
+        if key in seen_frozen:
+            problems.append(f"{frozen_rel}: duplicate record_key {key!r}")
+        seen_frozen.add(key)
+        if pair not in records:
+            problems.append(f"{frozen_rel}: {key} resolves to no record")
+        elif records[pair].get("date", "") >= RECENT_FROM:
+            problems.append(f"{frozen_rel}: {key} is dated {RECENT_FROM} or later, so it "
+                            f"is queued as recent and does not belong on the frozen list")
 
     for path in all_dossiers():
         rel = path.relative_to(ROOT)
@@ -2518,14 +2551,18 @@ class UpdateRun:
 
     def step_prefilter(self, step, _o):
         rows = stage_prefilter()
-        by_arm = arm_counts(rows)
+        by_basis = basis_counts(rows)
+        by_flag = flag_counts(rows)
         self.count(step, "Candidates", len(rows))
-        for arm, label in (("label", "Tagged by someone else"),
-                           ("keyword", "Matched a keyword"),
-                           ("unasked", "Recent, never asked if multi-agent"),
-                           (MANUAL, "Added by hand")):
-            if arm in by_arm:
-                self.count(step, label, by_arm[arm])
+        for basis, label in ((BASIS_RECENT, "Recent AIID records"),
+                             (BASIS_FROZEN, "On the frozen pre-2024 list"),
+                             (BASIS_MANUAL, "Added by hand")):
+            if basis in by_basis:
+                self.count(step, label, by_basis[basis])
+        for flag, label in (("label", "Flagged: tagged by someone else"),
+                            ("keyword", "Flagged: matched a keyword")):
+            if flag in by_flag:
+                self.count(step, label, by_flag[flag])
 
     def step_read(self, step, override):
         queue = read_jsonl(STATE / "queue.jsonl")
@@ -2567,7 +2604,7 @@ class UpdateRun:
         out = []
         for row in queue:
             key = row_pair(row)
-            verdict = readiness(context.get(key), flagged=is_flagged(row.get("arms")))
+            verdict = readiness(context.get(key), flagged=is_flagged(row.get("flags")))
             if verdict["scope"]["level"] in ("ready", "provisional") \
                     and not out_of_scope(verdict):
                 out.append(key)

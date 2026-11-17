@@ -70,12 +70,12 @@ path; delete the workspace when done.
 
 | ref | what it needs |
 |---|---|
-| `aiid:9901` | label arm; a full reading shows two interacting agents: in scope. Its first dossier puts it in scope on AIID's label, which `check` refuses |
-| `aiid:9902` | keyword arm; a secondary reading shows one chatbot: dismissed |
-| `aiid:9903` | keyword arm; only the record text was read: the flag rule holds it |
-| `aiid:9904` | recent, never asked the multi-agent question (`unasked` arm); read in full and silent on agents: unclear |
-| `aiid:9905` | not queued by any arm |
-| `aiid:9906` | a drone swarm doing what one agent could: a multi-agent setup, out of scope |
+| `aiid:9901` | recent, flagged by an external label; a full reading shows two interacting agents: in scope. Its first dossier puts it in scope on AIID's label, which `check` refuses |
+| `aiid:9902` | recent, flagged by a keyword; a secondary reading shows one chatbot: dismissed |
+| `aiid:9903` | dated before 2024, queued as frozen (it is on the test's own frozen list) and flagged by a keyword; only the record text was read: the flag rule holds it |
+| `aiid:9904` | recent, no flag; read in full and silent on agents: unclear |
+| `aiid:9905` | dated before 2024 and not on the frozen list: not queued |
+| `aiid:9906` | recent, although a CSETv1 label answers "no" (an outside label never keeps a record out); a drone swarm doing what one agent could: a multi-agent setup, out of scope |
 | `manual:test-case-relay-agents` | hand-added: in scope on the curator's word, never verified |
 
 ## Limits

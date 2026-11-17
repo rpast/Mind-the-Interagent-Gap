@@ -118,9 +118,9 @@ as **out**, and the other three decisions do not arise. Such a record is not jud
 not counted among the records that can be judged; it is finished.
 
 **The flag rule.** The shortcut may rest on the record text alone only for a record that
-nothing but the `unasked` arm put in the queue (called `unclassified` before 2026-11-16;
-see `input_layer.md` § prefilter). A record the `label` or `keyword` arm
-queued is *flagged*: someone else's rater, or a multi-agent term in its text, already points
+has no flag (its queue row's `flags` is empty; see `input_layer.md` § prefilter). A queued
+record that an outside label calls multi-agent (`label`) or whose text matches a keyword
+(`keyword`) is *flagged*: someone else's rater, or a multi-agent term in its text, already points
 the other way. A flagged record that the record pass calls `one` or `none` still goes to the
 source pass, and the shortcut applies only once a reading of depth `secondary` or better
 confirms it. A dossier source with no queue row counts as flagged.
@@ -207,7 +207,8 @@ Measured 2026-11-14 with `run.py readiness`, before the flag rule and the manual
 
 **96% of the queue cannot be classified yet**, and no enrichment run has been made.
 
-On 2026-11-16, after the third prefilter arm was widened to `unasked`, the queue holds
+On 2026-11-16, after the third prefilter arm was widened to `unasked` (replaced on
+2026-11-17 by the `recent` basis, which adds 4 records), the queue held
 1,133 records: scope `ready` 319, `provisional` 42, `not_ready` 772. The 772 are the newly
 queued records, none of them read yet. The 361 queued before kept their readiness. The
 layer was seeded with the 41 rows the gold review produced (`mvp/pipeline/seed_context.py`);

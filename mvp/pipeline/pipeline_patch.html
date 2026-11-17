@@ -622,7 +622,7 @@ function figures() {
   const fetchable = has(M, "sources_fetchable") ? M.sources_fetchable : null;
   const snap = O(M.aiid_snapshot);
   const aiidN = has(snap, "records") && snap.records ? snap.records : O(M.records_by_source).aiid;
-  return { fetchable, snap, aiidN, rules: O(M.prefilter_rules), arms: O(M.queue_arms) };
+  return { fetchable, snap, aiidN, rules: O(M.prefilter_rules), basis: O(M.queue_basis), flags: O(M.queue_flags) };
 }
 
 // status: run = works today · waiting = built, never run · unbuilt
@@ -681,7 +681,7 @@ function defs() {
     num: n(fl("manual").n), cap: "records added by hand",
     plain: ["You, the curator, point the pipeline at a folder of your own write-ups in plain text: one file per incident, or several in one file separated by ## headings.",
             "Each becomes a record like any other. The prefilter queues it on your word, with no rule needed, and it skips both readings: it goes straight to “Ready to judge”, in scope on your word. You are the person who vouches for it. A dossier is still written by hand, and it cannot be marked fully verified on your write-up alone."],
-    tech: "update --manual DIR. Verbatim copies to mvp/raw/manual/; records to mvp/records/manual.jsonl (meta.manual = true, meta.origin_path); queue arm manual; context row in mvp/context/manual.jsonl with manual: true, agent_count several, read depth curator. readiness: scope ready; evidence type, failure mode and instances provisional. check refuses verification: verified on a curator reading.",
+    tech: "update --manual DIR. Verbatim copies to mvp/raw/manual/; records to mvp/records/manual.jsonl (meta.manual = true, meta.origin_path); queue basis manual; context row in mvp/context/manual.jsonl with manual: true, agent_count several, read depth curator. readiness: scope ready; evidence type, failure mode and instances provisional. check refuses verification: verified on a curator reading.",
     byNote: "You write the files; run.py update --manual copies them in.",
     inp: "A folder of .txt or .md files.", out: "Records marked as added by hand, already in scope.", prod: "mvp/records/manual.jsonl",
     cmd: "python mvp/pipeline/run.py update --manual DIR" },
@@ -693,9 +693,9 @@ function defs() {
     cmd: "python mvp/pipeline/run.py normalise aiid" },
   { id: "prefilter", status: "run", by: "script", x: 730, y: 300, title: "Prefilter",
     num: n(fl("prefilter").n), cap: "candidates queued, of " + nIn("prefilter") + " records",
-    plain: ["Every record goes one of three ways. A record a dossier already covers goes straight to the dossiers. Any other record that meets at least one of three rules is queued as a candidate. The rest are not queued.",
+    plain: ["Every record goes one of three ways. A record a dossier already covers goes straight to the dossiers. Any other record is queued as a candidate if it is a recent AIID record, is on the frozen pre-2024 list, or was added by hand. The rest are not queued.",
             "The rules are a wide, cheap net: most of what it keeps will turn out to be irrelevant; the point is not to miss anything. They are written in the code, in " + where + ". Records added by hand are queued on the curator's word and go straight to “Ready to judge”."],
-    tech: "run.py prefilter. Union of three arms: label, keyword, unasked; arm manual for records added by hand. Records already behind a dossier (dossier_source_refs) are left out. Writes mvp/state/queue.jsonl. Rules in " + where + ".",
+    tech: "run.py prefilter. Queued: a recent AIID record, a record on the frozen pre-2024 list, or a record added by hand (its basis). Flagged: an outside label or a keyword (its flags). Records already behind a dossier (dossier_source_refs) are left out. Writes mvp/state/queue.jsonl. Rules in " + where + ".",
     inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "mvp/state/queue.jsonl",
     extra: prefilterRules, cmd: "python mvp/pipeline/run.py prefilter" },
   { id: "notqueued", kind: "end", status: "run", by: "script", x: 510, y: 150, title: "Not queued",
@@ -712,7 +712,7 @@ function defs() {
             "The unit is the agent, not the system or the company. One product, one platform or one operator can hold several agents, and such a record counts as several.",
             "A named system whose insides the record does not describe is “cannot tell”, and its source is read next.",
             "Only when the text plainly shows one agent (one chatbot conversation, one generated fake) or none is the record out of scope. A record that someone else tagged, or that matched a keyword, is never dismissed from its short text alone: its source is read first."],
-    tech: "Enrichment, record pass: " + enrich + " on the record text; sets agent_count (none | one | several | unknown) and attack. Unit per definitions.md § What counts as an agent: one principal is not one agent; unknown is the default for a named system with undescribed internals. Shortcut to out of scope at depth record only for records queued by the unasked arm alone; a label- or keyword-flagged record needs a secondary-or-better reading to confirm one or none. The count: queued records (not added by hand) with a context row; waiting: no context row.",
+    tech: "Enrichment, record pass: " + enrich + " on the record text; sets agent_count (none | one | several | unknown) and attack. Unit per definitions.md § What counts as an agent: one principal is not one agent; unknown is the default for a named system with undescribed internals. Shortcut to out of scope at depth record only for records that are not flagged; a flagged record (an outside label or a keyword) needs a secondary-or-better reading to confirm one or none. The count: queued records (not added by hand) with a context row; waiting: no context row.",
     byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, record pass.",
     inp: "A candidate.", out: "A first note: one agent, several, or cannot tell.", prod: "mvp/context/<source>.jsonl",
     cmd: "/classify-incidents  (step 0, record pass)" },
@@ -833,10 +833,19 @@ function defs() {
   ];
 }
 
-// the three prefilter rules, spelled out from the data
+// the prefilter rule, spelled out from the data: why a record is queued, then why it is flagged
 function prefilterRules(box) {
-  const F = figures(), R = F.rules, A = F.arms;
-  box.appendChild(el("h3", "", "The three rules"));
+  const F = figures(), R = F.rules, B = F.basis, A = F.flags;
+  box.appendChild(el("h3", "", "Why a record is queued"));
+  const ql = el("ol");
+  const q1 = el("li"); q1.appendChild(el("b", "", "Recent (" + n(B.recent) + "). "));
+  q1.appendChild(document.createTextNode("An AIID record dated " + (R.recent_from || "2024-01-01") + " or later, whatever any outside label says. AIID's own multi-agent label stops in 2024, so from then on the only multi-agent signal is our own classification."));
+  const q2 = el("li"); q2.appendChild(el("b", "", "Frozen (" + n(B.frozen) + "). "));
+  q2.appendChild(document.createTextNode("A record dated before then that was a candidate when the rule was simplified. The list is kept by hand in mvp/registry/frozen_pre2024.csv."));
+  const q3 = el("li"); q3.appendChild(el("b", "", "Added by hand (" + n(B.manual) + "). "));
+  q3.appendChild(document.createTextNode("A write-up the curator added. It is in scope on the curator's word."));
+  [q1, q2, q3].forEach(l => ql.appendChild(l)); box.appendChild(ql);
+  box.appendChild(el("h3", "", "Why a queued record is flagged"));
   const ol = el("ol");
   const li1 = el("li"); li1.appendChild(el("b", "", "Tagged by someone else (" + n(A.label) + "). "));
   li1.appendChild(document.createTextNode(Array.isArray(R.label_values) && R.label_values.length
@@ -847,12 +856,8 @@ function prefilterRules(box) {
     li2.appendChild(document.createTextNode("The title or text contains one of these terms" + (wording === "plain" ? " (written as patterns: “?” means the letter before it is optional, “|” means “or”, \\b marks a word edge):" : ", case-insensitive regular expressions:")));
     const t = el("div", "terms"); R.keywords.forEach(k => t.appendChild(el("code", "", k))); li2.appendChild(t);
   } else li2.appendChild(document.createTextNode("The title or text contains a word like “agents”, “swarm” or “collusion”. The full list is in the code."));
-  const li3 = el("li"); li3.appendChild(el("b", "", "Unasked: nobody asked the multi-agent question (" + n(A.unasked) + "). "));
-  li3.appendChild(document.createTextNode(R.cutoff
-    ? "An AIID record dated " + R.cutoff + " or later that none of AIID's classifications asked whether several AIs were involved. Unscreened is not the same as negative."
-    : "A recent AIID record (after the cutoff date in the code) that none of AIID's classifications asked whether several AIs were involved."));
-  [li1, li2, li3].forEach(l => ol.appendChild(l)); box.appendChild(ol);
-  box.appendChild(el("p", "note", "A record can meet several rules, so the three counts add up to more than the candidates. A record caught by rule 1 or 2 is “flagged”: it is never dismissed from its short text alone."));
+  [li1, li2].forEach(l => ol.appendChild(l)); box.appendChild(ol);
+  box.appendChild(el("p", "note", "A flag never queues a record and never takes one out. A record can carry both flags, so the two counts can add up to more than the flagged records. A flagged record is never dismissed from its short text alone."));
   box.appendChild(el("p", "", "Where the rules live:")); box.appendChild(el("code", "", R.where || "mvp/pipeline/run.py"));
 }
 
@@ -1891,7 +1896,7 @@ function stepErrors(run, id) {
   return out;
 }
 function headLabel(k) { const h = HEAD.find(([x]) => x === k); return h ? h[1] : ""; }
-function numLabel(k) {   // queue_arms.keyword: Queue arms: keyword
+function numLabel(k) {   // queue_flags.keyword: Queue flags: keyword
   const s = String(k).replace(/_/g, " ").replace(/\./g, ": ");
   return headLabel(k) || s.charAt(0).toUpperCase() + s.slice(1);
 }

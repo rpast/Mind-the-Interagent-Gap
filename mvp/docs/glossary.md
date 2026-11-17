@@ -11,14 +11,18 @@ Agents are counted, not systems: one product or operator can hold several.
 **AIID.** The AI Incident Database, the project's baseline source of real-world incidents,
 built from news reports. Fetched into `mvp/raw/aiid/`.
 
-**Arm.** One of the three nets of the prefilter: `label`, `keyword` and `unasked`. A record
-is queued if any arm fires; the queue row lists which did.
+**Arm.** The name, until 2026-11-16, of one of the three nets of the prefilter: `label`,
+`keyword` and `unasked` (`unclassified` before that). Replaced on 2026-11-17 by `basis` and
+`flags`; see **Basis**, **Flags** and `input_layer.md`. Also **Unasked**.
 
 **Attack presumption.** The rule that a security record with `multiplicity_role: unreported`
 is in scope, because being many is often itself the attack. Since 2026-11-16 it fires only
 if the record does not show fewer than two AI agents and the model did not answer `could`.
 
 **Baseline source.** The source the pipeline fetches in full on every update. Only AIID.
+
+**Basis.** The queue row's field saying why a record is queued, one per row: `recent` (an AIID
+record dated 2024-01-01 or later), `frozen` (on the frozen list) or `manual` (added by hand).
 
 **Call 1.** The first model call, prompt `extract_gate.v3`: it extracts the gate facts from
 a record and its context row. It does not decide labels.
@@ -74,9 +78,17 @@ in `external_labels`, never merged with ours, never enough to put an incident in
 Miscoordination, FM2 Conflict, FM3 Collusion. Assigned only by the Gate 2 tree; an in-scope
 record may have none.
 
-**Flag rule.** A record queued by the `label` or `keyword` arm is *flagged*, and may not be
+**Flag rule.** A queued record whose `flags` is not empty (`label` or `keyword`) is *flagged*, and may not be
 dismissed as single-agent on its record text alone; a reading of depth `secondary` or
 better must confirm it.
+
+**Flags.** The queue row's field saying why a queued record is flagged: `label` (an outside
+label calls it multi-agent), `keyword` (a keyword matches its title or text), both separated by
+`;`, or empty. A flag never queues a record by itself.
+
+**Frozen list.** `mvp/registry/frozen_pre2024.csv`: the 34 pre-2024 records that were queued
+when the prefilter was simplified on 2026-11-17. Kept by hand from then on. A record on it is
+queued with basis `frozen`.
 
 **Gate 1.** Is the record in scope: does the harm come from interaction between two or more
 AI agents, such that one capable agent could not have produced it?
@@ -122,8 +134,9 @@ into `mvp/registry/labels/navigator_multiagent.tsv` (28 AIID incidents). An exte
 read and is silent; the answer becomes `unclear`. `unread`: nobody looked; nothing may be
 derived from it.
 
-**Prefilter.** `run.py prefilter`: screens records into the queue through the three arms,
-favouring recall.
+**Prefilter.** `run.py prefilter`: queues every recent AIID record, every record on the
+frozen list and every manual record, and flags the queued records an outside label or a
+keyword calls multi-agent.
 
 **Promote.** `run.py promote <record_key>`: scaffolds a dossier from a record for a person to
 fill in. Refuses a `not_ready` record unless given `--force`.
@@ -131,7 +144,7 @@ fill in. Refuses a `not_ready` record unless given `--force`.
 **Proposal.** A row of model output in `mvp/proposals/`. Never authoritative, and it holds no
 derived label.
 
-**Queue.** `mvp/state/queue.jsonl`: the candidates the prefilter caught. 1,133 on 2026-11-16.
+**Queue.** `mvp/state/queue.jsonl`: the candidates the prefilter queued. 1,137 on 2026-11-17.
 
 **raw_ref.** The pointer in a record to the raw row it was built from: file, id field, id and
 fetch date.
@@ -168,6 +181,10 @@ calls, and writes only to `context/` and `proposals/`.
 
 **Test run.** `run.py testrun`: the real steps on made-up incidents in a temporary folder.
 Never touches the real tree.
+
+**Unasked.** The name, until 2026-11-16, of the prefilter arm that queued a recent AIID record
+no taxonomy had asked the multi-agent question. Retired on 2026-11-17: every AIID record dated
+2024 or later is now queued with basis `recent`.
 
 **Verdict.** Two senses; keep them apart. A *derived verdict* is a row in
 `mvp/state/verdicts.jsonl`, made by rule from model facts. A *human verdict* is a person's

@@ -18,6 +18,8 @@ whatever labelled the rows before**, without which the measurement is circular.
 
 60 rows drawn in four strata, deliberately not in proportion to the population.
 
+*Note, 2026-11-17: the prefilter's arms were replaced by `basis` and `flags`; "keyword arm" below means the `keyword` flag. The figures are what was measured on the earlier queue.*
+
 | stratum | n | how it was drawn |
 |---|---|---|
 | `carried_over` | 27 | Every incident the index already held, taken whole, not sampled. |

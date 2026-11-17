@@ -13,5 +13,5 @@ incidents, one row each, keyed by `aiid_incident_id`.
   file.
 - Read by `mvp/pipeline/run.py` at `normalise` (`read_navigator`). Each listed incident
   gets one external label on its AIID record: source `mit_navigator`, field `behaviour`,
-  value `Multi-agent`. The prefilter's `label` arm counts it.
+  value `Multi-agent`. The prefilter's `label` flag counts it.
 - A label marks a candidate. It never puts an incident in scope by itself.

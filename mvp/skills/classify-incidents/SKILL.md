@@ -36,10 +36,9 @@ Take it from the queue row.
    `mvp/prompts/enrich_context.v2.md` to the record text alone, no fetching, and append the
    row to `mvp/context/<source_id>.jsonl` with `record_key`,
    `provenance.method: enrich_context@v2`, `model` and `run_date`. Tell the prompt whether
-   the record is **flagged**: its queue row's `arms` include `label` or `keyword`. Count
+   the record is **flagged**: its queue row's `flags` is non-empty (`label`, `keyword` or both). Count
    agents, not AI systems: one product or operator can hold several agents.
-   - An unflagged record (queued by the `unasked` arm only; queue rows written before
-     2026-11-16 call it `unclassified`) that comes out `agent_count` `one` or `none` is
+   - An unflagged record (its queue row's `flags` is empty) that comes out `agent_count` `one` or `none` is
      finished: single-agent, out of scope, no further.
    - A flagged record that comes out `one` or `none` is **not** finished. It goes to the
      source pass like any other.
@@ -57,7 +56,7 @@ rows and confirm that no row judged `in` comes out `one` or `none`.
 
 ### Manual records
 
-Records from the `manual` source (queue `arms: "manual"`, context row `"manual": true`) were
+Records from the `manual` source (queue `basis: "manual"`, context row `"manual": true`) were
 added by hand by the curator, who vouches that they are multi-agent. Their scope is `ready`
 on the curator's word. For them:
 

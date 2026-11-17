@@ -3,6 +3,50 @@
 Numbers: `python mvp/gold/score_gate1.py` → `mvp/out/gate1_accuracy.json`.
 Regenerate before citing. Methodology and how to read them: `mvp/docs/gold_set.md`.
 
+*Note, 2026-11-17: the prefilter's arms were replaced by `basis` and `flags`. "Keyword arm" and "any arm" in the sections below are the figures as measured on 2026-11-16; read them as the `keyword` flag and queue membership.*
+
+## 2026-11-17: the same calibration on Sonnet
+
+Both prompts were run on `claude-sonnet-5-5`, blind to the verdicts, and scored with
+`python mvp/gold/score_gate1.py --run <file> --json <file>`. Files in
+`mvp/out/calibration/`, all dated 20261117: `extract_gate_v3_gold_sonnet_*`,
+`enrich_context_v2_gold_sonnet_*`, `gate1_accuracy_sonnet_*.json` and the per-row comparison
+`sonnet*_vs_opus_*.txt`. Rules `2026-11-16` throughout.
+
+| run | n | TP | FP | FN | TN | precision | recall | settled without review |
+|---|---|---|---|---|---|---|---|---|
+| Opus, 2026-11-15 (below) | 55 | 20 | 3 | 2 | 30 | 87.0% | 90.9% | 6 |
+| **Sonnet, same inputs as Opus** | 55 | 20 | 3 | 2 | 30 | **87.0%** | 90.9% | 3 |
+| Sonnet, with the source-pass context rows | 55 | 20 | 6 | 2 | 27 | 76.9% | 90.9% | 4 |
+
+**On the same inputs, Sonnet gives Opus's Gate 1 labels on all 55 rows**, with the same five
+errors (G-002, G-056 by presumption; G-014; G-011, G-012). The difference is confidence:
+Sonnet answers `low` on 21 rows to Opus's 11 and `high` on 4 to Opus's 9, so 52 rows are
+review items against 49. Field-level agreement is lower on the facts Gate 1 does not turn
+on: `environment_controlled_by` 41/55, counterfactual 46/55, `multiplicity_role` 48/55.
+
+**Which inputs.** 13 gold rows now hold two context rows: a record pass and a source pass,
+both dated 2026-11-15. Opus's own `uncertainty_reason` on them says multiplicity was
+`unread`. On that evidence it saw only the record-pass row, though git cannot confirm it,
+because both went in with one commit. The first Sonnet run was given both rows, and three
+labels changed: G-035, G-036, G-054 became FP by presumption. The source pass marks
+multiplicity `not_stated`, so the prompt correctly asks for `unreported`. On those three
+records Sonnet left `n_ai_agents` null while saying no AI agent is described, and a null
+count lets the presumption fire. Re-run with the record-pass row only, the three return
+to TN (the "same inputs" row above). **This is a gap in the rule, not a Sonnet fault**: a
+null agent count on an attack record whose source pass is silent on multiplicity is put in
+scope. Opus was not run on the source-pass inputs, so whether it closes the gap is untested.
+The queue will carry source-pass rows, so this matters before the queue run.
+
+**enrich_context.v2, record pass.** Sonnet ran on all 58 gold rows. **The safety check
+passes:** no row judged `in` came out `one` or `none` (21 `several`, 1 `unknown`). The 19
+gold rows that also have an Opus record-pass row are all `out`. On those, the two models
+agree on `attack` 18/19 but on `agent_count` only 8/19: Sonnet answers `none` 9 times to
+Opus's 3. No in-scope row was lost that way. The prompt asks for `unknown` whenever the
+reader is unsure, and Sonnet is readier to close a record. On unflagged queue records that
+ends their journey, so it is the place to watch. Fact-status agreement is low on
+`cooperation` (6/19), `objectives` (8/19) and `interaction` (9/19).
+
 ## 2026-11-16: the classifier, scored
 
 The classifier has now been run on the gold set. `extract_gate.v3` read each of the 55

@@ -72,6 +72,15 @@ labels are generated state: `python mvp/pipeline/run.py derive` reads the newest
 `mvp/state/verdicts.jsonl`. It is rewritten on every run, so a rule change reaches every
 record at once and no stale label survives in a proposal.
 
+**Which model.** Every prompt that judges an incident runs on `claude-opus-5-5`:
+`enrich_context` (record and source pass), `extract_gate`, `assign_instances`, and their
+gold calibrations. Decided 2026-11-17. On the gold set Sonnet gave Opus's Gate 1 labels on
+the same inputs, but in the record pass it answered `agent_count: none` three times as
+often, and on an unflagged record that closes it unseen (`gate1_accuracy.md`). Missing an
+incident costs more than the model does. Sonnet does the work that judges nothing:
+fetching pages verbatim, discovery searches, copying the Navigator list, code, docs and
+reports.
+
 An in-session run is less reproducible than a batch job, so the provenance has to
 compensate. Every verdict records `prompt_id`, `prompt_version`, `model`, `run_date` and the
 quotes it relied on. The prompt files and the proposal schema are written so that an
@@ -229,6 +238,8 @@ by a human against its sources, with the earlier label hidden until the verdict 
 | `queue_boundary` | 18 | prefilter candidates that tripped the keyword arm: something looked multi-agent |
 | `queue_base_rate` | 9 | prefilter candidates with no signal at all, as a control |
 
+*Note, 2026-11-17: the prefilter's arms were replaced by `basis` and `flags`; "keyword arm" in this section means the `keyword` flag.*
+
 The negative candidates are drawn from the prefilter queue, dated 2025–2026, excluding
 anything AIID marks multi-agent (`mvp/gold/sample_negatives.py`, seeded). **They are
 unscreened, not negative.** AIID applies no multi-agent label to 2025–2026 records at all —
@@ -285,7 +296,7 @@ running:
 - *An external human rater.* The MIT AI Risk Navigator's multi-agent facet, measured against
   the index's own incidents that also appear in AIID, misses a third of them. That figure is
   independent of the review, since it is about the rater's labels rather than ours.
-- *The keyword prefilter arm alone.* It catches most of the positives for free, which sets
+- *The keyword prefilter flag alone* (the `keyword` arm until 2026-11-17). It catches most of the positives for free, which sets
   the floor the model has to clear. Its recall is measured against the in-scope rows of the
   reviewed file and has to be recomputed whenever those change.
 

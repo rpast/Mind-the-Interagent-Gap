@@ -157,7 +157,7 @@ def main():
             "dossier": "", "date": s["date"], "title": s["title"],
             "draw_note": (
                 "AIID applies no multi-agent label in 2025-2026, so this is unscreened, "
-                "not negative. Surfaced by the prefilter on: " + (s.get("arms") or "")
+                "not negative. Surfaced by the prefilter on: " + (s.get("arms") or s.get("flags") or "")
                 + (f" ({why})" if why else "")),
             "_narrative": {"What happened": rec.get("text", "")},
             "_sources": [{"source_id": s["source_id"],

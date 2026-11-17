@@ -55,9 +55,9 @@ def main():
                 records[r["source_record_id"]] = r
 
     pool = [r for r in queue
-            if "label" not in r["arms"] and r["date"][:4] in YEARS]
-    hard = [r for r in pool if "keyword" in r["arms"]]
-    soft = [r for r in pool if "keyword" not in r["arms"]]
+            if "label" not in r["flags"] and r["date"][:4] in YEARS]
+    hard = [r for r in pool if "keyword" in r["flags"]]
+    soft = [r for r in pool if "keyword" not in r["flags"]]
     if len(pool) < args.n:
         sys.exit(f"pool has only {len(pool)} candidates")
     n_hard = min(args.hard, len(hard))
@@ -79,14 +79,15 @@ def main():
             rec = records.get(r["source_record_id"], {})
             w.writerow([r["source_id"], r["source_record_id"], r["date"], r["title"],
                         rec.get("meta", {}).get("mit_subdomain", ""),
-                        r["arms"], r["keyword_terms"], r["url"],
-                        "boundary" if "keyword" in r["arms"] else "base_rate"])
+                        ";".join([r["basis"]] + [f for f in r["flags"].split(";") if f]),
+                        r["keyword_terms"], r["url"],
+                        "boundary" if "keyword" in r["flags"] else "base_rate"])
 
     print(f"pool: {len(pool)} queued candidates dated 2025-2026 that AIID does not "
           f"mark multi-agent")
-    print(f"      {len(hard)} trip the keyword arm, {len(soft)} are unclassified-only")
+    print(f"      {len(hard)} carry the keyword flag, {len(soft)} are queued without a flag")
     print(f"drew {len(picked)} with seed {args.seed} -> {OUT.relative_to(MVP.parent)}")
-    print(f"  {n_hard:3d}  boundary   (keyword arm: something looked multi-agent)")
+    print(f"  {n_hard:3d}  boundary   (keyword flag: something looked multi-agent)")
     print(f"  {n_soft:3d}  base_rate  (no signal at all; a control)")
     print(f"\nby year: {dict(sorted(Counter(r['date'][:4] for r in picked).items()))}")
     terms = Counter()

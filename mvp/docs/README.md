@@ -10,7 +10,7 @@ Start at the top. The first two are enough to work with; the rest are reference.
 | 4 | [context_layer.md](context_layer.md) | read before you judge: read depths, `not_stated` against `unread`, readiness, the flag rule | 10 min |
 | 5 | [classifiers.md](classifiers.md) | why one extraction call plus rules plus an instance call; the proposal and verdict files | 15 min |
 | 6 | [input_layer.md](input_layer.md) | the record store, the record key, the update routine, prefilter, manual incidents, dossier format, `check` | 15 min |
-| 7 | [aiid_background.md](aiid_background.md) | what AIID is, its namespaces, why the prefilter has three arms | 10 min |
+| 7 | [aiid_background.md](aiid_background.md) | what AIID is, its namespaces, why the prefilter queues every recent record | 10 min |
 | 8 | [gold_set.md](gold_set.md) | how the evaluation set was built and how the ceiling is computed | 10 min |
 | 9 | [gate1_accuracy.md](gate1_accuracy.md) | the measured figures for the classifier and the older predictors | 5 min |
 

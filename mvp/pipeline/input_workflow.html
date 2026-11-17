@@ -292,7 +292,7 @@ function renderPanel() {
       tr.appendChild(el("td", "mono", r.date));
       tr.appendChild(el("td", null, r.title));
       const why = el("td");
-      (r.arms || "").split(";").filter(Boolean).forEach(a =>
+      [r.basis].concat((r.flags || "").split(";")).filter(Boolean).forEach(a =>
         why.appendChild(el("span", "chip", a)));
       if (r.label_values) why.appendChild(el("div", "mono", r.label_values));
       tr.appendChild(why);

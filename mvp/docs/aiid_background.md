@@ -136,16 +136,26 @@ From 2024 on, almost nothing in AIID has been asked the multi-agent question.
 The project rule (`CLAUDE.md`): **an external label may mark a candidate; it may never, by
 itself, put an incident in scope.** Only a human verdict does that.
 
-The prefilter (`run.py`, step `prefilter`) queues a record if any of three arms fires:
+The prefilter (`run.py`, step `prefilter`) queues a record for one reason, its `basis`:
 
-| arm | fires when | label source |
+| basis | a record is queued when |
+|---|---|
+| `recent` | it is an AIID record dated 2024-01-01 or later, whatever any label says |
+| `frozen` | it is on the hand-kept list of pre-2024 candidates, `mvp/registry/frozen_pre2024.csv` |
+| `manual` | the curator added it by hand |
+
+It then flags a queued record, in `flags`, when an outside label or a keyword says it may be
+multi-agent:
+
+| flag | set when | label source |
 |---|---|---|
 | `label` | CSETv1 says `yes` or `maybe`, or the incident is in the Navigator list | external |
-| `keyword` | a word net matches the title and text; runs over all records | ours |
-| `unasked` | dated 2024-01-01 or later and no taxonomy asked the multi-agent question: the record carries no `Multiple AI Interaction` value | none |
+| `keyword` | a word net matches the title and text | ours |
 
-Until 2026-11-16 the third arm was called `unclassified` and fired only when an incident had
-no classification of any kind. The section "The blind spot" below says why that changed.
+The CSETv1 labels stop in 2024, so they cannot be what decides which recent records are
+queued. Until 2026-11-17 the prefilter had three arms (`label`, `keyword`, `unasked`) and a
+CSETv1 `no` kept a recent record out; four such records are queued now. `docs/input_layer.md`
+says what changed. The section "The blind spot" below is the history of the `unasked` arm.
 
 ```mermaid
 flowchart LR
@@ -159,13 +169,16 @@ flowchart LR
   G -. attach to .-> I
   M -. attach to .-> I
   N[MIT Navigator<br/>outside AIID<br/>Multi-agent facet] -. hand copy .-> T[navigator_multiagent.tsv]
-  C -- Multiple AI Interaction yes/maybe --> L((label arm))
+  C -- Multiple AI Interaction yes/maybe --> L((label flag))
   T --> L
-  I -- title + text --> K((keyword arm))
-  I -- 2024+ and no Multiple AI Interaction value --> U((unasked arm))
+  I -- title + text --> K((keyword flag))
+  I -- dated 2024 or later --> U((queued as recent))
 ```
 
 ### The blind spot
+
+*History, as of 2026-11-16: the `unasked` arm described here was replaced on 2026-11-17 by
+the `recent` basis, which queues every AIID record dated 2024 or later.*
 
 This is the gap the old third arm left, and the reason it was widened. An incident from
 2024 on that MIT or GMF classified looked "classified", so the old `unclassified` arm
@@ -189,7 +202,7 @@ or not MIT or GMF classified it. The arm is called `unasked`. See `OPEN.md` item
 
 - Treat a CSETv1 `no` as weak evidence: it covers few incidents, none recent.
 - Treat a missing label as "not asked", never as "not multi-agent".
-- A record queued by `label` or `keyword` is never dismissed on its record text alone
+- A record flagged `label` or `keyword` is never dismissed on its record text alone
   (the flag rule, `docs/context_layer.md`).
 - Inherited labels go in `external_labels` and are never merged with ours.
 

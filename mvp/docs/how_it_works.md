@@ -82,27 +82,36 @@ Incident Database, is the only `baseline` source; no discovery source has a work
   for inter-agent coordination", "shared task answers and methods for bypassing sandbox
   restrictions", and "created backup pages to evade a moderator's deletions".
 
-### 4. Prefilter: three arms
+### 4. Prefilter: queued, then flagged
 
-- **What:** pick the candidates worth reading. A record joins the *queue* if any of three
-  *arms* fires:
+- **What:** pick the candidates worth reading. A record joins the *queue* for one reason,
+  its `basis`:
 
-  | arm | fires when | flags the record? |
-  |---|---|---|
-  | `label` | an outside label says `yes` or `maybe` to "Multiple AI Interaction", or the Navigator lists it | yes |
-  | `keyword` | a regex net matches title or text (`KEYWORD_TERMS` in `run.py`) | yes |
-  | `unasked` | AIID record dated 2024-01-01 or later that no taxonomy ever asked the multi-agent question | no |
+  | basis | a record is queued when |
+  |---|---|
+  | `recent` | it is an AIID record dated 2024-01-01 or later, whatever any outside label says |
+  | `frozen` | it is on the hand-kept list of pre-2024 candidates (`registry/frozen_pre2024.csv`) |
+  | `manual` | the curator added it by hand |
 
-  Why three: no single net catches enough. AIID's only multi-agent field stopped being
-  filled in mid-2024, the Navigator's rater misses a third of our known cases, and the
-  keyword net's recall is unmeasured. A record nobody asked is *unscreened*, not negative.
-  [aiid_background.md](aiid_background.md) tells the full story.
+  A queued record is then *flagged*, in `flags`, when an outside label or a keyword calls it
+  multi-agent:
+
+  | flag | set when |
+  |---|---|
+  | `label` | an outside label says `yes` or `maybe` to "Multiple AI Interaction", or the Navigator lists it |
+  | `keyword` | a regex net matches title or text (`KEYWORD_TERMS` in `run.py`) |
+
+  Why: AIID's only multi-agent field stopped being filled in mid-2024, so for recent records
+  the only signal is our own classification, and an outside label may mark a record but never
+  decide its scope. The Navigator's rater misses a third of our known cases and the keyword
+  net's recall is unmeasured, so every recent record is read. A record nobody asked is
+  *unscreened*, not negative. [aiid_background.md](aiid_background.md) tells the full story.
 - **Who:** script. Records already cited by a dossier are skipped.
-- **Writes:** `mvp/state/queue.jsonl`. On 2026-11-16: 1,133 queued (label 39, keyword 64,
-  unasked 1,099; a record caught by two arms counts under both).
-- **1668:** `arms: "label;keyword;unasked"`, `label_values: "navigator=Multi-agent"`,
-  `keyword_terms: "\bagents\b;coordinat(?:e|ion|ing)"`. Caught by `label` and `keyword`, so
-  it is **flagged**.
+- **Writes:** `mvp/state/queue.jsonl`. On 2026-11-17: 1,137 queued (recent 1,103, frozen 34),
+  93 of them flagged (label 39, keyword 64; a record with both counts under both).
+- **1668:** `basis: "recent"`, `flags: "label;keyword"`,
+  `label_values: "navigator=Multi-agent"`,
+  `keyword_terms: "\bagents\b;coordinat(?:e|ion|ing)"`. It is **flagged**.
 
 ### 5. Read the record, then read the source
 
@@ -233,8 +242,8 @@ characters), and the facts the gates need are usually missing from them.
 The curator can add incidents the databases do not carry: one `.txt` or `.md` write-up per
 incident in a folder, then `python mvp/pipeline/run.py update --manual DIR`. A copy goes to
 `mvp/raw/manual/`, the record to `mvp/records/manual.jsonl`, and the script writes the
-context row itself (`manual: true`, depth `curator`). The record skips the prefilter arms and
-Gate 1: **it is in scope on the curator's word**, which is a human verdict. Call 1 still
+context row itself (`manual: true`, depth `curator`). The record is queued with
+`basis: manual` and skips Gate 1: **it is in scope on the curator's word**, which is a human verdict. Call 1 still
 extracts the Gate 2 and evidence-type facts, call 2 still assigns instances, and `derive`
 gives `gate1: curator`. A dossier resting only on the write-up may never be `verified`.
 
@@ -245,7 +254,7 @@ flowchart TD
   REG["Sources registry<br/>registry/sources.csv"] --> FETCH["Fetch<br/>raw/aiid/"]
   MAN["Curator write-ups<br/>update --manual DIR"] --> NORM
   FETCH --> NORM["Normalise<br/>records/SOURCE.jsonl"]
-  NORM --> PRE["Prefilter: label, keyword, unasked<br/>state/queue.jsonl"]
+  NORM --> PRE["Prefilter: recent, frozen, manual<br/>flags: label, keyword<br/>state/queue.jsonl"]
   PRE --> READ["Read: record pass, source pass<br/>context/SOURCE.jsonl"]
   READ --> RDY{"Readiness<br/>state/readiness.jsonl"}
   RDY -->|"not_ready"| READ
@@ -420,7 +429,7 @@ the same, with `gate1: out` as the label if a person confirms the facts.
 
 - **The model's judgement:** every fact in `context/` and every field of a call-1 or call-2
   proposal, including the hard one, `single_agent_counterfactual`, and the instance picks.
-- **Fixed rules:** which arm queues a record, the flag rule, readiness, and everything in
+- **Fixed rules:** why a record is queued, the flag rule, readiness, and everything in
   `derive.py`: the presumption, Gate 1, review routing, Gate 2, evidence type, presumed
   instances. Same facts in, same labels out.
 - **Only a person:** whether an incident enters the index (`multi_agent: true`,
@@ -431,7 +440,7 @@ the same, with `gate1: out` as the label if a person confirms the facts.
 
 The *gold set*, `mvp/gold/multiagent_gold.csv`, is 58 rows a person judged from the primary
 sources: 22 `in`, 33 `out`, 3 `unclear`. The 3 unclear rows are left out, so 55 are scored.
-It mixes the index's earlier holdings, AIID's own multi-agent positives, keyword-arm
+It mixes the index's earlier holdings, AIID's own multi-agent positives, keyword-flagged
 candidates and a control group with no signal; it oversamples hard cases on purpose, so its
 precision is pessimistic. The *ceiling* is how often the index's earlier hand-curation agreed
 with the careful re-review: 19 of 23, **82.6% precision**. That is what a careful person
@@ -538,9 +547,9 @@ All paths under `mvp/` unless shown.
 - **The accuracy figures assume good readings.** Gold readings were written during review;
   fresh enrichment readings will be weaker (item 59).
 - **694 queued records have never been read** on 2026-11-16, most of them newly caught by
-  the `unasked` arm (item 60).
-- **Pre-2024 incidents without a CSETv1 row are screened by keyword only**, and the keyword
-  arm's recall is unmeasured (items 45, 60).
+  the `recent` basis (item 60).
+- **Pre-2024 incidents outside the frozen list are not queued**, and the keyword
+  flag's recall is unmeasured (items 45, 60).
 - **Source-pass quotes came through a summarising fetcher** and must be checked against the
   page before they enter a dossier (item 63).
 - **Dossiers are not yet linked to their AIID records** (items 25, 63).
