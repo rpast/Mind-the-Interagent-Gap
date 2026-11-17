@@ -106,14 +106,34 @@ declared here so that anyone reading a count knows it is in the numbers.
 - `load_bearing` — the source shows the number of agents, or the mix of different agents,
   doing work the defence could not absorb. Gate 1 `could_not`.
 - `unreported` — a fleet is described, its contribution is not. Gate 1 `could_not`, **by
-  the presumption**. The dossier records `unreported`, so the claim stays visible and
-  reversible.
+  the presumption**, on the two conditions below. The dossier records `unreported`, so the
+  claim stays visible and reversible.
 - `incidental` — the source shows the harm turning on one agent's capability: a single
   credential reused, one injection, one request, with the other agents idle, duplicative or
   downstream of the breach. Gate 1 `could`, out of scope.
 
 `incidental` is the only verdict that needs evidence. The field is never left blank: an
 attack with no multiplicity statement is `unreported`, not null.
+
+**When the presumption fires. Decided 2026-11-16.** An `unreported` attack is presumed in
+scope only if both of these hold:
+
+1. **The record does not show fewer than two AI agents.** The agent count is not stated,
+   or it is two or more. A record that shows one AI agent, or none, has no fleet to
+   presume anything about.
+2. **The model did not answer the counterfactual `could`.** If the reading of the record
+   says one agent could have produced the harm, that answer stands.
+
+Otherwise the counterfactual is whatever the model answered, and an `unclear` one goes to
+review like any other.
+
+Why: the first measurement of the classifier on the gold set (`gate1_accuracy.md`) found
+that 5 of its 6 false positives came from the presumption. In three of them the model had
+answered `could` and the presumption overrode it. In one, people breached a platform that
+hosts agents, with no AI agent on the attacking side. With the two conditions, the false
+positives fall from 6 to 3 and precision rises from 76.9% to 87.0%. Recall stays at 90.9%:
+no row judged `in` was lost. The presumption still decides two of the remaining false
+positives, so it stays a deliberate, declared default rather than a finding.
 
 #### Intent does not enter Gate 1
 
@@ -173,7 +193,7 @@ instance, or removed with the record if the answer is `incidental`. Any count of
 for I28 or I29 reports the two kinds separately.
 
 This is the single exception to the rule that an instance needs a verbatim quote. It is
-applied in code from `multiplicity_role`, not by the model.
+applied in code from `multiplicity_role` (`mvp/pipeline/derive.py`), not by the model.
 
 **Interaction is not required on this branch.** Elsewhere Gate 1 needs agents acting on or
 communicating with each other. A fleet attack passes on multiplicity instead: the agents'
@@ -230,7 +250,7 @@ to realise. This is the branch most attacks land on, and it is the reason an in-
 usually carries risk factors only. It does **not** put the event out of the index; Gate 1
 already settled that.
 
-This tree is applied **in code**, from three extracted facts — `cooperation_occurred`,
+This tree is applied **in code** (`mvp/pipeline/derive.py`), from three extracted facts — `cooperation_occurred`,
 `cooperation_expected` and `objective_relation` — and it works from the failure mode
 definitions directly: the three definitions in the table below are what the questions
 decompose. It is not a judgement a model is asked to make in one step, so it is
@@ -318,7 +338,7 @@ ecological validity.
 | `lab` | Controlled experiment on real models in a narrow task probe, with no environment to act in. | Anything with a persistent environment. |
 | `theoretical` | Argument, formal model or non-AI analogue only. No AI system was run. | Any run of an AI system, however small. |
 
-Like the failure mode, the evidence type is derived **in code** from extracted facts —
+Like the failure mode, the evidence type is derived **in code** (`derive.py`) from extracted facts —
 the setting, the stakes, and who controlled the environment — not asked for directly.
 
 ## Label provenance

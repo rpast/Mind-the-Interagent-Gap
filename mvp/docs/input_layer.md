@@ -19,6 +19,43 @@ mvp/out/incident_index.csv a flat index generated from the dossiers.
 A record is what one source said, when we fetched it. A dossier is what we believe happened,
 citing the records that attest it.
 
+Hand-made label files are not fetch output, so they do not go in `raw/`. They live in
+`mvp/registry/labels/`: today one file, `navigator_multiagent.tsv`, the MIT AI Risk
+Navigator's multi-agent facet, copied by hand on 2026-11-09 (see its `README.md`).
+
+### The record key
+
+A record's identity is the pair `(source_id, source_record_id)`; `source_record_id` is
+the source's own id, the AIID `incident_id` for AIID. Every row in `records/`,
+`context/`, `proposals/`, `state/queue.jsonl`, `state/readiness.jsonl`,
+`state/verdicts.jsonl` and `state/instances_due.jsonl` carries the pair
+and also one string, `record_key`, `"<source_id>:<source_record_id>"`, e.g. `"aiid:1604"`.
+It is the same string `run.py promote` takes. `run.py` builds it in one place
+(`record_key`, `split_key`). It reads a row by `record_key` when the row has one, else by
+the pair, so a proposal written without it still counts. `check` fails a row whose
+`record_key` does not match its pair.
+
+### A record row
+
+```json
+{
+  "source_id": "aiid", "source_record_id": "1604", "record_key": "aiid:1604",
+  "title": "...", "text": "...", "date": "2026-10-17", "url": "...",
+  "external_labels": [{"source": "aiid", "namespace": "CSETv1", "field": "...",
+                       "value": "no", "fetched_at": "2026-11-15"}],
+  "meta": {"has_classification": true, "namespaces": ["..."]},
+  "fetched_at": "2026-11-15",
+  "raw_ref": {"path": "mvp/raw/aiid/incidents.jsonl", "id_field": "_id",
+              "id": "6...", "fetched_at": "2026-11-15"},
+  "content_hash": "sha256:..."
+}
+```
+
+`raw_ref` says which raw row the record was built from: the raw file, repo-relative; the
+source's own id field and its value (`_id` for AIID); and the fetch date. For a manual
+record it names the copy in `raw/manual/`. For the records carried over from the PoC it
+names `poc/data/incidents.csv` and the `event_id`. It is not part of the content hash.
+
 ## The update routine
 
 ```
@@ -41,7 +78,13 @@ started with are absent from AIID entirely, including all 7 AI Village rows. Dis
 no working module yet; see **discover** below.
 
 Each stage is also runnable alone: `fetch`, `normalise`, `discover`, `prefilter`, `readiness`,
-`promote`, `index`, `viz`, `check`.
+`derive`, `instances-due`, `promote`, `index`, `viz`, `check`.
+
+An `update` run walks: sources, discover, fetch, manual, normalise, prefilter, read,
+readiness, judge, **derive**, review, check, index. `derive` comes right after judge: it
+applies the labelling rules (`mvp/pipeline/derive.py`) to the newest `extract_gate`
+proposal of every record and writes `mvp/state/verdicts.jsonl`. The review step also runs
+`instances-due` and shows how many records in scope still have no instance proposal.
 
 ### Who does each step
 
@@ -49,7 +92,7 @@ Most steps are `run.py`, a script. Two are not:
 
 | step | done by | produces |
 |---|---|---|
-| fetch, normalise, prefilter, readiness, index, viz, check | `run.py` | files under `raw/`, `records/`, `state/`, `out/`; `check` produces only an exit code |
+| fetch, normalise, prefilter, readiness, derive, instances-due, index, viz, check | `run.py` | files under `raw/`, `records/`, `state/`, `out/`; `check` produces only an exit code |
 | read the sources, judge | a model, through the `/classify-incidents` skill in Claude Code | rows in `context/`, verdicts in `proposals/` |
 | promote, write up | a person, helped by `run.py promote` | a dossier in `incidents/` |
 | work orders | a person, following `state/work_orders.md` | records pasted back for a source no script can reach |
@@ -105,26 +148,37 @@ not a gap.
 depth 0 carries no classifications, and `classifications.jsonl` has no `incident_id` — its
 only path back is the expanded `incidents` list, so the join is on `incidents[]._id`. It
 harvests the `Multiple AI Interaction` attribute from the consensus `CSETv1` namespace *and*
-all three `CSETv1_Annotator-*` namespaces, so rater disagreement stays visible.
+all three `CSETv1_Annotator-*` namespaces, so rater disagreement stays visible. It also
+adds the Navigator's label from `mvp/registry/labels/navigator_multiagent.tsv`. What the two
+AIID files hold is described in `mvp/pipeline/fetch_aiid.md`.
 
 **prefilter** is a union of three arms, because no single net has acceptable recall:
 
-| arm | rule | current |
+| arm | rule | 2026-11-16 |
 |---|---|---|
-| `label` | any external label says `yes` or `maybe`, including one dissenting annotator | 39 |
-| `keyword` | the recall-first regex net, lifted from the exploratory notebook | 62 |
-| `unclassified` | no classification at all, and dated on or after 2024-01-01 | 286 |
+| `label` | any external label says `yes` or `maybe`, including one dissenting annotator, or the Navigator lists it | 39 |
+| `keyword` | the recall-first regex net, lifted from the exploratory notebook | 64 |
+| `unasked` | an AIID record dated on or after 2024-01-01 that no AIID taxonomy asked the multi-agent question: no `Multiple AI Interaction` label at all | 1,099 |
 
-The third arm exists because 305 of AIID's 1,803 incidents carry no classification, and they
-are the recent ones. An unclassified record is unscreened, not negative — which is a
-different thing from a record CSETv1 looked at and called `no`.
+The queue is the union: 1,133 records. A record caught by two arms counts under both.
+
+The third arm exists because a record nobody asked the multi-agent question is unscreened,
+not negative — which is a different thing from a record CSETv1 looked at and called `no`.
+Until 2026-11-16 it was `unclassified`, "no classification of any kind", and queued 361
+records in all. That missed a group: 772 AIID incidents dated 2024 or later were classified
+by MIT or GMF only, so the old arm skipped them, yet neither of those taxonomies asks the
+multi-agent question. A random sample of 100 of them, read from the record text, gave 22
+that need a source read (18 `unknown`, 4 `several`). So the arm now asks whether anybody
+asked, not whether anybody classified, and the queue grew from 361 to 1,133. The 361 keep
+their readiness; the 772 have no reading yet. Queue rows written before the rename still
+say `unclassified`; `run.py` reads them as `unasked`.
 
 The rules are constants at the top of `mvp/pipeline/run.py`: `KEYWORD_TERMS` (the regexes),
-`UNCLASSIFIED_CUTOFF` (the date) and `MA_POSITIVE` (the label values that count). The queue
-row records which arms caught each record. A record caught by `label` or `keyword` is
-**flagged**, and the record pass may not dismiss it on its text alone
-(`context_layer.md` § The flag rule). Manual records bypass the arms and are queued with
-`arms: "manual"`.
+`UNCLASSIFIED_CUTOFF` (the date), `MA_FIELD` (the label field that counts as asking) and
+`MA_POSITIVE` (the label values that count). The queue row records which arms caught each
+record. A record caught by `label` or `keyword` is **flagged**, and the record pass may not
+dismiss it on its text alone (`context_layer.md` § The flag rule). `unasked` flags nothing.
+Manual records bypass the arms and are queued with `arms: "manual"`.
 
 Measured, which is why there are three arms and not one: the MIT Navigator's rater has a
 **33% false-negative rate** on the 9 of our incidents that are in AIID. The keyword arm's
@@ -159,14 +213,26 @@ entry resolves to a record that exists, that every instance id is in the taxonom
 controlled vocabulary, all seven narrative sections, that AIID is the canonical source
 wherever it attests an incident, and that no `e1..e5` key has crept in. It accepts read
 depth `curator` and the `manual` flag in the context layer, and fails a dossier marked
-`verified` whose reading is only `curator`.
+`verified` whose reading is only `curator`. Over the files it checks that every record row
+has a `record_key` matching its pair, a `raw_ref`, a `content_hash` that is the hash of its
+substance, and no version identical to the one before; and that every queue, readiness,
+context and proposal row with a `record_key` has the right one.
 
 ## Idempotency
 
-Records are keyed on `(source_id, source_record_id)` and carry a `content_hash` over the
-fields that matter. A re-fetch appends a new version **only when the hash changed**, so an
-upstream edit is detected rather than silently overwriting, and re-running `update` on
-unchanged upstream data produces no diff.
+Records are keyed on `(source_id, source_record_id)`, written `record_key`, and carry a
+`content_hash` over their substance only: `title`, `text`, `date`, `url`, `meta`, and
+`external_labels` with each label's `fetched_at` left out. No fetch date is hashed, and
+neither is `raw_ref`. A re-fetch appends a new version **only when the hash changed**, so
+an upstream edit is detected rather than silently overwriting, and re-running `update` on
+unchanged upstream data produces no diff, whatever the fetch date.
+
+Until 2026-11-16 the hash covered each label's `fetched_at`, so the 2026-11-15 re-fetch
+appended a second, identical version of all 313 labelled AIID incidents.
+`mvp/pipeline/migrate_keys_20261116.py` recomputed every hash, dropped those 313 rows
+(2,130 rows became 1,817, one per incident), and added `record_key` and `raw_ref`. `check`
+now fails a record whose `content_hash` is not the hash of its substance, and a version
+identical to the one before it.
 
 ## Dossier format
 

@@ -35,16 +35,17 @@ hold more context.
 
 ```
 call 1   read the record, extract facts, answer the two gate questions
+derive   rules in code (mvp/pipeline/derive.py), run by `run.py derive`
            -> multi_agent      rule over gate 1 + interaction_present
            -> evidence_type    rule over setting, stakes, who controlled the environment
            -> failure_mode     rule: the gate 2 tree, over the FM definitions
-call 2   assign instance ids               (only if the record passed Gate 1)
+call 2   assign instance ids               (records in scope: by the rules, or by a person)
            -> instances        descriptive detail, assigned independently
 ```
 
 The two calls answer different questions and neither feeds the other. Call 1 produces the
 labels from a handful of extracted facts. Call 2 describes the incident more finely against
-the 33 instance definitions, which do not fit in call 1's prompt and would skew its
+the 36 instance definitions in `mvp/taxonomy/instances.csv`, which do not fit in call 1's prompt and would skew its
 judgement if they did — a model that has just read "Swarm Attacks" is readier to call the
 next record a swarm.
 
@@ -56,13 +57,20 @@ failure mode is null, which is most security records.
 
 `mvp/skills/classify-incidents/`. A Claude Pro or Max subscription covers Claude Code; it
 does not cover the Messages API, which bills separately through Console credits. At
-prefiltered volumes — currently 347 candidates, not 1,803 — an in-session run needs no API
-key and no credit.
+prefiltered volumes — 1,133 candidates on 2026-11-16, most of them settled by the cheap
+record pass before any judging — an in-session run needs no API key and no credit.
 
 The skill reads a versioned prompt from `mvp/prompts/`, pulls un-dispositioned records from
 `mvp/state/queue.jsonl`, works in batches of 10–20 per turn, and appends verdicts to
-`mvp/proposals/<prompt>.<date>.jsonl`. It is **resumable**: record ids already present in
-the proposals file are skipped, so an interrupted run continues where it stopped.
+`mvp/proposals/<prompt>.<date>.jsonl`. Every row it appends carries `record_key`. It is
+**resumable**: a record whose `record_key` already has a row for that prompt is skipped, so
+an interrupted run continues where it stopped.
+
+**Proposals hold model output only.** No derived label is written into a proposal. The
+labels are generated state: `python mvp/pipeline/run.py derive` reads the newest
+`extract_gate` proposal of every record, applies the rules, and writes
+`mvp/state/verdicts.jsonl`. It is rewritten on every run, so a rule change reaches every
+record at once and no stale label survives in a proposal.
 
 An in-session run is less reproducible than a batch job, so the provenance has to
 compensate. Every verdict records `prompt_id`, `prompt_version`, `model`, `run_date` and the
@@ -110,29 +118,52 @@ campaigns. It is never null there: a fleet with no statement of its contribution
 `unreported`, not blank. `incidental` is the only value that requires evidence, and like
 every other fact it requires a verbatim quote.
 
-**Routing to review.** Anything with `confidence` below high, or any `unclear` in the three
-gate fields, goes to the review queue rather than producing a label. Gate 1 is the weak
-link — it asks for a counterfactual that the project's own reading notes leave open — so the
-design never lets a model settle it silently.
+**Routing to review.** A record goes to review, rather than producing a label, when:
 
-The one exception is the security branch, where `definitions.md` sets a presumption: a
-multi-agent attack whose `multiplicity_role` is `unreported` resolves to `could_not` instead
-of routing to review. Everywhere else `unreported` has no meaning and `unclear` still
-routes.
+- its `confidence` is below high; or
+- a Gate 1 field is `unclear` or null: `single_agent_counterfactual`, and
+  `interaction_present` on a non-security record; or
+- it is in scope and a Gate 2 field is `unclear` where it decides the branch (below); or
+- it is in scope and its evidence type cannot be derived.
 
-**Rules applied in code afterwards:**
+Gate 1 is the weak link — it asks for a counterfactual that the project's own reading notes
+leave open — so the design never lets a model settle it silently.
+
+Two exceptions, both on the security branch. `interaction_present` is not a review reason
+there, because multiplicity stands in for it. And `definitions.md` sets a presumption: a
+multi-agent attack whose `multiplicity_role` is `unreported` resolves to `could_not`
+instead of routing to review — but only when the record does not show fewer than two AI
+agents and the model did not answer `could` (decided 2026-11-16). When the presumption
+does not fire, an `unclear` counterfactual routes as usual. Everywhere else `unreported`
+has no meaning.
+
+**The verdicts file.** `mvp/state/verdicts.jsonl`, one row per record with an
+`extract_gate` proposal: `record_key`, `source_id`, `source_record_id`, `status`
+(`in_scope`, `out_of_scope` or `review`), `gate1` (`in`, `out`, `review`, or `curator` for
+a manual record), `review_why`, `by_presumption`, `rules_version`, and the labels. A settled
+record carries them under `labels`; a review item under `labels_if_confirmed`, the labels
+the rules give if a person confirms the facts, so nothing reads them as settled. It is
+never an authority: a person still promotes.
+
+**Rules applied in code afterwards.** `mvp/pipeline/derive.py` is the single authority. It
+is a pure function, `derive(gate_row)`, with a self-test (`python mvp/pipeline/derive.py
+--selftest`) that covers every branch. `run.py derive` and `mvp/gold/score_gate1.py` both
+call it, so the pipeline and the gold measurement apply the same rules. In words:
 
 - `single_agent_counterfactual`, on a security record, is overridden by
-  `multiplicity_role`: `load_bearing` or `unreported` → `could_not`; `incidental` → `could`.
-  The presumption is applied here, in code, not asked of the model
+  `multiplicity_role`: `load_bearing` → `could_not`; `incidental` → `could`; `unreported` →
+  `could_not` when the presumption fires, else the model's answer stands. The presumption
+  is applied here, in code, not asked of the model
 - `multi_agent` = `single_agent_counterfactual == "could_not"` AND `interaction_present`.
   On a security record `interaction_present` is not required: multiplicity stands in for it
 - `instances_presumed`, on a security record that passed Gate 1: `unreported` → `I28;I29`.
   Call 2 still runs and may add quoted instances; a quoted I28 or I29 replaces the presumed
   pair. Presumed and quoted instances are never stored in the same field
-- `evidence_type`: deployed + real stakes + environment not controlled by an experimenter →
-  `real_world`; researcher-built or simulated environment → `synthetic`; narrow probe on
-  real models with no environment → `lab`; no AI system run → `theoretical`
+- `evidence_type`, decided by `setting` first: `none` → `theoretical`; `narrow_probe` →
+  `lab`; `researcher_built` → `synthetic`, whatever the stakes; `deployed` with `real`
+  stakes and the environment controlled by `nobody` or the `operator` → `real_world`. Any
+  other combination, including `environment_controlled_by: unclear`, gives no evidence type
+  and, on an in-scope record, the review reason "evidence type not derivable"
 - `failure_mode`: the Gate 2 tree in `definitions.md`. `cooperation_occurred == "yes"` AND
   `cooperation_expected == "unexpected"` → FM3. Otherwise by `objective_relation`:
   `identical` → FM1, `mixed` → FM2, `opposing` → none. An `unclear` routes to review only
@@ -143,9 +174,18 @@ routes.
 
 ## Call 2 — instance assignment
 
-Prompt: `mvp/prompts/assign_instances.v2.md`. Runs only on records that passed Gate 1. The
-33 instance definitions fit in the prompt, so the model sees the actual definitions rather
-than two-word names.
+Prompt: `mvp/prompts/assign_instances.v2.md`. Runs only on records in scope, of two kinds:
+records `run.py derive` settles `in_scope`, and records a person has put in scope. The
+second kind is listed by `python mvp/pipeline/run.py instances-due`, which writes
+`mvp/state/instances_due.jsonl`: every dossier with `multi_agent: true` and label source
+`ours` whose `instances` list is empty and none of whose sources has an instance proposal,
+plus every `in_scope` verdict with no instance proposal. Instances follow the human's
+scope decision, not only the model's. An instance proposal for a human-confirmed record is
+a proposal like any other: it never edits the dossier. The update run's Review step shows
+the count.
+
+The 36 instance definitions fit in the prompt, so the model sees the actual definitions
+rather than two-word names.
 
 ```json
 {
@@ -179,7 +219,8 @@ primary source, several had notes but no verdict, some had no verification recor
 and about half rested on a single source. Every one of those rows has since been re-judged
 by a human against its sources, with the earlier label hidden until the verdict was formed.
 
-`mvp/gold/multiagent_gold.csv`, 60 rows in four strata, all `to_judge`:
+`mvp/gold/multiagent_gold.csv`, drawn as 60 rows in four strata; after two review rounds
+58 rows remain, each with a human verdict (see `gold_set.md`):
 
 | stratum | n | what it is |
 |---|---|---|
@@ -229,8 +270,14 @@ file.
 The reviewed set, as merged on 2026-11-13, is 60 rows judged `in`, `out` or `unclear`. The
 security rows in it were judged before `definitions.md` settled the presumption for
 coordinated attacks, so the in-scope count will move once they are re-judged against it;
-see `OPEN.md` item 31. Until that is done, no accuracy figure computed from this file is
-final.
+see `OPEN.md` item 31. The second review round of 2026-11-13 filled `multiplicity_role` on
+the security rows, but item 31 has not been formally closed, so treat accuracy figures from
+this file as provisional until it is.
+
+**Scoring the classifier.** `python mvp/gold/score_gate1.py` scores a blind
+`extract_gate` run over the gold rows (`mvp/out/calibration/`), with the labels derived by
+`derive.py`, the same code the pipeline runs. It reports all rows, and separately the rows
+the rules settle without review. Figures in `mvp/docs/gate1_accuracy.md`.
 
 **Baselines to beat.** Two, both cheap, and a classifier that cannot beat them is not worth
 running:
@@ -246,6 +293,11 @@ running:
 textbook miscoordination case: two bots with the same objective reverting each other. It
 should pass Gate 1, be `cooperation_occurred: no` with `objective_relation: identical`,
 come out FM1, and pick up I01 Incompatible Strategies. If it does not, the prompts are wrong.
+
+**Status on 2026-11-16: not yet passed.** In the first queue run aiid:7 came out a review
+item, not FM1. Its reading is the seeded gold row, which left setting, cooperation and
+objectives `unread`, so evidence type cannot be derived and Gate 2 is unclear. The test is
+meaningful only after a source pass reads the cited reports for those facts.
 
 ## What the classifier may and may not write
 

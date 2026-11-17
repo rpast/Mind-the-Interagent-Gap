@@ -93,6 +93,10 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .wire { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 .wire.hand { stroke-dasharray: 6 4; }
 .wire.unbuilt { stroke-dasharray: 1.5 4; }
+/* a reference: a rule or a list is read; no records travel this wire */
+.wire.ref { stroke: var(--c1); stroke-width: 1; stroke-dasharray: 2 3; }
+/* a branch: the same records, sent on a second, descriptive path; not part of the split */
+.wire.branch { stroke-dasharray: 10 3 2 3; }
 .wire.flow { stroke-width: 3.5; stroke-dasharray: 7 5; animation: flow .7s linear infinite; }
 @keyframes flow { to { stroke-dashoffset: -12; } }
 .wlabel { font-size: 10px; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 5px; stroke-linejoin: round; }
@@ -127,6 +131,16 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .node .nb { padding: 5px 6px 4px; min-height: 50px; }
 .node .num { font-size: 19px; font-weight: bold; line-height: 1.05; }
 .node .cap { font-size: 10.5px; }
+/* a number that is not a count of records (sources, patterns, a score): set apart */
+.node .unit { display: none; margin-top: 3px; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; border: 1px dotted var(--ink); padding: 0 3px; width: max-content; max-width: 100%; }
+.node.meta .unit { display: block; }
+.node.meta .num { font-style: italic; font-weight: normal; }
+/* the warning shown when the map's numbers do not add up */
+#flowwarn { margin: 0; padding: 4px 8px; border-bottom: 2px solid var(--ink); background: var(--paper); font-weight: bold; }
+#flowwarn ul { margin: 2px 0 0; padding-left: 18px; font-weight: normal; }
+#sheet .flowline { margin: 2px 0; }
+#sheet .flowline code { display: inline; border: 0; padding: 0; }
+#sheet .tech { display: block; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 10px; font-weight: normal; }
 /* who or what does the work: a small tag at the foot of every box */
 .node .by {
   margin-top: 4px; border-top: 1px dotted var(--ink); padding-top: 2px;
@@ -178,6 +192,9 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .node[data-rs="done"] .nb { box-shadow: inset 4px 0 0 var(--ink); }
 .node[data-rs="skipped"] { opacity: .45; }
 .node[data-rs="placeholder"] { opacity: .7; border-style: dashed; }
+/* a number that just changed while a run is followed: the light tone behind it, fading out */
+.node .num { transition: background-color .8s ease-out; }
+.node.bump .num { background: var(--c2); transition: none; }
 
 /* ---- the property sheet ---- */
 #sheet { position: fixed; right: 22px; bottom: 44px; width: 350px; max-height: 72vh; display: none; flex-direction: column; z-index: 5; }
@@ -206,7 +223,7 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .pill.inv { background: var(--ink); color: var(--paper); }
 .note { font-size: 10.5px; }
 
-#legend { position: absolute; left: 1180px; top: 1060px; width: 260px; z-index: 2; }
+#legend { position: absolute; left: 1500px; top: 880px; width: 260px; z-index: 2; }
 #legend > header { cursor: grab; touch-action: none; }
 #legend.dragging > header { cursor: grabbing; }
 #legend .body { padding: 6px 8px; display: grid; grid-template-columns: 46px 1fr; gap: 6px 8px; align-items: center; }
@@ -220,6 +237,9 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .sw.line { border: 0; border-top: 2px dashed var(--ink); height: 0; background: none; }
 .sw.dots { border: 0; border-top: 2px dotted var(--ink); height: 0; background: none; }
 .sw.solid { border: 0; border-top: 2px solid var(--ink); height: 0; background: none; }
+.sw.refsw { border: 0; border-top: 1px dotted var(--c1); height: 0; background: none; }
+.sw.branchsw { border: 0; height: 2px; background: repeating-linear-gradient(90deg, var(--ink) 0 10px, transparent 10px 13px, var(--ink) 13px 15px, transparent 15px 18px); }
+.sw.metasw { border-style: dotted; font-size: 9px; font-style: italic; text-align: center; line-height: 12px; }
 
 /* ---- the message line ---- */
 #msg {
@@ -284,6 +304,11 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .ask .acts { display: flex; flex-wrap: wrap; gap: 6px; }
 #runsummary h3 { margin-top: 10px; }
 #runsummary ul { margin: 3px 0; padding-left: 16px; }
+.rnums { margin: 3px 0; font-size: 10.5px; }
+.rnums > p { margin: 2px 0; font-weight: bold; }
+.rnums details { margin-top: 2px; }
+.rnums summary { cursor: pointer; }
+.rnums summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
 .rfoot { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-top: 1px solid var(--ink); }
 .rfoot .note { flex: 1; }
 
@@ -314,6 +339,16 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 #runtest li code { margin-right: 4px; }
 .ask .testnote { margin: 0 0 6px; padding: 3px 5px; border: 1px dashed var(--ink); font-size: 10.5px; }
 .ask .testnote .testmark { margin-right: 5px; }
+.ask .peek { margin: 0 0 6px; }
+.ask .guide { margin: 0 0 6px; padding: 3px 5px; border: 1px dotted var(--ink); font-size: 10.5px; }
+.ask .guide summary { cursor: pointer; font-weight: bold; }
+.ask .guide summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.ask .guide h3 { display: none; }
+.ask .guide ol, .ask .guide ul { margin: 3px 0; padding-left: 18px; }
+.ask .guide li code, #sheet li code { display: inline; border: 0; padding: 0; overflow-wrap: anywhere; }
+.ask .peek a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; font-weight: bold; }
+.ask .peek a:hover, .ask .peek a:focus-visible { background: var(--ink); color: var(--paper); outline: none; }
+.ask .peek .path { display: block; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 10.5px; overflow-wrap: anywhere; }
 
 /* ---- the set-up dialog ---- */
 dialog.win { padding: 0; max-width: min(520px, calc(100vw - 24px)); width: 520px; }
@@ -347,6 +382,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .wire.flow, .node[data-rs] , .node[data-rs] .nt, .rstep { animation: none !important; }
+  .node .num { transition: none !important; }
 }
 </style>
 </head>
@@ -382,7 +418,8 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
 
 <div class="main">
 <section class="win" id="patchwin" aria-label="Pipeline patch">
-  <header><span class="t" id="wintitle">Pipeline</span><span class="testmark" id="wintest" hidden title="The tags on the boxes come from the test run. The numbers on the boxes are still the project's own.">Test run on show</span></header>
+  <header><span class="t" id="wintitle">Pipeline</span><span class="testmark" id="wintest" hidden title="The tags on the boxes come from the test run.">Test run on show</span></header>
+  <div id="flowwarn" role="alert" hidden></div>
   <div id="scroller">
     <div id="sizer">
       <div id="canvas">
@@ -399,6 +436,9 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
         <span class="sw solid"></span><span>Passed on automatically</span>
         <span class="sw line"></span><span>Hand-off to or from a person</span>
         <span class="sw dots"></span><span>Not built yet</span>
+        <span class="sw branchsw"></span><span>The same records, also sent on a side path</span>
+        <span class="sw refsw"></span><span>Reads a rule or a list: no records travel</span>
+        <span class="sw metasw">36</span><span>Slanted number, dotted tag: not a count of records</span>
       </div>
     </aside>
       </div>
@@ -471,18 +511,23 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
       <dt class="tag">Document</dt><dd>A file people write and the pipeline reads.</dd>
     </dl>
     <h3>The numbers on the boxes</h3>
-    <p>The big number is a live count taken from the project's files when this page was made. The line under it says what it counts. Click the box to see the count broken down. Where a box shows a word (“rule”, “pass”) there is nothing to count.</p>
+    <p><b>Every number on the map is a number of records, over all sources.</b> A record is one incident as one source describes it, for example AIID incident 1604 (<code>aiid:1604</code>). Never lines in a file, readings or suggestions: a record read twice, or with two suggestions, still counts once.</p>
+    <p>Numbers go where the records go. Each wire carries the number of records that travel along it. At every box, what comes in equals what goes on, plus what stops there, plus what is still waiting there. Click a box to see its number split by source and by the groups that matter there, where it comes from, where it goes and which files it is counted from. If any of these sums fails, a warning above the map lists it.</p>
+    <p>A few boxes show something that is not a count of records: the number of sources, the size of the rulebook, a score. Their number is slanted and carries a dotted tag that says what it counts. Where a box shows a word (“rule”) there is nothing to count.</p>
+    <p>The numbers are taken from the project's files when this page was made. While an update runs, they are counted again each time a step finishes or waits for you, and the boxes change in place.</p>
     <h3>Wires</h3>
     <dl>
-      <dt class="sw solid"></dt><dd>Passed on automatically.</dd>
-      <dt class="sw line"></dt><dd>Handed to or from a person.</dd>
+      <dt class="sw solid"></dt><dd>Records passed on automatically. The label gives how many.</dd>
+      <dt class="sw line"></dt><dd>Records handed to or from a person.</dd>
+      <dt class="sw branchsw"></dt><dd>The same records, also sent on a side path (naming the pattern). Not part of the box's split.</dd>
+      <dt class="sw refsw"></dt><dd>A rule or a list is read. No records travel.</dd>
       <dt class="sw dots"></dt><dd>Not built yet.</dd>
     </dl>
     <h3>Two ways to run it</h3>
     <p>Both need the front end: <code>python mvp/pipeline/run.py serve</code>, then open the address it prints.</p>
     <p><b>Update</b> runs the real pipeline and changes the project's files. While it runs, each box gets a tag: <span class="pill">pending</span> <span class="pill inv">running</span> <span class="pill inv">your turn</span> <span class="pill">done</span> <span class="pill inv">failed</span> <span class="pill">skipped</span> <span class="pill">not built yet</span>. “Your turn” means the run is waiting for you; the panel on the right says what to do.</p>
     <p><b>Test run</b> is a dry run. The same steps run, with the same panel, tags and choices, on a handful of made-up incidents in a scratch folder. Your project's files are not touched and nothing is downloaded. Where a step would wait for Claude Code or for you, Continue puts sample work in place so you can see what happens next; Skip shows what happens without it.</p>
-    <p>A test run is marked everywhere it shows: <span class="testmark">Test run</span> in the panel and the window title, and striped title bars. The numbers on the boxes stay the project's own: a test run's figures are samples and never replace them.</p>
+    <p>A test run is marked everywhere it shows: <span class="testmark">Test run</span> in the panel and the window title, and striped title bars. While its panel is open, the numbers on the boxes are the test run's, counted in its scratch folder: sample figures, not your project's. The window title says so. Close the panel and the boxes show your project's numbers again.</p>
   </div>
 </aside>
 
@@ -521,7 +566,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
 <dialog class="win" id="tsetup" aria-labelledby="tsetuptitle" aria-describedby="tsetuplead">
   <header><span class="testmark">Test run</span><span class="t" id="tsetuptitle">A dry run on made-up incidents</span><button class="closebox" id="tsetupclose" type="button" aria-label="Close without starting"></button></header>
   <form class="body" id="tsetupform" novalidate>
-    <p class="lead" id="tsetuplead">A test run is a real run of every step on a handful of made-up incidents, in a scratch folder. Your project's files are not touched and nothing is downloaded. Where a step would wait for Claude Code or for you, pressing Continue puts sample work in place so you can see what happens next; Skip shows what happens without it.</p>
+    <p class="lead" id="tsetuplead">A test run is a real run of every step on a handful of made-up incidents, in a scratch folder. Your project's files are not touched and nothing is downloaded. Where a step would wait for Claude Code or for you, pressing Continue puts sample work in place so you can see what happens next; Skip shows what happens without it. While the test run's panel is open, the boxes show its sample numbers; closing the panel brings your project's back.</p>
     <fieldset>
       <legend>What to try</legend>
       <label><input type="checkbox" id="trefetch"> Simulate a fresh fetch</label>
@@ -562,17 +607,22 @@ function promptOf(id, fallback) {
 }
 
 // the figures every box draws on, recomputed whenever the data is refreshed
+// The record flow comes from run.py (`map.flow`): one entry per box that counts records,
+// with what comes in, the wires out, what stops there and what waits there. The page
+// only draws it; it never computes a count of its own.
+const EMPTY = { n: 0, in: 0, out: [], stop: [], held: 0, held_label: "", by_source: {}, groups: [], files: [], rule: "" };
+function flowOf(id) {
+  const f = (Array.isArray(M.flow) ? M.flow : []).find(x => x && x.id === id);
+  return f ? Object.assign({}, EMPTY, f) : null;
+}
+const FN = id => flowOf(id) || EMPTY;
+function edgeN(a, b) { const e = (FN(a).out || []).find(x => x && x.to === b); return e ? Number(e.n || 0) : 0; }
+function edgeOf(a, b) { return (FN(a).out || []).find(x => x && x.to === b) || null; }
 function figures() {
-  const qr = O(M.queue_ready), qj = M.queue_judge ? O(M.queue_judge) : null;
-  const judge = qj ? { full: qj.read_full, part: qj.read_part, none: qj.not_read }
-                   : { full: qr.ready, part: qr.provisional, none: qr.not_ready };
-  const judgeable = (judge.full || 0) + (judge.part || 0);
-  const judgeTotal = judgeable + (judge.none || 0);
   const fetchable = has(M, "sources_fetchable") ? M.sources_fetchable : null;
   const snap = O(M.aiid_snapshot);
   const aiidN = has(snap, "records") && snap.records ? snap.records : O(M.records_by_source).aiid;
-  return { judge, judgeable, judgeTotal: qj ? judgeTotal : (M.queue || judgeTotal), fetchable, snap, aiidN,
-           rules: O(M.prefilter_rules), arms: O(M.queue_arms) };
+  return { fetchable, snap, aiidN, rules: O(M.prefilter_rules), arms: O(M.queue_arms) };
 }
 
 // status: run = works today · waiting = built, never run · unbuilt
@@ -586,9 +636,15 @@ function defs() {
   const aiidTxt = F.aiidN ? n(F.aiidN) + " incidents" : "every incident";
   const snapTxt = F.snap.present ? " The saved copy was fetched " + (F.snap.fetched || "on an unrecorded date") + "." : "";
   const enrich = promptOf("readrec", "prompts/enrich_context.v2.md");
+  const fl = id => FN(id), nIn = id => n(fl(id).in);
+  const waiting = id => fl(id).held ? " · " + n(fl(id).held) + " waiting" : "";
+  const st = O(fl("gate1").groups && (fl("gate1").groups[0] || {}));
+  const derivedRows = Array.isArray(st.rows) ? st.rows : [];
+  const sv = s => (derivedRows.find(r => r && r.tech === "status " + s) || {}).n || 0;
   return [
   { id: "sources", kind: "doc", status: "run", by: "doc", x: 30, y: 300, title: "Sources",
-    num: n(M.sources), cap: "places we look",
+    num: n(M.sources), cap: "sources listed" + (has(M, "sources_with_records") ? ", " + n(M.sources_with_records) + " with records" : ""),
+    unit: "Not a record count: sources",
     plain: "The list of places where AI incidents get reported: one large public database, the AI Incident Database (AIID), plus forums, company blogs and other registries. A person keeps the list; the pipeline reads it to know where to look.",
     tech: "mvp/registry/sources.csv. One row per source: role, access_method, adapter, reuse status. Rows with role reference are read for definitions, not for incidents.",
     byNote: "Hand-curated: a person edits the file, nothing writes to it.",
@@ -597,7 +653,7 @@ function defs() {
       .concat(has(M, "sources_fetchable") ? [["Could be read for incidents", M.sources_fetchable]] : [])
       .concat(has(M, "sources_reference") ? [["Reference only, not read for incidents", M.sources_reference]] : []),
     cmd: "mvp/registry/sources.csv" },
-  { id: "discover", status: "unbuilt", by: "script", x: 240, y: 30, title: "Discover",
+  { id: "discover", status: "unbuilt", by: "script", x: 250, y: 30, title: "Discover",
     num: "—", cap: "not built yet: a placeholder",
     plain: ["A placeholder. It would search forums and other registries for incidents the main database never recorded. Most of the incidents we already know of came from such places, so the gap matters, but nothing here runs yet.",
             "An update that asks for it shows this step as “not built yet” and goes on without it. Its one working part is the work orders drawn under it."],
@@ -605,84 +661,88 @@ function defs() {
     byNote: "When built: run.py discover. Today it only writes the work orders.",
     inp: "The list of sources.", out: "New records, once built. Today: only the work orders below.", prod: "mvp/raw/<source>/ (once built)",
     cmd: "python mvp/pipeline/run.py discover" },
-  { id: "orders", kind: "hand", status: "run", by: "person", x: 240, y: 150, title: "Work orders",
-    num: n(M.sources_by_hand), cap: "to-do notes: one per source",
+  { id: "orders", kind: "hand", status: "run", by: "person", x: 250, y: 150, title: "Work orders",
+    num: n(M.sources_by_hand), cap: "to-do notes: one per source", unit: "Not a record count: notes",
     plain: "Part of Discover. Some websites refuse to be read by a program. For each such source (one note per source, not per incident) the pipeline writes a to-do note: what to search for there, where, and what to paste back. A person does the search; what they paste back goes on like any other record.",
     tech: "Sub-step of discover: run.py discover writes mvp/state/work_orders.md, one section per registry row a script cannot read. No longer written by fetch; an update run does not depend on it.",
     byNote: "A script writes the note; a person does what it says.",
     inp: "A source a program cannot read.", out: "What the person found, pasted back in.", prod: "mvp/state/work_orders.md",
     cmd: "python mvp/pipeline/run.py discover" },
-  { id: "fetch", status: "run", by: "script", x: 240, y: 300, title: "Fetch",
-    num: n(M.sources_automatic), cap: fetchCap,
-    plain: ["Downloads an untouched copy of what a source publishes. Of the " + n(F.fetchable != null ? F.fetchable : M.sources) + " sources it could read, only " + n(M.sources_automatic) + " can be downloaded by a program today: the AI Incident Database.",
-            "Its copy holds " + aiidTxt + " plus AIID's own classifications of them. Nothing is changed or tidied here, so there is always an original to go back to." + snapTxt + " An update reuses the saved copy unless you ask to download it again, which needs the AIID token."],
-    tech: "run.py fetch aiid. Dispatches on the registry's adapter column; AIID over GraphQL into mvp/raw/aiid/ (" + aiidTxt + " and their classifications). update reuses the snapshot unless --refetch (needs the token: --token-file).",
+  { id: "fetch", status: "run", by: "script", x: 250, y: 300, title: "Fetch",
+    num: n(fl("fetch").n), cap: "records collected, from " + n(Object.keys(O(fl("fetch").by_source)).length) + " sources",
+    plain: ["Downloads an untouched copy of what a source publishes. The number counts the records collected from every source except the curator's own write-ups, whichever way they arrived.",
+            "Of the " + n(F.fetchable != null ? F.fetchable : M.sources) + " sources it could read, only " + n(M.sources_automatic) + " can be downloaded by a program today: the AI Incident Database. The records of the other sources were copied in by hand earlier, from the to-do notes.",
+            "AIID's copy holds " + aiidTxt + " plus AIID's own classifications of them. Nothing is changed or tidied here, so there is always an original to go back to." + snapTxt + " An update reuses the saved copy unless you ask to download it again, which needs the AIID token."],
+    tech: "run.py fetch aiid. Dispatches on the registry's adapter column; AIID over GraphQL into mvp/raw/aiid/ (" + aiidTxt + " and their classifications). update reuses the snapshot unless --refetch (needs the token: --token-file). The count: records of every source but manual, from latest_records().",
     inp: "A source that a program can read.", out: "An untouched copy, kept as it arrived.", prod: "mvp/raw/aiid/",
-    facts: F.snap.present ? [["Saved AIID copy, fetched", F.snap.fetched || "date not recorded"], ["Incidents in it", F.snap.records]] : [],
+    facts: F.snap.present ? [["Saved AIID copy, fetched", F.snap.fetched || "date not recorded"], ["Incidents in the saved AIID copy", F.snap.records]] : [],
     cmd: "python mvp/pipeline/run.py fetch aiid" },
-  { id: "manual", kind: "hand", status: M.manual ? "run" : "waiting", by: "person", x: 240, y: 445, title: "Add by hand",
-    num: n(M.manual), cap: "incidents added by hand",
+  { id: "manual", kind: "hand", status: M.manual ? "run" : "waiting", by: "person", x: 250, y: 450, title: "Add by hand",
+    num: n(fl("manual").n), cap: "records added by hand",
     plain: ["You, the curator, point the pipeline at a folder of your own write-ups in plain text: one file per incident, or several in one file separated by ## headings.",
-            "These skip the prefilter and the reading checkpoint. They arrive at the checkpoint already in scope, on your word: you are the person who vouches for them. A dossier is still written by hand, and it cannot be marked fully verified on your write-up alone."],
+            "Each becomes a record like any other. The prefilter queues it on your word, with no rule needed, and it skips both readings: it goes straight to “Ready to judge”, in scope on your word. You are the person who vouches for it. A dossier is still written by hand, and it cannot be marked fully verified on your write-up alone."],
     tech: "update --manual DIR. Verbatim copies to mvp/raw/manual/; records to mvp/records/manual.jsonl (meta.manual = true, meta.origin_path); queue arm manual; context row in mvp/context/manual.jsonl with manual: true, agent_count several, read depth curator. readiness: scope ready; evidence type, failure mode and instances provisional. check refuses verification: verified on a curator reading.",
     byNote: "You write the files; run.py update --manual copies them in.",
     inp: "A folder of .txt or .md files.", out: "Records marked as added by hand, already in scope.", prod: "mvp/records/manual.jsonl",
     cmd: "python mvp/pipeline/run.py update --manual DIR" },
-  { id: "normalise", status: "run", by: "script", x: 450, y: 300, title: "Normalise",
-    num: n(M.records), cap: "records",
+  { id: "normalise", status: "run", by: "script", x: 490, y: 300, title: "Normalise",
+    num: n(fl("normalise").n), cap: "records, all sources",
     plain: "Every source describes incidents in its own layout. This step copies them into one common layout and gives each a fingerprint, so if a source later edits an entry, we notice.",
     tech: "run.py normalise. mvp/records/<source>.jsonl, append-only, content-hashed, keyed (source_id, source_record_id).",
     inp: "Untouched copies.", out: "Records: one per incident report, all in the same shape.", prod: "mvp/records/<source>.jsonl",
-    facts: Object.entries(O(M.records_by_source)), cmd: "python mvp/pipeline/run.py normalise aiid" },
-  { id: "prefilter", status: "run", by: "script", x: 660, y: 300, title: "Prefilter",
-    num: n(M.queue), cap: "candidates kept",
-    plain: "A wide, cheap net. It keeps any record that meets at least one of three rules, listed below with how many records each caught. Most of what it keeps will turn out to be irrelevant; the point is not to miss anything. The rules are written in the code, in " + where + ".",
-    tech: "run.py prefilter. Union of three arms: label, keyword, unclassified. Records already behind a dossier are left out. Writes mvp/state/queue.jsonl. Rules in " + where + ".",
+    cmd: "python mvp/pipeline/run.py normalise aiid" },
+  { id: "prefilter", status: "run", by: "script", x: 730, y: 300, title: "Prefilter",
+    num: n(fl("prefilter").n), cap: "candidates queued, of " + nIn("prefilter") + " records",
+    plain: ["Every record goes one of three ways. A record a dossier already covers goes straight to the dossiers. Any other record that meets at least one of three rules is queued as a candidate. The rest are not queued.",
+            "The rules are a wide, cheap net: most of what it keeps will turn out to be irrelevant; the point is not to miss anything. They are written in the code, in " + where + ". Records added by hand are queued on the curator's word and go straight to “Ready to judge”."],
+    tech: "run.py prefilter. Union of three arms: label, keyword, unasked; arm manual for records added by hand. Records already behind a dossier (dossier_source_refs) are left out. Writes mvp/state/queue.jsonl. Rules in " + where + ".",
     inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "mvp/state/queue.jsonl",
-    facts: [["Rule 1 · Tagged by someone else", F.arms.label], ["Rule 2 · Matched a keyword", F.arms.keyword], ["Rule 3 · Recent, nobody looked", F.arms.unclassified]],
     extra: prefilterRules, cmd: "python mvp/pipeline/run.py prefilter" },
+  { id: "notqueued", kind: "end", status: "run", by: "script", x: 510, y: 150, title: "Not queued",
+    num: n(fl("notqueued").n), cap: "records no rule caught",
+    plain: "An end point. Records that no prefilter rule caught and that no dossier covers stop here. They stay in mvp/records/; the next prefilter looks at them again, so a new tag or a new keyword can still queue them.",
+    tech: "Records neither in mvp/state/queue.jsonl nor in dossier_source_refs(). Recomputed by every prefilter.",
+    byNote: "run.py prefilter leaves them out.",
+    inp: "A record no rule caught.", out: "Nothing further. The record is kept.", prod: "mvp/records/<source>.jsonl",
+    cmd: "python mvp/pipeline/run.py prefilter" },
 
-  { id: "readrec", status: "waiting", by: "model", x: 870, y: 300, title: "Read the record",
-    num: n(M.queue_single), cap: "one agent only: out of scope",
+  { id: "readrec", status: "waiting", by: "model", x: 990, y: 300, title: "Read the record",
+    num: n(fl("readrec").n) + " read", cap: "so far, of " + nIn("readrec") + " candidates" + waiting("readrec"),
     plain: ["Reads the short record and asks one question first: how many agents are acting here?",
             "The unit is the agent, not the system or the company. One product, one platform or one operator can hold several agents, and such a record counts as several.",
             "A named system whose insides the record does not describe is “cannot tell”, and its source is read next.",
             "Only when the text plainly shows one agent (one chatbot conversation, one generated fake) or none is the record out of scope. A record that someone else tagged, or that matched a keyword, is never dismissed from its short text alone: its source is read first."],
-    tech: "Enrichment, record pass: " + enrich + " on the record text; sets agent_count (none | one | several | unknown) and attack. Unit per definitions.md § What counts as an agent: one principal is not one agent; unknown is the default for a named system with undescribed internals. Shortcut to out of scope at depth record only for records queued by the unclassified arm alone; a label- or keyword-flagged record needs a secondary-or-better reading to confirm one or none.",
+    tech: "Enrichment, record pass: " + enrich + " on the record text; sets agent_count (none | one | several | unknown) and attack. Unit per definitions.md § What counts as an agent: one principal is not one agent; unknown is the default for a named system with undescribed internals. Shortcut to out of scope at depth record only for records queued by the unasked arm alone; a label- or keyword-flagged record needs a secondary-or-better reading to confirm one or none. The count: queued records (not added by hand) with a context row; waiting: no context row.",
     byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, record pass.",
     inp: "A candidate.", out: "A first note: one agent, several, or cannot tell.", prod: "mvp/context/<source>.jsonl",
-    facts: has(M, "queue_single_flagged") ? [["Look single-agent but were flagged: source still to be read", M.queue_single_flagged]] : [],
     cmd: "/classify-incidents  (step 0, record pass)" },
-  { id: "readsrc", status: "waiting", by: "model", x: 1130, y: 150, title: "Read the source",
-    num: n(M.context_rows), cap: "readings so far",
-    plain: "For every record that might involve several agents, could not be told, or was flagged, opens the original article or report and writes down what it says about seven facts, with exact quotes, and how much of it was read. If the source shows one agent after all, the record goes to “out of scope”.",
-    tech: "Enrichment, source pass: " + enrich + ". Writes mvp/context/<source>.jsonl: seven facts, each stated / not_stated / unread, plus read depth (record < secondary < curator < primary_partial < primary_full).",
+  { id: "readsrc", status: "waiting", by: "model", x: 1250, y: 300, title: "Read the source",
+    num: n(fl("readsrc").n) + " read", cap: "so far, of " + nIn("readsrc") + " sent on" + waiting("readsrc"),
+    plain: ["For every record that might involve several agents, could not be told, or was flagged, opens the original article or report and writes down what it says about seven facts, with exact quotes, and how much of it was read. If the source shows one agent after all, the record goes to “out of scope”; if the facts are settled, it is ready to judge.",
+            "The number counts the records whose best reading goes deeper than the record's own text. The others wait here for somebody to read their source."],
+    tech: "Enrichment, source pass: " + enrich + ". Writes mvp/context/<source>.jsonl: seven facts, each stated / not_stated / unread, plus read depth (record < secondary < curator < primary_partial < primary_full). The count: records sent on whose best_depth() is above record; waiting: best_depth() record or unreadable, or a needed fact still unread.",
     byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, source pass. Sites that block programs are read by a person.",
     inp: "A candidate that might involve several agents.", out: "A reading: the facts, the quotes, how deeply it was read.", prod: "mvp/context/<source>.jsonl",
     cmd: "/classify-incidents  (step 0, source pass)" },
-  { id: "outscope", kind: "end", status: "run", by: "rule", x: 868, y: 150, title: "Out of scope",
-    num: n(M.queue_single), cap: "one agent only",
+  { id: "outscope", kind: "end", status: "run", by: "rule", x: 1050, y: 150, title: "Out of scope",
+    num: n(fl("outscope").n), cap: "out of scope: one agent or none",
     plain: "An end point. Records that plainly show one agent, or none, stop here: they cannot be multi-agent incidents. They are not judged further and get no dossier. Their reading stays in mvp/context/ so the decision can be checked later.",
     tech: "readiness: scope not_needed when agent_count is one or none, agents stated, and (not flagged, or best read depth above record). Not counted in “can be judged”.",
     byNote: "run.py readiness applies the rule to the reading.",
     inp: "A record settled as one agent only.", out: "Nothing further. The reading is kept.", prod: "mvp/context/<source>.jsonl",
-    facts: has(M, "queue_single_flagged") ? [["Not here yet: look single-agent but flagged", M.queue_single_flagged]] : [],
     cmd: "python mvp/pipeline/run.py readiness" },
-  { id: "ready", status: "run", by: "script", x: 1340, y: 300, title: "Ready?",
-    num: n(F.judgeable) + " of " + n(F.judgeTotal), cap: "enough is known to decide",
+  { id: "ready", status: "run", by: "script", x: 1500, y: 300, title: "Ready to judge",
+    num: n(fl("ready").n), cap: "ready to judge",
     plain: ["A checkpoint. “Ready” means enough is known to decide about a record. It does not mean the record is in scope: many ready records will be judged out.",
             "Two cases look alike and are not. Say the question is whether two bots exchanged messages.",
             "The source was read and does not say. The article was read in full and never mentions it. That is a finding: the answer is “unclear”, and the record can be judged.",
             "Nobody opened the source. Only the two-line summary has been seen. There is no answer yet, not even “unclear”, so the record waits here until somebody reads it."],
     tech: "run.py readiness. Per decision: ready / provisional / not_ready / not_needed, from mvp/context/. A fact not_stated resolves (→ unclear); a fact unread does not. Records settled one/none are excluded from these counts. Manual rows: scope ready on the curator's word. Enforced by the skill, by promote and by check.",
     inp: "A candidate and its reading.", out: "The candidates with enough behind them to be judged.", prod: "mvp/state/readiness.jsonl",
-    facts: [["Read in full", F.judge.full], ["Read in part: judged, marked as resting on that", F.judge.part], ["Nobody read the source yet: waiting", F.judge.none]]
-      .concat(has(M, "manual") ? [["Added by hand: in scope on the curator's word", M.manual]] : [])
-      .concat([["One agent only: not counted, out of scope", M.queue_single]]),
     cmd: "python mvp/pipeline/run.py readiness" },
 
-  { id: "taxonomy", kind: "doc", status: "run", by: "doc", x: 30, y: 920, title: "Rulebook",
-    num: n(M.instances), cap: "named patterns",
+  { id: "taxonomy", kind: "doc", status: "run", by: "doc", x: 30, y: 860, title: "Rulebook",
+    num: n(M.instances), cap: "named patterns in the rulebook", unit: "Not a record count: rulebook size",
     plain: ["The definitions everything is judged against. It holds: what counts as an agent; the two gates (is it multi-agent, and what kind of failure); the three failure types and the risk factors from a 2025 paper by Hammond and colleagues; which of them go together; the four kinds of evidence; and " + n(M.instances) + " named patterns.",
             "Of the named patterns, 33 come from the paper and 3 were written by this project for cases the paper does not name."],
     tech: "mvp/docs/definitions.md and mvp/taxonomy/: risks.csv (failure modes FM1–3, risk factors RF1–7), instances.csv (33 hammond_table_1, 3 ours), associations.csv (FM–RF links, from Hammond only), evidence_types.csv. Hand-curated.",
@@ -690,88 +750,82 @@ function defs() {
     inp: "The paper, read by a person.", out: "The definitions.", prod: "mvp/docs/definitions.md · mvp/taxonomy/",
     facts: [["Failure types and risk factors", M.risks], ["Named patterns", M.instances], ["From the paper", 33], ["Written by this project", 3]],
     cmd: "mvp/docs/definitions.md" },
-  { id: "extract", status: "waiting", by: "model", x: 30, y: 700, title: "Extract facts",
-    num: n(M.proposals), cap: "records processed",
+  { id: "extract", status: "waiting", by: "model", x: 30, y: 680, title: "Extract facts",
+    num: n(fl("extract").n), cap: "records with facts extracted" + waiting("extract"),
     plain: "An AI model reads the record and its reading and fills in a form: how many agents, did they act on each other, did they cooperate, were their goals the same. It is told not to give a verdict, only facts with quotes.",
-    tech: "Classifier call 1: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Only for records whose scope is ready or provisional.",
+    tech: "Classifier call 1: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Only for records whose scope is ready or provisional. The count: distinct ready records with an extract_gate proposal (newest row per record), not proposal lines.",
     byNote: "Instructions: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Run in Claude Code: /classify-incidents, call 1.",
     inp: "A ready candidate and its reading.", out: "A filled-in form of facts.", prod: "mvp/proposals/",
     cmd: "/classify-incidents  (call 1)" },
-  { id: "gate1", status: "waiting", by: "rule", x: 250, y: 700, title: "Gate 1 · In scope?",
-    num: "rule", cap: "needs more than one agent",
-    plain: "A fixed rule applied to the form, not a judgement call. An incident is in scope only if the harm needed more than one agent: something a single agent, however capable, could not have done alone. An attack by a fleet of agents counts, unless the source shows the crowd made no difference.",
-    tech: "could_not AND interaction_present; on a security record, multiplicity_role load_bearing or unreported resolves to could_not. Specified in definitions.md and classifiers.md; not yet written as code.",
-    byNote: "Applied to the extracted facts. The rule is written down; the code for it is not written yet.",
-    inp: "The facts.", out: "In scope, out of scope, or unclear.", prod: "mvp/proposals/",
-    cmd: "mvp/docs/definitions.md § Gate 1" },
-  { id: "gate2", status: "waiting", by: "rule", x: 250, y: 830, title: "Gate 2 · What failed?",
+  { id: "gate1", status: (fl("gate1").n ? "run" : "waiting"), by: "rule", x: 270, y: 680, title: "Derive · Gate 1",
+    num: n(fl("gate1").n), cap: "labelled by the rules: " + n(sv("in_scope")) + " in · " + n(sv("out_of_scope")) + " out · " + n(sv("review")) + " need a person" + waiting("gate1"),
+    plain: ["A fixed rule applied to the form, not a judgement call. An incident is in scope only if the harm needed more than one agent: something a single agent, however capable, could not have done alone. An attack by a fleet of agents counts, unless the source shows the crowd made no difference.",
+            "Each record gets one of three answers: settled in scope, settled out of scope, or “needs a person” when the model was unsure or a fact is unclear. All three go to a person; none of them is final."],
+    tech: "run.py derive applies pipeline/derive.py to the newest extract_gate proposal of each record and writes mvp/state/verdicts.jsonl (status in_scope | out_of_scope | review). Gate 1: could_not AND interaction_present; on a security record, multiplicity_role load_bearing or unreported resolves to could_not.",
+    byNote: "run.py derive applies pipeline/derive.py to the extracted facts.",
+    inp: "The facts.", out: "In scope, out of scope, or needs a person.", prod: "mvp/state/verdicts.jsonl",
+    cmd: "python mvp/pipeline/run.py derive" },
+  { id: "gate2", status: "waiting", by: "rule", x: 270, y: 810, title: "Gate 2 · What failed?",
     num: "rule", cap: "one of three, or none",
     plain: "Picks the kind of failure, or none. Collusion: the agents worked together when they were not supposed to. Miscoordination: same goal, but they got in each other’s way. Conflict: partly shared goals, and everyone ended up worse off. It never throws an incident out; Gate 1 already decided that.",
     tech: "cooperation_occurred AND unexpected → FM3; otherwise objective_relation: identical → FM1, mixed → FM2, opposing → none.",
     byNote: "Applied to the extracted facts.",
     inp: "The facts.", out: "A failure type, or none.", prod: "mvp/proposals/",
     cmd: "mvp/docs/definitions.md § Gate 2" },
-  { id: "evtype", status: "waiting", by: "rule", x: 250, y: 960, title: "Evidence type",
+  { id: "evtype", status: "waiting", by: "rule", x: 270, y: 940, title: "Evidence type",
     num: "rule", cap: "where it happened",
     plain: "Says what kind of evidence this is: it happened in the real world, in a simulation somebody built, in a narrow lab test, or only as an argument on paper.",
     tech: "From setting, stakes and environment_controlled_by: real_world / synthetic / lab / theoretical.",
     byNote: "Applied to the extracted facts.",
     inp: "The facts.", out: "One of four labels.", prod: "mvp/proposals/",
     cmd: "mvp/taxonomy/evidence_types.csv" },
-  { id: "instances", status: "waiting", by: "model", x: 510, y: 700, title: "Name the pattern",
-    num: n(M.instances), cap: "patterns to match against",
+  { id: "instances", status: "waiting", by: "model", x: 520, y: 1000, title: "Name the pattern",
+    num: n(fl("instances").n), cap: "with a pattern proposed, of " + nIn("instances") + " in scope" + waiting("instances"),
     plain: ["The finer description under a label. For an in-scope incident, a model says which of the paper's named patterns it shows, for example “Swarm Attacks”, and must quote the words that show each.",
-            "What it is for: later, to show which of the paper's named patterns have real incidents behind them and which have none. It does not decide whether an incident is in scope, nor its failure type. Nothing uses its output yet."],
-    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. No downstream consumer yet. An attack with unreported multiplicity gets I28 and I29 as presumed.",
+            "What it is for: later, to show which of the paper's named patterns have real incidents behind them and which have none. It does not decide whether an incident is in scope, nor its failure type. Nothing uses its output yet.",
+            "A side path: the records that come in here, in scope by the rules or by a person, also go on along the main path. They are counted there too, so this box is not part of any split. A record whose dossier already lists its patterns needs no proposal."],
+    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. No downstream consumer yet. An attack with unreported multiplicity gets I28 and I29 as presumed. In: records with verdict in_scope and no dossier, plus records of dossiers with multi_agent true and label source ours. The count: those with an assign_instances proposal; waiting: neither a proposal nor instances in the dossier (instances_due).",
     byNote: "Instructions: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Run in Claude Code: /classify-incidents, call 2.",
     inp: "An in-scope incident and the rulebook.", out: "Pattern names with quotes.", prod: "mvp/proposals/",
     cmd: "/classify-incidents  (call 2)" },
-  { id: "proposals", kind: "doc", status: "waiting", by: "doc", x: 730, y: 830, title: "Proposals",
-    num: n(M.proposals), cap: "suggestions waiting",
-    plain: "Everything the models and rules suggest lands here. Think of it as a suggestion box: nothing in it counts until a person agrees.",
-    tech: "mvp/proposals/<prompt>.<date>.jsonl. Never authoritative.",
-    byNote: "Written by the classifier run; read by a person.",
-    inp: "Labels from the rules and the pattern pass.", out: "Suggestions for a person to review.", prod: "mvp/proposals/",
-    cmd: "mvp/proposals/" },
-  { id: "review", kind: "hand", status: "run", by: "person", x: 940, y: 830, title: "Human review",
-    num: n(M.dossiers), cap: "incidents decided by a person",
-    plain: "A person reads the original source, checks the suggestion and decides. Only a person can put an incident into the index. A machine or somebody else’s tag can only nominate one.",
+  { id: "review", kind: "hand", status: "run", by: "person", x: 780, y: 680, title: "Human review",
+    num: n(fl("review").n), cap: "labelled records for a person · " + n(edgeN("review", "dossiers")) + " promoted" + waiting("review"),
+    plain: ["A person reads the original source, checks the suggestion and decides. Only a person can put an incident into the index. A machine or somebody else’s tag can only nominate one.",
+            "Every record the rules labelled comes here, whatever the label. It leaves when a person writes it up in a dossier; until then it waits."],
     tech: "run.py promote <source_id>:<record_id> scaffolds a dossier; refuses a record that is not ready unless --force.",
     byNote: "run.py promote makes the blank file; the person fills it in.",
     inp: "A suggestion, or a record added by hand.", out: "A decision, written up as a dossier.", prod: "mvp/incidents/<ID>.md",
-    cmd: "python mvp/pipeline/run.py promote aiid:1731" },
-  { id: "dossiers", kind: "doc", status: "run", by: "person", x: 1150, y: 830, title: "Dossiers",
-    num: n(M.dossiers), cap: "incident files",
+    extra: reviewGuide, cmd: "python mvp/pipeline/run.py promote aiid:1731" },
+  { id: "dossiers", kind: "doc", status: "run", by: "person", x: 1030, y: 680, title: "Dossiers",
+    num: n(fl("dossiers").n), cap: "records in " + n(M.dossiers) + " dossiers",
     plain: ["One file per incident a person has judged: in scope, out of scope or unclear. It says what happened, how, which agents were involved, and how well it was checked against the original source.",
-            "Candidates that have only been read, not judged, have no dossier: their reading stays in mvp/context/."],
-    tech: "mvp/incidents/<ID>.md. YAML frontmatter plus seven fixed sections. Hand-edited. multi_agent_label_source: ours only by a human verdict.",
+            "The number counts records, not files: one dossier can list the same incident as told by two sources. Candidates that have only been read, not judged, have no dossier: their reading stays in mvp/context/."],
+    tech: "mvp/incidents/<ID>.md. YAML frontmatter plus seven fixed sections. Hand-edited. multi_agent_label_source: ours only by a human verdict. The count: records listed in a dossier's sources (dossier_source_refs ∩ records).",
     byNote: "Written and edited by hand.",
     inp: "A person’s decision.", out: "The curated record.", prod: "mvp/incidents/<ID>.md",
-    facts: [["In scope", ds.in], ["Out of scope", ds.out], ["Unclear", ds.unclear],
-            ["Fully verified", dv.verified], ["Partly verified", dv.partially_verified], ["Not verified", dv.unverified]],
     cmd: "mvp/incidents/" },
-  { id: "check", status: "run", by: "script", x: 1360, y: 750, title: "Check",
-    num: "pass", cap: "automatic inspection",
+  { id: "check", status: "run", by: "script", x: 1280, y: 680, title: "Check",
+    num: n(fl("check").n), cap: "records checked on the way to the index",
     plain: "An automatic inspection that must pass before anything is saved. It fails if a file is malformed, if a verdict has no reading behind it, or if a machine’s tag was treated as a final answer.",
     tech: "run.py check. Must exit 0. Validates dossiers, vocabularies, the context layer and label provenance.",
     inp: "All the incident files.", out: "Pass, or a list of problems.", prod: "nothing: it only reports",
     cmd: "python mvp/pipeline/run.py check" },
-  { id: "index", kind: "doc", status: "run", by: "script", x: 1360, y: 910, title: "Index",
-    num: n(M.dossiers), cap: "rows in the finished table",
+  { id: "index", kind: "doc", status: "run", by: "script", x: 1530, y: 680, title: "Index",
+    num: n(fl("index").n), cap: "records in " + n(M.dossiers) + " rows of the finished table",
     plain: "The finished table of incidents, rebuilt from the incident files every time. This is what the rest of the project reads.",
     tech: "run.py index. mvp/out/incident_index.csv. Generated; never edited by hand.",
     inp: "All the incident files.", out: "One table.", prod: "mvp/out/incident_index.csv",
     cmd: "python mvp/pipeline/run.py index" },
-  { id: "gold", kind: "doc", status: "run", by: "person", x: 730, y: 1090, title: "Answer key",
-    num: n(gold.rows), cap: "records judged with care",
+  { id: "gold", kind: "doc", status: "run", by: "person", x: 1280, y: 940, title: "Answer key",
+    num: n(gold.rows), cap: "records judged with care", unit: "A separate set of records, off the path",
     plain: "A small set of records that a person judged carefully from the original sources. It works like an exam answer key: the models’ suggestions are marked against it.",
     tech: "mvp/gold/multiagent_gold.csv. Four strata; ids are permanent (gold_ids.csv).",
     byNote: "Judged by hand; build_review.py only makes the worksheet.",
     inp: "Original sources, read by a person.", out: "The right answers.", prod: "mvp/gold/multiagent_gold.csv",
     facts: [["In scope", gold.in], ["Out of scope", gold.out], ["Unclear", gold.unclear]],
     cmd: "python mvp/gold/build_review.py" },
-  { id: "score", status: "waiting", by: "script", x: 940, y: 1090, title: "Score",
-    num: pct(gold.ceiling), cap: "earlier hand work, for comparison",
+  { id: "score", status: "waiting", by: "script", x: 1030, y: 940, title: "Score",
+    num: pct(gold.ceiling), cap: "earlier hand work, for comparison", unit: "Not a record count: a share",
     plain: "Marks the models’ suggestions against the answer key. The models have not run yet, so the only score so far is for the project’s own earlier hand-picked list: of the incidents it called multi-agent, this share survived a careful second look.",
     tech: "mvp/gold/score_gate1.py. Precision of earlier curation on " + n(gold.ceiling_n) + " scorable rows. No classifier score exists.",
     inp: "Suggestions and the answer key.", out: "How often the models are right.", prod: "mvp/out/gate1_accuracy.json",
@@ -793,46 +847,86 @@ function prefilterRules(box) {
     li2.appendChild(document.createTextNode("The title or text contains one of these terms" + (wording === "plain" ? " (written as patterns: “?” means the letter before it is optional, “|” means “or”, \\b marks a word edge):" : ", case-insensitive regular expressions:")));
     const t = el("div", "terms"); R.keywords.forEach(k => t.appendChild(el("code", "", k))); li2.appendChild(t);
   } else li2.appendChild(document.createTextNode("The title or text contains a word like “agents”, “swarm” or “collusion”. The full list is in the code."));
-  const li3 = el("li"); li3.appendChild(el("b", "", "Recent, nobody looked (" + n(A.unclassified) + "). "));
+  const li3 = el("li"); li3.appendChild(el("b", "", "Unasked: nobody asked the multi-agent question (" + n(A.unasked) + "). "));
   li3.appendChild(document.createTextNode(R.cutoff
-    ? "Dated " + R.cutoff + " or later, and nobody has classified it yet. Unscreened is not the same as negative."
-    : "Recent (after the cutoff date in the code) and nobody has classified it yet."));
+    ? "An AIID record dated " + R.cutoff + " or later that none of AIID's classifications asked whether several AIs were involved. Unscreened is not the same as negative."
+    : "A recent AIID record (after the cutoff date in the code) that none of AIID's classifications asked whether several AIs were involved."));
   [li1, li2, li3].forEach(l => ol.appendChild(l)); box.appendChild(ol);
-  box.appendChild(el("p", "note", "A record caught by rule 1 or 2 is “flagged”: it is never dismissed from its short text alone."));
+  box.appendChild(el("p", "note", "A record can meet several rules, so the three counts add up to more than the candidates. A record caught by rule 1 or 2 is “flagged”: it is never dismissed from its short text alone."));
   box.appendChild(el("p", "", "Where the rules live:")); box.appendChild(el("code", "", R.where || "mvp/pipeline/run.py"));
 }
 
-// from, to, label, kind (hand | unbuilt), sides: r>l by default, or two of r l t b
+// How a person fills in a dossier: shown on the Human review box and on the Review
+// step's waiting card. One copy, so the two never disagree. The rules behind it are in
+// CLAUDE.md § Rules and mvp/docs/input_layer.md; run.py check enforces them.
+function reviewGuide(box) {
+  const line = (parts, tag) => { const p = el(tag || "p"); parts.forEach(x => p.appendChild(Array.isArray(x) ? el(x[0], "", x[1]) : document.createTextNode(x))); return p; };
+  box.appendChild(el("h3", "", "How to fill in a dossier"));
+  const ol = el("ol");
+  [
+    ["Make the file: ", ["code", "python mvp/pipeline/run.py promote <source_id>:<record_id>"], " writes a blank dossier in mvp/incidents/. Open it in a text editor."],
+    ["Read the original source, not only the summary or the machine’s suggestion."],
+    ["Decide the scope, and say it was you: ", ["code", "multi_agent_label_source: ours"], ", with one sentence of reasons in ", ["code", "multi_agent_basis"], "."],
+  ].forEach(parts => ol.appendChild(line(parts, "li")));
+  box.appendChild(ol);
+  const scope = el("ul", "scope");
+  [[["b", "In scope: "], ["code", "multi_agent: true"], ". Two or more AI agents, and the harm came from them acting on each other."],
+   [["b", "Out of scope: "], ["code", "multi_agent: false"], ". One agent, or many doing what one could have done. Also set ", ["code", "failure_mode: null"], " and ", ["code", "instances: []"], "."],
+   [["b", "Can’t tell: "], ["code", "multi_agent: null"], ". The source was read and does not say."]]
+    .forEach(parts => scope.appendChild(line(parts, "li")));
+  box.appendChild(scope);
+  box.appendChild(el("p", "note", "A blank dossier from promote starts at multi_agent: false with no label source. Set all three fields yourself, even when the answer is false."));
+  const ol2 = el("ol"); ol2.start = 4;
+  [
+    ["If in scope: check ", ["code", "failure_mode"], " and set ", ["code", "failure_mode_source: ours"], "; check ", ["code", "evidence_type"], " and ", ["code", "instances"], ". Keep only the patterns the source shows in its own words."],
+    ["Say how well you checked it: ", ["code", "verification"], " is verified, partially_verified or unverified; ", ["code", "last_verified"], " is today’s date; under ", ["code", "## Verification notes"], " write what you read and what you found."],
+    ["Run ", ["code", "python mvp/pipeline/run.py check"], ". It must pass."],
+  ].forEach(parts => ol2.appendChild(line(parts, "li")));
+  box.appendChild(ol2);
+  box.appendChild(el("p", "note", "Out of scope does not delete anything. The dossier stays and the index lists it as out of scope: it records that someone looked, and why it was turned away."));
+  box.appendChild(el("p", "note", "An incident you added by hand is in scope on your word, but your write-up alone is never “verified”: leave it unverified unless you check it against an outside source."));
+  box.appendChild(el("p", "note", "Only a person writes “ours”. A machine’s suggestion or another database’s tag can nominate an incident, never put it in; the check refuses a dossier that tries."));
+}
+
+// from, to, label, kind (hand | unbuilt | ref | branch), sides: r>l by default, or two of r l t b.
+// A wire that carries records takes its count from the flow; a `ref` wire carries none.
 function wireDefs() {
-  const F = figures();
+  const c = (a, b, kind, sides) => {
+    const e = edgeOf(a, b);
+    return [a, b, e ? n(e.n) + " " + (e.label || "") : "", (e && e.branch ? "branch" : kind || ""), sides];
+  };
   return [
-    ["sources", "fetch"], ["sources", "discover"],
-    ["discover", "orders", "one note per source", "hand", "bt"], ["orders", "normalise", "pasted back", "hand"],
+    ["sources", "fetch", "", "ref"], ["sources", "discover", "", "ref"],
+    ["discover", "orders", "one note per source", "hand ref", "bt"], ["orders", "normalise", "pasted back", "hand ref"],
     ["discover", "normalise", "", "unbuilt"],
-    ["fetch", "normalise"],
-    ["normalise", "prefilter"],
-    ["prefilter", "readrec"],
-    ["readrec", "readsrc", "several, cannot tell, or flagged"],
-    ["readrec", "outscope", "one agent: out of scope", "", "tb"],
-    ["readsrc", "outscope", "confirms one agent", "", "lr"],
-    ["readsrc", "ready", n(M.context_rows) + " readings"],
-    ["manual", "ready", "added by hand: in scope on the curator's word", "hand", "bb"],
-    ["ready", "extract", n(F.judgeable) + " ready to judge", "", "bt"],
-    ["taxonomy", "extract", "", "", "tb"],
-    ["extract", "gate1", "facts"], ["extract", "gate2"], ["extract", "evtype"],
-    ["gate1", "instances", "in scope only"],
-    ["instances", "proposals"], ["gate1", "proposals"], ["gate2", "proposals"], ["evtype", "proposals"],
-    ["proposals", "review", "", "hand"], ["review", "dossiers", "", "hand"],
-    ["dossiers", "check"], ["dossiers", "index"],
-    ["proposals", "score", "", "", "bt"], ["gold", "score"],
+    c("fetch", "normalise"),
+    c("manual", "normalise", "hand"),
+    c("normalise", "prefilter"),
+    c("prefilter", "notqueued", "", "tb"),
+    c("prefilter", "readrec"),
+    c("prefilter", "ready", "hand", "bb"),
+    c("prefilter", "dossiers", "", "bt"),
+    c("readrec", "outscope", "", "tb"),
+    c("readrec", "readsrc"),
+    c("readsrc", "outscope", "", "tr"),
+    c("readsrc", "ready"),
+    c("ready", "extract", "", "bt"),
+    ["taxonomy", "extract", "", "ref", "tb"],
+    c("extract", "gate1"), ["extract", "gate2", "", "ref"], ["extract", "evtype", "", "ref"],
+    c("gate1", "review", "hand"),
+    c("gate1", "instances", "branch"),
+    c("review", "dossiers", "hand"),
+    c("dossiers", "check"), c("check", "index"),
+    c("dossiers", "instances", "branch", "bt"),
+    ["gate1", "score", "", "ref"], ["gold", "score", "", "ref", "lr"],
   ];
 }
 
 const GROUPS = [
-  ["1 · Collect", ["sources", "discover", "orders", "fetch", "manual", "normalise", "prefilter"]],
+  ["1 · Collect", ["sources", "discover", "orders", "fetch", "manual", "normalise", "prefilter", "notqueued"]],
   ["Discover · not built", ["discover", "orders"], "sub"],
   ["2 · Read", ["readrec", "readsrc", "outscope", "ready"]],
-  ["3 · Judge", ["taxonomy", "extract", "gate1", "gate2", "evtype", "instances", "proposals"]],
+  ["3 · Judge", ["taxonomy", "extract", "gate1", "gate2", "evtype", "instances"]],
   ["4 · Record", ["review", "dossiers", "check", "index"]],
   ["Test", ["gold", "score"]],
 ];
@@ -847,7 +941,7 @@ const byId = {}, picked = new Set(); let wording = "plain", zoom = 1, selected =
 const STATUS = { run: "Works today", waiting: "Built, not yet run", unbuilt: "Not built yet: a placeholder" };
 const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
                 set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const LAYOUT = "patch-layout-3", saved = store.get(LAYOUT) || {};
+const LAYOUT = "patch-layout-4", saved = store.get(LAYOUT) || {};
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
@@ -860,11 +954,12 @@ const frames = GROUPS.map(([title, ids, sub]) => {
 
 function ariaOf(nd) { return nd.title + ". " + STATUS[nd.status] + ". Run by " + BY[nd.by][1].toLowerCase() + ". " + nd.num + " " + nd.cap; }
 NODES.forEach(nd => {
-  const e = el("div", "node " + (nd.kind || "proc") + " " + nd.status);
+  const e = el("div", "node " + (nd.kind || "proc") + " " + nd.status + (nd.unit ? " meta" : ""));
   e.tabIndex = 0; e.setAttribute("role", "button");
   e.setAttribute("aria-label", ariaOf(nd));
   const t = el("div", "nt"); t.appendChild(el("span", "", nd.title)); e.appendChild(t);
   const b = el("div", "nb"); b.appendChild(el("div", "num", nd.num)); b.appendChild(el("div", "cap", nd.cap));
+  b.appendChild(el("div", "unit", nd.unit || ""));
   b.appendChild(el("div", "by", "Run by: " + BY[nd.by][0])); e.appendChild(b);
   e.appendChild(el("div", "rsb"));
   const p = saved[nd.id] || nd; e.style.left = p.x + "px"; e.style.top = p.y + "px";
@@ -899,8 +994,8 @@ const wires = wireDefs().map(([a, b, label, kind, sides]) => {
   const path = document.createElementNS(NS, "path"); path.setAttribute("class", "wire " + (kind || ""));
   svg.appendChild(path);
   let text = null;
-  if (label) { text = document.createElementNS(NS, "text"); text.setAttribute("class", "wlabel"); text.setAttribute("text-anchor", "middle"); text.textContent = label; svg.appendChild(text); }
-  return { key: a + ">" + b, a: byId[a], b: byId[b], path, text, sides: sides || "rl" };
+  text = document.createElementNS(NS, "text"); text.setAttribute("class", "wlabel"); text.setAttribute("text-anchor", "middle"); text.textContent = label || ""; svg.appendChild(text);
+  return { key: a + ">" + b, a: byId[a], b: byId[b], path, text, label: label || "", sides: sides || "rl" };
 });
 
 function anchor(nd, side) {
@@ -931,7 +1026,14 @@ function route() {
     const dir = { r: [k, 0], l: [-k, 0], t: [0, -k], b: [0, k] };
     const c1 = [p[0] + dir[s0][0], p[1] + dir[s0][1]], c2 = [q[0] + dir[s1][0], q[1] + dir[s1][1]];
     w.path.setAttribute("d", `M${p[0]},${p[1]} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${q[0]},${q[1]}`);
-    if (w.text) { const m = w.path.getPointAtLength(w.path.getTotalLength() / 2); w.text.setAttribute("x", m.x); w.text.setAttribute("y", m.y - 4); }
+    if (w.text) {
+      const m = w.path.getPointAtLength(w.path.getTotalLength() / 2); w.text.setAttribute("x", m.x); w.text.setAttribute("y", m.y - 4);
+      // a short side-by-side wire has no room for words between its boxes: the count only;
+      // the words are in the boxes' details
+      w.text.textContent = w.label;
+      const room = (s0 === "r" && s1 === "l") ? Math.abs(q[0] - p[0]) - 10 : Infinity;
+      try { if (w.label && w.text.getComputedTextLength() > room) w.text.textContent = w.label.split(" ")[0]; } catch (e) {}
+    }
   });
   ports(pts);
   frames.forEach(fr => {
@@ -992,10 +1094,13 @@ function fillSheet(nd) {
   if (nd.kind === "end") { st.appendChild(document.createTextNode(" ")); st.appendChild(el("span", "pill", "End point")); }
   sbody.appendChild(st);
   const live = runInfoFor(nd.id); if (live) sbody.appendChild(live);
-  h("Right now");
+  h(testNums() ? "Right now in the test run" : "Right now");
+  if (testNums()) { const tn = el("p", "note"); tn.appendChild(el("span", "testmark", "Test run")); tn.appendChild(document.createTextNode(" Sample figures from the test run's scratch folder, not your project's.")); sbody.appendChild(tn); }
   const tb = el("table"); const rows = [[nd.cap.charAt(0).toUpperCase() + nd.cap.slice(1), nd.num]].concat(nd.facts || []);
   rows.forEach(([k, v]) => { const tr = el("tr"); tr.appendChild(el("td", "", String(k))); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v == null ? 0 : v))); tb.appendChild(tr); });
   sbody.appendChild(tb);
+  if (nd.unit) sbody.appendChild(el("p", "note", nd.unit + ". It is not part of the record flow, so nothing here has to add up with the boxes around it."));
+  breakdown(nd, h);
   if (nd.extra) nd.extra(sbody);
   // where this step keeps what it makes: a link that opens the file or folder itself,
   // and, while a test run is on show, a second one that opens the test's scratch copy
@@ -1019,6 +1124,61 @@ function fillSheet(nd) {
   }
   if (wording === "tech" && nd.cmd && !/^mvp\//.test(nd.cmd)) { h("Command"); sbody.appendChild(el("code", "", nd.cmd)); }
 }
+// A box's records, split: by source, by the groups that matter there, then where they
+// come from and where they go, and the files the number is counted from. All from
+// map.flow; a box with no entry there (sources, rules, the answer key) shows nothing.
+const titleOf = id => (byId[id] && byId[id].title) || id;
+function breakdown(nd, h) {
+  const f = flowOf(nd.id); if (!f) return;
+  const tech = wording === "tech";
+  const table = list => { const tb = el("table");
+    list.forEach(([k, v, t]) => { const tr = el("tr"), td = el("td", "", String(k));
+      if (tech && t) td.appendChild(el("span", "tech", t));
+      tr.appendChild(td); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v == null ? 0 : v))); tb.appendChild(tr); });
+    sbody.appendChild(tb); };
+  h("The " + n(f.in) + " records here, by source");
+  const bs = Object.entries(O(f.by_source));
+  if (bs.length) table(bs); else sbody.appendChild(el("p", "note", "None."));
+  (Array.isArray(f.groups) ? f.groups : []).forEach(g => {
+    if (!g || !Array.isArray(g.rows) || !g.rows.length) return;
+    h(String(g.title || ""));
+    if (g.note) sbody.appendChild(el("p", "note", String(g.note)));
+    table(g.rows.map(r => [O(r).label, O(r).n, O(r).tech]));
+  });
+  // what comes in: every wire into this box
+  h("Comes from");
+  const ins = [];
+  (Array.isArray(M.flow) ? M.flow : []).forEach(src => (O(src).out || []).forEach(e => { if (e && e.to === nd.id) ins.push([src.id, e]); }));
+  if (f.origin && !ins.length) sbody.appendChild(el("p", "flowline", "← " + n(f.in) + " records enter the map here."));
+  if (!f.origin && !ins.length) sbody.appendChild(el("p", "flowline", "Nothing."));
+  ins.forEach(([sid, e]) => sbody.appendChild(el("p", "flowline", "← " + n(e.n) + " from " + titleOf(sid) + ": " + (e.label || "") + (e.branch ? " (the same records, also counted on the main path)" : ""))));
+  h("Goes to");
+  const outs = (f.out || []).filter(Boolean);
+  outs.forEach(e => sbody.appendChild(el("p", "flowline", "→ " + n(e.n) + " to " + titleOf(e.to) + ": " + (e.label || "") + (e.branch ? " (also: a side path, not part of the sum below)" : ""))));
+  (f.stop || []).forEach(s => sbody.appendChild(el("p", "flowline", "■ " + n(O(s).n) + " stop here: " + (O(s).label || ""))));
+  if (f.held || f.held_label) sbody.appendChild(el("p", "flowline", "… " + n(f.held) + " wait here: " + (f.held_label || "not passed on yet")));
+  const main = outs.filter(e => !e.branch).reduce((a, e) => a + Number(e.n || 0), 0);
+  const stops = (f.stop || []).reduce((a, s) => a + Number(O(s).n || 0), 0);
+  const sum = main + stops + Number(f.held || 0), ok = sum === Number(f.in || 0);
+  sbody.appendChild(el("p", "note", (ok ? "Adds up: " : "Does NOT add up: ") + n(f.in) + " in " + (ok ? "= " : "≠ ") +
+    [main && n(main) + " on", stops && n(stops) + " stop", f.held && n(f.held) + " waiting"].filter(Boolean).join(" + ") + (sum ? "" : "0") + "."));
+  h("Counted from");
+  (Array.isArray(f.files) ? f.files : []).forEach(p => sbody.appendChild(el("code", "", "mvp/" + p)));
+  if (tech && f.rule) sbody.appendChild(el("p", "note", "Rule: " + f.rule));
+}
+
+// the warning above the map: every conservation equation from run.py that fails
+function flowWarn() {
+  const w = document.getElementById("flowwarn"); if (!w) return;
+  const bad = (Array.isArray(M.checks) ? M.checks : []).filter(c => c && c.ok === false);
+  w.textContent = ""; w.hidden = !bad.length;
+  if (!bad.length) return;
+  w.appendChild(document.createTextNode("These numbers do not add up (" + bad.length + "). A count on the map is wrong or out of date:"));
+  const ul = el("ul");
+  bad.forEach(c => ul.appendChild(el("li", "", String(c.eq) + ": " + n(c.lhs) + " ≠ " + n(c.rhs))));
+  w.appendChild(ul);
+}
+
 function openSheet(nd) {
   selected = nd; pick([nd.id]);
   fillSheet(nd);
@@ -1068,7 +1228,7 @@ document.getElementById("zout").onclick = () => setZoom(zoom - 0.1);
 document.getElementById("zfit").onclick = fit;
 document.getElementById("tidy").onclick = () => { store.set(LAYOUT, {}); pick([]); NODES.forEach(q => { q.el.style.left = q.x + "px"; q.el.style.top = q.y + "px"; }); placeLegend(LEG); route(); };
 const legend = document.getElementById("legend"), legbtn = document.getElementById("legbtn");
-const LEG = { x: 1180, y: 1060 };
+const LEG = { x: 1500, y: 880 };
 function placeLegend(p) { legend.style.left = p.x + "px"; legend.style.top = p.y + "px"; }
 placeLegend((saved._legend) || LEG);
 drag(legend.querySelector("header"), legend, (dx, dy) => {
@@ -1173,7 +1333,14 @@ const still = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)
 // executed by the server in a scratch folder on made-up incidents; the snapshot says so
 // with `test: true`, and everything shown for it is marked.
 const U = { server: false, status: null, run: null, active: false, timer: null, lost: false, last: "", attached: false,
-            open: new Set(), current: null, cancelArm: null, baseTitle: document.title, sig: "", testSig: null, casesOpen: false };
+            open: new Set(), current: null, cancelArm: null, baseTitle: document.title, sig: "", testSig: null, casesOpen: false,
+            live: false, shown: "real", mapSig: "", before: null, realFrom: null, numsOpen: new Set() };
+// Which numbers the boxes show. REAL holds the project's own map: the one baked into this
+// page, or the latest a real update this page followed sent. A test run's map is shown
+// only while its panel is, and REAL comes back when the panel closes or a real run starts.
+const REAL = { map: M };
+U.mapSig = "real:" + JSON.stringify(M);
+const testNums = () => U.shown === "test";
 const isTest = run => !!(run && run.test === true);   // older snapshots have no `test`: a real run
 const testShown = () => isTest(U.run);
 const runWord = run => isTest(run) ? "Test run" : "Update";
@@ -1326,8 +1493,11 @@ tform.addEventListener("submit", ev => {
 
 // --- following a run
 function attach(run) {
-  U.active = true; U.attached = true; U.lost = false; U.last = ""; U.current = null; U.open.clear(); mapDiff = null;
-  U.testSig = null; U.casesOpen = false;
+  U.active = true; U.attached = true; U.lost = false; U.last = ""; U.current = null; U.open.clear();
+  U.testSig = null; U.casesOpen = false; U.numsOpen.clear();
+  // attach is reached only for a run this page started or found going, so its map is
+  // followed live; a run that had ended before the page loaded is never attached
+  U.live = true; U.before = isTest(run) ? null : REAL.map;
   rpanel.classList.add("open");
   render(run); syncButtons();
   setTimeout(() => { if (scroller.clientWidth < CW * zoom) fit(); route(); }, 0);
@@ -1373,7 +1543,7 @@ function paintNodes(run) {
     const s = st[nd.id];
     if (s && RS_LABEL[s]) { nd.el.dataset.rs = s; nd.el.querySelector(".rsb").textContent = (s === "waiting" ? "! " : s === "failed" ? "✕ " : s === "done" ? "✓ " : "") + RS_LABEL[s]; }
     else { delete nd.el.dataset.rs; }
-    nd.el.setAttribute("aria-label", ariaOf(nd) + (s ? (isTest(run) ? ". In this test run: " : ". In this update: ") + RS_LABEL[s] : ""));
+    nd.el.setAttribute("aria-label", ariaOf(nd) + (testNums() ? ". A sample figure from the test run" : "") + (s ? (isTest(run) ? ". In this test run: " : ". In this update: ") + RS_LABEL[s] : ""));
   });
   // the wire into the step that is working now
   const cur = (run.steps || []).find(s => s.id === run.current);
@@ -1389,6 +1559,7 @@ function render(run) {
   U.last = sig; U.run = run;
   const test = isTest(run), word = runWord(run);
   markTest(test);
+  syncMap(run);
   paintNodes(run);
   const steps = run.steps, cur = steps.find(s => s.id === run.current) || null;
   const ask = steps.find(s => s.state === "waiting") || steps.find(s => s.state === "failed");
@@ -1450,10 +1621,12 @@ const rtest = document.getElementById("runtest");
 function testInfo(run) {
   if (!isTest(run)) { rtest.textContent = ""; U.testSig = null; return; }
   const cases = (Array.isArray(run.cases) ? run.cases : []).filter(c => c && typeof c === "object");
-  const sig = JSON.stringify([run.workspace || "", cases]);
+  const sig = JSON.stringify([run.workspace || "", cases, U.shown]);
   if (sig === U.testSig) return;
   U.testSig = sig; rtest.textContent = "";
-  rtest.appendChild(el("p", "", "Made-up incidents, in a scratch folder. Your project's files are not touched; the numbers on the boxes stay your own."));
+  rtest.appendChild(el("p", "", "Made-up incidents, in a scratch folder. Your project's files are not touched. " +
+    (testNums() ? "The numbers on the boxes are the test run's sample figures, not your project's, until you close this panel."
+                : "The numbers on the boxes are still your project's: the test run has not counted its own yet.")));
   if (run.workspace) {
     const p = el("p"); p.appendChild(document.createTextNode("Scratch folder: "));
     p.appendChild(el("span", "ws", String(run.workspace)));
@@ -1487,6 +1660,11 @@ function stepItem(s, open, run) {
   head.appendChild(el("span", "rbadge", (s.state === "waiting" ? "! " : s.state === "failed" ? "✕ " : s.state === "done" ? "✓ " : "") + (RS_LABEL[s.state] || s.state)));
   head.appendChild(el("span", "rtitle", s.title || s.id));
   if (stepSum(s)) head.appendChild(el("span", "rsum", stepSum(s)));
+  const ch = stepChanges(run, s.id), errs = stepErrors(run, s.id);
+  if (ch.length) {
+    const top = ch.filter(([k]) => headLabel(k)).slice(0, 2);
+    head.appendChild(el("span", "rsum", top.length ? top.map(changeText).join(" · ") : ch.length + (ch.length === 1 ? " number changed" : " numbers changed")));
+  }
   head.onclick = () => {
     if (li.classList.toggle("open")) U.open.add(s.id); else U.open.delete(s.id);
     head.setAttribute("aria-expanded", li.classList.contains("open"));
@@ -1498,9 +1676,11 @@ function stepItem(s, open, run) {
   if (s.state === "placeholder") d.appendChild(el("p", "note", "Not built yet: shown so you can see where it belongs, then skipped."));
   const c = stepCounts(s);
   if (c.length) { const tb = el("table"); c.forEach(([k, v]) => { const tr = el("tr"); tr.appendChild(el("td", "", String(k))); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v))); tb.appendChild(tr); }); d.appendChild(tb); }
+  if (ch.length) d.appendChild(changeList(ch, "step:" + s.id));
+  errs.forEach(e => d.appendChild(el("p", "note", "The numbers could not be counted after this step: " + e)));
   const log = Array.isArray(s.log) ? s.log : [];
   if (log.length) { const pre = el("pre", "rlog mono", log.join("\n")); d.appendChild(pre); setTimeout(() => { pre.scrollTop = pre.scrollHeight; }, 0); }
-  else if (!c.length && !(s.prompt && (s.state === "waiting" || s.state === "failed"))) d.appendChild(el("p", "note", s.state === "pending" ? "Not started yet." : "Nothing logged."));
+  else if (!c.length && !ch.length && !errs.length && !(s.prompt && (s.state === "waiting" || s.state === "failed"))) d.appendChild(el("p", "note", s.state === "pending" ? "Not started yet." : "Nothing logged."));
   if (s.started || s.ended) d.appendChild(el("p", "note", [s.started && "started " + s.started, s.ended && "ended " + s.ended].filter(Boolean).join(" · ")));
   li.appendChild(d);
   return li;
@@ -1526,6 +1706,18 @@ function askBox(s, run) {
   if (isTest(run) && p.test_note) {
     const tn = el("p", "testnote"); tn.appendChild(el("span", "testmark", "Test run"));
     tn.appendChild(document.createTextNode(String(p.test_note))); box.appendChild(tn);
+    // the sample work Continue would put in place, readable before choosing
+    const pk = O(p.test_peek);
+    if (pk.path && location.protocol !== "file:") {
+      const row = el("p", "peek"), a = el("a", "", pk.label || "See the sample work"); a.href = "#";
+      a.addEventListener("click", ev => { ev.preventDefault(); openPath({ path: pk.path }, row); });
+      row.appendChild(a); row.appendChild(el("span", "path", "mvp/" + pk.path)); box.appendChild(row);
+    }
+  }
+  // the review step: how to fill in what it asks for, folded so the buttons stay in view
+  if (s.id === "review" && s.state === "waiting") {
+    const d = el("details", "guide"); d.appendChild(el("summary", "", "How to fill in a dossier"));
+    reviewGuide(d); box.appendChild(d);
   }
   const acts = el("div", "acts"), btns = [];
   (Array.isArray(p.actions) ? p.actions : []).forEach((a, i) => {
@@ -1553,8 +1745,9 @@ rcancel.onclick = () => {
 };
 rclose.onclick = () => {
   if (U.active) return;
-  rpanel.classList.remove("open"); clearNodes(); U.run = null; U.last = ""; U.attached = false; document.title = U.baseTitle;
-  markTest(false); testInfo(null); syncButtons();
+  rpanel.classList.remove("open"); U.run = null; U.last = ""; U.attached = false; document.title = U.baseTitle;
+  syncMap(null);   // a test run's numbers leave with its panel
+  clearNodes(); markTest(false); testInfo(null); syncButtons();
   if (selected) fillSheet(selected);
   setTimeout(() => { fit(); route(); }, 0);
 };
@@ -1562,14 +1755,28 @@ rclose.onclick = () => {
 function finish(run) {
   clearTimeout(U.timer); U.active = false; syncButtons();
   if (!run) return;
+  // render puts the run's last map on the boxes: a real update's stays there once it has
+  // ended; a test run's stays only until its panel is closed
   U.last = ""; render(run);
-  // a test run's figures are samples from its scratch folder: they never reach the map
-  if (run.state === "done" && !isTest(run) && run.map && typeof run.map === "object") applyMap(run.map);
 }
 
 // what changed: the step results, and the headline numbers before and after
-const HEAD = [["records", "Records"], ["queue", "Candidates"], ["context_rows", "Readings"], ["queue_single", "One agent only"], ["manual", "Added by hand"], ["proposals", "Suggestions"], ["dossiers", "Dossiers"]];
-let mapDiff = null;
+// headline numbers, all counts of records; dotted keys reach into flow_counts as the
+// run's trace writes them
+const HEAD = [["records", "Records"], ["flow_counts.queued", "Candidates queued"], ["flow_counts.read_record", "Records read"],
+              ["flow_counts.read_source", "Sources read"], ["flow_counts.out_of_scope", "Out of scope"], ["manual", "Added by hand"],
+              ["flow_counts.ready", "Ready to judge"], ["flow_counts.extracted", "Facts extracted"], ["flow_counts.dossier_records", "Records in dossiers"]];
+// a value by dotted key, from a map or from the trace's flat numbers
+function getK(o, k) { o = O(o); if (k in o) return o[k]; return k.split(".").reduce((x, p) => x == null ? undefined : O(x)[p], o); }
+// the headline numbers that differ between two maps, or between flat numbers and a map
+function headDiff(a, b) {
+  return HEAD.filter(([k]) => getK(b, k) != null && Number(getK(a, k) || 0) !== Number(getK(b, k) || 0)).map(([k, label]) => [label, getK(a, k), getK(b, k)]);
+}
+// the numbers at the start of the run, if the server counted them then
+function startNumbers(run) {
+  const t = (Array.isArray(O(run).trace) ? run.trace : []).find(x => x && x.event === "start" && x.numbers && typeof x.numbers === "object");
+  return t ? t.numbers : null;
+}
 function summary(run) {
   const test = isTest(run);
   rsummary.appendChild(el("h3", "", run.state === "done" ? (test ? "What this test run did" : "What this update did") : run.state === "cancelled" ? "Cancelled. What ran before that" : "Summary"));
@@ -1581,36 +1788,132 @@ function summary(run) {
   });
   rsummary.appendChild(ul);
   if (test) {
-    rsummary.appendChild(el("p", "note", "Nothing in your project changed. The numbers on the boxes are still the project's own: a test run's figures are samples and are not put on the map."));
+    rsummary.appendChild(el("p", "note", "Nothing in your project changed. " + (testNums()
+      ? "The numbers on the boxes are the test run's, counted in its scratch folder. Close this panel to see your project's own again."
+      : "The numbers on the boxes are still your project's own: this front end did not send the test run's.")));
     if (run.workspace) rsummary.appendChild(el("p", "note", "What the test made is in its scratch folder. While this panel is open, the “in the test run” links in a box's details open the test's copy."));
-  } else if (mapDiff && run.state === "done") {
+  } else if (U.live && mapOf(run) && (run.state === "done" || run.state === "cancelled")) {
+    const diff = headDiff(startNumbers(run) || U.before, REAL.map);
     rsummary.appendChild(el("h3", "", "Numbers on the map"));
-    if (!mapDiff.length) rsummary.appendChild(el("p", "note", "Refreshed. None of the headline numbers changed."));
-    else { const tb = el("table"); mapDiff.forEach(([k, a, b]) => { const tr = el("tr"); tr.appendChild(el("td", "", k)); tr.appendChild(el("td", "", n(a) + " → " + n(b))); tb.appendChild(tr); }); rsummary.appendChild(tb); }
-  } else if (run.state === "done") rsummary.appendChild(el("p", "note", "The numbers on the boxes were not refreshed: reload the page to see them."));
+    if (!diff.length) rsummary.appendChild(el("p", "note", "Refreshed. None of the headline numbers changed."));
+    else { const tb = el("table"); diff.forEach(([k, a, b]) => { const tr = el("tr"); tr.appendChild(el("td", "", k)); tr.appendChild(el("td", "", n(a) + " → " + n(b))); tb.appendChild(tr); }); rsummary.appendChild(tb); }
+  } else if (run.state === "done") rsummary.appendChild(el("p", "note", "This front end did not send the new numbers, so the boxes were not refreshed: reload the page to see them."));
+  // an update's full log outlives this panel; a test run keeps none
+  if (test) { rsummary.appendChild(el("p", "note", "A test run keeps no log: this panel is its only record.")); return; }
+  const lg = el("p", "note");
+  lg.appendChild(document.createTextNode("The full log of this update is kept in "));
+  lg.appendChild(el("code", "", "mvp/state/runs/"));
+  lg.appendChild(document.createTextNode(". To read it, run "));
+  lg.appendChild(el("code", "", "python mvp/pipeline/run.py runs " + (run.id || "<id>")));
+  lg.appendChild(document.createTextNode(run.id ? "." : ", with the run's id in place of <id>."));
+  rsummary.appendChild(lg);
 }
 
-// new figures from the server, after a real update: refresh every box and wire label in place
-function applyMap(newMap) {
-  const old = M;
-  M = Object.assign({}, M, newMap);
-  mapDiff = HEAD.filter(([k]) => has(M, k) && Number(old[k] || 0) !== Number(M[k] || 0)).map(([k, label]) => [label, old[k], M[k]]);
-  const fresh = defs();
-  fresh.forEach(f => {
+// put a map on the boxes: refresh every box and wire label in place. `bump` lights up, for
+// a moment, each box whose number changed. It only draws: which map, and the titles, are
+// syncMap's business
+function applyMap(map, bump) {
+  M = map;
+  defs().forEach(f => {
     const nd = byId[f.id]; if (!nd) return;
+    const was = String(nd.num);
     CONTENT.forEach(k => { nd[k] = f[k]; });
     nd.el.className = nd.el.className.replace(/\b(run|waiting|unbuilt)\b/, nd.status);
     nd.el.querySelector(".num").textContent = nd.num; nd.el.querySelector(".cap").textContent = nd.cap;
+    nd.unit = f.unit; nd.el.classList.toggle("meta", !!f.unit);
+    nd.el.querySelector(".unit").textContent = f.unit || "";
     nd.el.setAttribute("aria-label", ariaOf(nd));
+    if (bump && was !== String(nd.num)) {
+      nd.el.classList.add("bump"); clearTimeout(nd.bumpT);
+      nd.bumpT = setTimeout(() => nd.el.classList.remove("bump"), still ? 2000 : 1200);
+    }
   });
   const labels = {}; wireDefs().forEach(([a, b, label]) => { labels[a + ">" + b] = label; });
-  wires.forEach(w => { if (w.text && labels[w.key]) w.text.textContent = labels[w.key]; });
-  document.getElementById("wintitle").textContent = "Pipeline — how an incident report becomes an index entry — figures refreshed by the update of " + (U.run && U.run.id || "today");
+  wires.forEach(w => { w.label = labels[w.key] || ""; });
+  flowWarn();
   route();
-  U.last = ""; if (U.run) render(U.run);
 }
 
-// the sheet of a box, during a run: what the update did there
+// which numbers the boxes show for the run on show (null: none). A test run's own, while
+// its panel is shown; a real update's, while this page follows it and after it ends;
+// otherwise the project's as this page last knew them. Redraws only when that changes
+// an empty map is one the server could not count yet: no numbers at all
+const mapOf = run => { const m = run && run.map; return m && typeof m === "object" && !Array.isArray(m) && Object.keys(m).length ? m : null; };
+function syncMap(run) {
+  const m = mapOf(run);
+  if (isTest(run) && m) showMap("test", Object.assign({}, m, { artifacts: O(REAL.map).artifacts }));   // "where it is kept" links open the project's files
+  else {
+    if (run && !isTest(run) && U.live && m) {
+      REAL.map = Object.assign({}, REAL.map, m);
+      U.realFrom = { id: run.id || "today", going: ACTIVE(run.state) };
+    }
+    showMap("real", REAL.map);
+  }
+  winTitle(run);
+}
+function showMap(kind, map) {
+  const sig = kind + ":" + JSON.stringify(map);
+  if (sig === U.mapSig) return;
+  // a box lights up only for a change within one kind, not when test and real swap
+  const bump = !!U.run && U.shown === kind;
+  U.mapSig = sig; U.shown = kind;
+  applyMap(map, bump);
+}
+// the map window's title says whose numbers are on the boxes
+const WINBASE = "Pipeline — how an incident report becomes an index entry — ";
+function winTitle(run) {
+  const wt = document.getElementById("wintitle"), tag = document.getElementById("wintest");
+  if (testNums()) wt.textContent = WINBASE + "sample figures from the test run" + (run && run.id ? " " + run.id : "") + ", not your project's";
+  else if (U.realFrom) wt.textContent = WINBASE + (U.realFrom.going ? "figures live from the update " : "figures refreshed by the update of ") + U.realFrom.id;
+  else wt.textContent = WINBASE + "figures of " + (D && D.generated || "unknown date");
+  tag.textContent = testNums() ? "Test run: sample figures" : "Test run on show";
+  tag.title = testNums() ? "The tags and the numbers on the boxes come from the test run's scratch folder. They are not your project's. Close the test run's panel to see your project's numbers again."
+                         : "The tags on the boxes come from the test run. The numbers are still your project's own.";
+}
+
+// what a step changed in the numbers, from the run's trace: [key, before, after], the
+// first before and the last after over all of that step's entries, headline keys first
+function stepChanges(run, id) {
+  const acc = new Map();
+  (Array.isArray(O(run).trace) ? run.trace : []).forEach(t => {
+    if (!t || t.step !== id) return;
+    Object.entries(O(t.changed)).forEach(([k, v]) => {
+      if (!Array.isArray(v) || v.length < 2) return;
+      const prev = acc.get(k); acc.set(k, [k, prev ? prev[1] : v[0], v[1]]);
+    });
+  });
+  const rank = k => { const i = HEAD.findIndex(([h]) => h === k); return i < 0 ? HEAD.length : i; };
+  return [...acc.values()].filter(([, a, b]) => a !== b).sort((p, q) => rank(p[0]) - rank(q[0]));
+}
+function stepErrors(run, id) {
+  const out = [];
+  (Array.isArray(O(run).trace) ? run.trace : []).forEach(t => { if (t && t.step === id && t.error && !out.includes(String(t.error))) out.push(String(t.error)); });
+  return out;
+}
+function headLabel(k) { const h = HEAD.find(([x]) => x === k); return h ? h[1] : ""; }
+function numLabel(k) {   // queue_arms.keyword: Queue arms: keyword
+  const s = String(k).replace(/_/g, " ").replace(/\./g, ": ");
+  return headLabel(k) || s.charAt(0).toUpperCase() + s.slice(1);
+}
+const numVal = v => v == null ? "—" : typeof v === "number" ? n(v) : String(v);
+const changeText = ([k, a, b]) => numLabel(k) + " " + numVal(a) + " → " + numVal(b);
+// the list a step's item and a box's sheet show: the headline keys, the rest folded away
+function changeList(ch, key) {
+  const box = el("div", "rnums"); box.appendChild(el("p", "", "Numbers this step changed"));
+  const row = (tb, [k, a, b]) => { const tr = el("tr"); tr.appendChild(el("td", "", numLabel(k))); tr.appendChild(el("td", "", numVal(a) + " → " + numVal(b))); tb.appendChild(tr); };
+  const heads = ch.filter(([k]) => headLabel(k)).length;
+  const cut = ch.length <= 4 ? ch.length : heads || 3;
+  const tb = el("table"); ch.slice(0, cut).forEach(r => row(tb, r)); box.appendChild(tb);
+  if (cut < ch.length) {
+    const det = el("details"); det.open = U.numsOpen.has(key);
+    det.addEventListener("toggle", () => { if (det.open) U.numsOpen.add(key); else U.numsOpen.delete(key); });
+    det.appendChild(el("summary", "", (ch.length - cut) + " more " + (ch.length - cut === 1 ? "number" : "numbers")));
+    const t2 = el("table"); ch.slice(cut).forEach(r => row(t2, r)); det.appendChild(t2); box.appendChild(det);
+  }
+  return box;
+}
+
+// the sheet of a box, during a run: what the update did there, and what it changed in the numbers
 function runInfoFor(id) {
   if (!U.run) return null;
   const steps = (U.run.steps || []).filter(s => (s.nodes || []).includes(id));
@@ -1624,6 +1927,9 @@ function runInfoFor(id) {
       box.appendChild(el("p", "", O(s.prompt).text || ""));
       if (isTest(U.run) && O(s.prompt).test_note) box.appendChild(el("p", "note", "In this test run: " + O(s.prompt).test_note));
     }
+    const ch = stepChanges(U.run, s.id);
+    if (ch.length) box.appendChild(changeList(ch, "sheet:" + id + ":" + s.id));
+    stepErrors(U.run, s.id).forEach(e => box.appendChild(el("p", "note", "The numbers could not be counted after this step: " + e)));
     const log = Array.isArray(s.log) ? s.log : [];
     if (log.length) box.appendChild(el("code", "", log.slice(-8).join("\n")));
     const go = el("button", "btn", "Show in the run panel"); go.type = "button";
@@ -1634,7 +1940,7 @@ function runInfoFor(id) {
 }
 
 // ------------------------------------------------------------------ start
-document.getElementById("wintitle").textContent = "Pipeline — how an incident report becomes an index entry — figures of " + (D && D.generated || "unknown date");
+winTitle(null); flowWarn();
 if (scroller.clientWidth < 700) setZoom(0.7); else fit();
 route(); say(IDLE); syncButtons();
 if (byId[location.hash.slice(1)]) openSheet(byId[location.hash.slice(1)]);

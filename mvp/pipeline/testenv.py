@@ -7,6 +7,7 @@ differs, and nothing else:
 - It runs on a second instance of run.py, loaded under another module name and pointed
   at a fresh workspace from tempfile.mkdtemp. The real instance is never re-pointed, so
   nothing a test run does can reach the real tree, and a real run cannot be redirected.
+  A test run keeps no log: its trace is shown while it runs and goes with it.
 - `fetch` never touches the network: the "AIID" it sees is a sample of made-up records
   from mvp/testenv/aiid/. With --refetch the first attempt fails on purpose.
 - `manual` ingests the sample write-up in mvp/testenv/manual/, through ingest_manual.
@@ -14,8 +15,8 @@ differs, and nothing else:
   (Try again, on a failed check) puts the matching files from mvp/testenv/standins/ in
   place, as that work would have. Skip puts nothing in place.
 
-Everything else - normalise, prefilter, readiness, check, index, viz - is the real
-code, running on the workspace. See mvp/testenv/README.md.
+Everything else - normalise, prefilter, readiness, derive, instances-due, check, index,
+viz - is the real code, running on the workspace. See mvp/testenv/README.md.
 """
 from __future__ import annotations
 
@@ -127,6 +128,10 @@ def guard(rm, ws):
 # consequence downstream.
 
 def _key(row):
+    """(source_id, source_record_id): from record_key when the row has one."""
+    if row.get("record_key"):
+        sid, rid = str(row["record_key"]).split(":", 1)
+        return sid, rid
     return row["source_id"], str(row["source_record_id"])
 
 
@@ -227,6 +232,12 @@ TEST_NOTES = {
     ("check", "failed"): "In this test run, Try again puts the corrected dossier in "
                          "place, as a person fixing it would, and runs the check again.",
 }
+# What Continue (or Try again) would put in place, under mvp/testenv/standins/: the
+# waiting card links it, so the sample work can be read before choosing.
+TEST_PEEK = {("read", "waiting"): "read/context",
+             ("judge", "waiting"): "judge/proposals",
+             ("review", "waiting"): "review/incidents",
+             ("check", "failed"): "check/incidents"}
 DEFAULT_NOTE = ("In this test run, Try again runs the step again on the scratch "
                 "workspace; nothing outside it is touched.")
 
@@ -253,12 +264,19 @@ def testrun_class(rm):
         def prompt_for(self, step, outcome):
             prompt = super().prompt_for(step, outcome)
             prompt["test_note"] = TEST_NOTES.get((step["id"], outcome.state), DEFAULT_NOTE)
+            peek = TEST_PEEK.get((step["id"], outcome.state))
+            if peek and (STANDINS / peek).exists():
+                prompt["test_peek"] = {"label": "See the sample work",
+                                       "path": str((STANDINS / peek).relative_to(REAL_MVP))}
             return prompt
 
         def answered(self, step, action):
             fn = STANDIN.get((step["id"], action))
             if fn is not None:
                 fn(rm, self)
+
+        def save_log(self):
+            """A test run keeps no log: only real runs go into the run history."""
 
         def step_fetch(self, step, override):
             target = rm.RAW / "aiid"

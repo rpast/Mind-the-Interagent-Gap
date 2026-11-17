@@ -46,7 +46,7 @@
     `mvp/gold/multiagent_gold.csv` now holds 60 rows in four strata, all `to_judge`: 27 `poc_positive` being re-verified, 6 `aiid_csetv1`, 18 `queue_boundary` and 9 `queue_base_rate`. The 27 negative candidates come from the prefilter queue, 2025–2026, excluding anything AIID marks multi-agent — **unscreened, not negative**, since AIID applies no multi-agent label in that window. The draw oversamples the keyword arm on purpose, so precision measured against it is pessimistic and describes the boundary, not the population.
 
     Review with `python mvp/gold/build_review.py` → `mvp/out/gold_review.html`, which hides the prior label behind a toggle so the verdict is formed first. Export and fold back with `--merge`. Only the two measured baselines survive the review unchanged: the Navigator rater's 33% false-negative rate, and the keyword arm's 78% recall (itself provisional, since it is measured against the positives under review).
-29. **Reconcile the candidate-count discrepancy.** `mvp/raw/aiid/candidates_multiagent.tsv` holds 229 rows (11 strong, 218 weak) where `FETCHED.md` records 11 + 214, and no committed code produces that file. The prefilter now regenerates the queue from committed code; the old TSV should be retired or explained.
+29. ~~**Reconcile the candidate-count discrepancy.**~~ **Retired 2026-11-16:** the file was read by no code and was removed with `git rm`; the prefilter regenerates the queue from committed code. Original note: `mvp/raw/aiid/candidates_multiagent.tsv` holds 229 rows (11 strong, 218 weak) where `FETCHED.md` records 11 + 214, and no committed code produces that file. The prefilter now regenerates the queue from committed code; the old TSV should be retired or explained.
 
 ### New, 2026-11-13 (grey zone: multi-agent attacks)
 
@@ -315,6 +315,11 @@
     survives, which needs fetch access the sandbox does not give the pipeline; (d) read the
     primary sources behind the 11 dossiers that rest on a registry entry alone.
 
+    **(a) done 2026-11-15** with `enrich_context.v2`, record text only, on the 22 gold rows
+    reviewed `in`: 21 `several`, 1 `unknown` (G-017 / LW-03, whose text names no agent), 0
+    `one` or `none`. The pass may run over the queue. The output was a measurement only and
+    was not written to `mvp/context/`.
+
     *Original note.* Raised 2026-11-14 and logged without a design.
 
     The premise to clear up first: **dossiers are not classifier input.** The flow is
@@ -450,8 +455,124 @@
     `CLAUDE.md`. Also fixed there: the stale claim that evidence reaches a risk only through
     an instance (item 33).
 
-    Still to do: measure v2's record pass on the gold rows before it runs over the queue
-    (item 53a); design the discover module.
+    Still to do: design the discover module. (Item 53a, measuring v2's record pass on the
+    gold rows, was done 2026-11-15.)
+
+### New, 2026-11-15 (pipeline map readability)
+
+58. **Make the map's node counts readable.** Parked until after the inventory update. On the
+    update of 2026-11-15 the counts could not be followed. One cause is that the nodes count
+    different populations without saying so:
+    - Normalise counted all sources (1,844 = 1,817 AIID + 27 others), while Fetch and the
+      queue were AIID only.
+    - Read the source (41) counted readings for existing dossiers (27) together with readings
+      of new candidates (14).
+    - Ready? (11 of 358) used a total, 361 queued − 3 out of scope, that appears on no other
+      node.
+    Agreed direction:
+    - **One population everywhere.** If the run uses all sources, every node counts all
+      sources.
+    - **A breakdown on click for every node**, like the Normalise node has now: by source and
+      by sub-group, so each figure can be traced to the node before it.
+
+59. **`extract_gate.v3` measured on gold, 2026-11-15. The attack presumption is the weak
+    rule.** Blind run on the 55 scorable gold rows, each with its record and its
+    `mvp/context/` row, and the labels derived by the SKILL.md rules. Output and per-row
+    scores in `mvp/out/calibration/extract_gate_v3_gold_20261115.*`.
+    - Overall: 20 TP, 6 FP, 2 FN, 27 TN. Precision 76.9%, recall 90.9%. The hand-curation
+      ceiling is 82.6% precision (19 of 23, after the second review round; the 81.8% in
+      item 44 is the first round's figure).
+    - 49 of 55 rows are review items: confidence below high, or a gate field unclear. Under
+      the skill those derive nothing and go to a person. The 6 rows the rules would settle
+      on their own are all correct.
+    - **5 of the 6 false positives come from the attack presumption**: G-002, G-005, G-013,
+      G-056 and G-058, all with `multiplicity_role: unreported`. On three of them (G-005,
+      G-013 and G-058) the model answered the counterfactual `could`, and the presumption
+      overrode it. G-013 (Moltbook) is people breaching a platform that hosts agents, with
+      no AI agent on the attacking side. The sixth, G-014 (sabotage game), is a
+      counterfactual call.
+    - The 2 false negatives, G-011 and G-012, are low-confidence `unclear` counterfactuals
+      on non-attack rows.
+    - **Caveat:** the gold rows' readings were written during the review, and some carry
+      judgement wording such as "NOT LOAD-BEARING". This measures the gate given good
+      readings, not end to end.
+
+    To decide:
+    - **Should the presumption need two or more AI agents on the attacking side?** Today
+      `unreported` overrides even a `could`. Making it require attacking agents would
+      remove G-013. Should it also yield to an explicit `could`? That would remove G-005
+      and G-058, at a cost to recall that is not measured.
+    - **A `could_not` that the presumption manufactures still has to clear review.** That is
+      true now only because the confidence on those rows was below high.
+
+    **Interim instruction, 2026-11-15:** queue gate runs tell the model that
+    `multiplicity_role` concerns agents on the acting side. That is consistent with the
+    prompt's own definition of `unreported` ("the record describes multiple agents").
+
+    **Decided 2026-11-16: both changes adopted.** `unreported` now resolves to `could_not`
+    only if the record does not show fewer than two AI agents (`n_ai_agents` null or 2+)
+    and the model's own counterfactual is not `could`. Re-scored on the same 55 gold rows
+    with no model call: 20 TP, 3 FP, 2 FN, 30 TN. Precision 76.9% → 87.0%, recall unchanged
+    at 90.9%. The three rows removed are G-005, G-013 and G-058, all reviewed `out`. The
+    rules now live in `mvp/pipeline/derive.py`; `run.py derive` writes
+    `mvp/state/verdicts.jsonl`, and proposals hold model output only.
+
+    Still open: the attacking-side condition rests on `n_ai_agents`, which the prompt asks
+    for all agents in the record, not for the attacking side. A prompt v4 with an explicit
+    "agents on the attacking side" field would make the rule exact. It needs a gold run.
+    Two more changes belong in the same v4:
+    - `extract_gate.v3.md` tells the model to count "AI systems, not humans or
+      organisations" for `n_ai_agents`. The project rule is to count agents, not systems,
+      and the presumption now reads this field.
+    - v3 tells the model that "an `unclear` here alongside `unreported` there still
+      resolves to in-scope". Since 2026-11-16 that is false when the record shows fewer
+      than two AI agents or the model answers `could`. Harmless to the model's output,
+      since it only describes code, but the prompt now misdescribes the rule.
+
+60. **The third prefilter arm missed incidents MIT or GMF had classified. Widened
+    2026-11-16.** AIID's only multi-agent field, CSETv1 `Multiple AI Interaction`, is on
+    313 of 1,817 incidents and on none dated 2025 or later; CSET's annotation is
+    discontinued. The third arm, then called `unclassified`, caught only incidents with no classification at
+    all, so 772 incidents from 2024 on (282 / 398 / 92 by year) that MIT or GMF had
+    classified were screened by the keyword net alone. A random sample of 100, stratified
+    by year (seed 20261116), read from record text with `enrich_context.v2`: 74 `one`,
+    4 `none`, 18 `unknown`, 4 `several`. Candidates the keyword net missed include AIID 881
+    (a Waymo robotaxi and a Serve delivery robot collide), 1412 (an autonomous agent breaks
+    into an AI platform) and 1163 (face-swap output defeats AI face recognition). The arm is
+    now `unasked`: dated 2024-01-01 or later, and no taxonomy asked the multi-agent
+    question. Queue 361 → 1,133. Background in `mvp/docs/aiid_background.md`.
+
+    Still open: incidents before 2024 with no CSETv1 row (386 classified by MIT or GMF
+    only, 19 unclassified) are still screened by keyword alone. The keyword arm's recall
+    stays unmeasured (item 45).
+
+61. **Data-layer fixes of 2026-11-16.** Done; recorded here because they change how to read
+    earlier figures.
+    - **A re-fetch created 313 fake versions.** The fetch date inside each external label
+      was part of the content hash, so the update of 2026-11-15 reported "327 new or
+      changed" where 14 incidents were new and 313 had not changed. The hash now covers
+      substance only; `mvp/pipeline/migrate_keys_20261116.py` removed the 313 rows.
+      `mvp/records/aiid.jsonl` is back to one row per incident, 1,817.
+    - **One key.** Every row of records, queue, readiness, context and proposals carries
+      `record_key`, `<source_id>:<source_record_id>`, for example `aiid:1604`.
+    - **Provenance.** Every record carries `raw_ref`: the raw file, the source's internal
+      id and the fetch date.
+    - The hand-copied Navigator list moved from `mvp/raw/aiid/` to `mvp/registry/labels/`,
+      because `raw/` is verbatim fetch output.
+
+62. **Instances follow the person's scope decision.** Until 2026-11-16 call 2 ran only on
+    records the rules settled in scope without review: 1 of 103 in the first run. A record
+    a person put in scope at review got no instance proposal. `run.py instances-due` now
+    lists every in-scope record without one, and the skill runs call 2 on that list.
+
+63. **First classifier run over the AIID queue, 2026-11-15/16.** 361 queued records: 258 out
+    of scope on a reading (one agent or none), 103 through the gates, of which 102 are
+    review items. Six AIID records duplicate existing dossiers and should be linked as
+    sources, not promoted (this is item 25 in practice): 1556 → MIG-0015, 1668 and 1800 →
+    MIG-0016, 1797 → MIG-0017, 1646 → MIG-0019, 1604 → MIG-0020. Source-pass quotes came
+    through WebFetch's summariser and must be checked against the page before they enter a
+    dossier. To do: review the 103 proposals; promote the new candidates (strongest: AIID
+    7, 1263, 28, 528, 794, 1633, 1794, 1796, 1766).
 
 ## Layer 2. Detection
 17. Write the one-page coding protocol: the definition of coverage and the 0–3 validity weight.

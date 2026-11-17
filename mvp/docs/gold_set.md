@@ -83,8 +83,8 @@ Gate 1, and `definitions.md` requires that it never be guessed.
 
 ### What it measures
 
-The ceiling is **not a classifier score.** No classifier has been run against this set;
-`mvp/proposals/` does not exist.
+The ceiling is **not a classifier score.** The classifier's own score on this set is a
+separate block of `score_gate1.py`, first measured on 2026-11-16; see `gate1_accuracy.md`.
 
 It is the accuracy of **the index's own earlier hand-curation**, measured against the
 independent review. The 25 `carried_over` rows were each added to the index by a human

@@ -52,13 +52,16 @@ came out as `unclear`.
 
 ## The layer
 
-`mvp/context/<source_id>.jsonl`, one row per record, keyed like `mvp/records/`. It is the
-third machine-written layer: `raw/` is verbatim, `records/` is normalised, `context/` is a
-*reading* — sourced facts with quotes, assembled for judgement.
+`mvp/context/<source_id>.jsonl`, one row per record, keyed like `mvp/records/`: the pair
+`source_id`, `source_record_id`, and the same pair as one string, `record_key`
+(`input_layer.md` § The record key). The newest row for a record wins; `run.py` reads it by
+`record_key` when the row has one, else by the pair. It is the third machine-written
+layer: `raw/` is verbatim, `records/` is normalised, `context/` is a *reading* — sourced
+facts with quotes, assembled for judgement.
 
 ```json
 {
-  "source_id": "aiid", "source_record_id": "1731",
+  "source_id": "aiid", "source_record_id": "1731", "record_key": "aiid:1731",
   "agent_count": "none | one | several | unknown",
   "attack": true,
   "read": [{"url": "...", "depth": "secondary", "read_on": "2026-11-13"}],
@@ -115,7 +118,8 @@ as **out**, and the other three decisions do not arise. Such a record is not jud
 not counted among the records that can be judged; it is finished.
 
 **The flag rule.** The shortcut may rest on the record text alone only for a record that
-nothing but the `unclassified` arm put in the queue. A record the `label` or `keyword` arm
+nothing but the `unasked` arm put in the queue (called `unclassified` before 2026-11-16;
+see `input_layer.md` § prefilter). A record the `label` or `keyword` arm
 queued is *flagged*: someone else's rater, or a multi-agent term in its text, already points
 the other way. A flagged record that the record pass calls `one` or `none` still goes to the
 source pass, and the shortcut applies only once a reading of depth `secondary` or better
@@ -124,7 +128,8 @@ confirms it. A dossier source with no queue row counts as flagged.
 ## Readiness
 
 `python mvp/pipeline/run.py readiness` reports one level per decision for every queued
-record and every dossier source, and writes `mvp/state/readiness.jsonl`.
+record and every dossier source, and writes `mvp/state/readiness.jsonl`, one row per
+record with its `record_key`.
 
 | level | meaning | what it permits |
 |---|---|---|
@@ -200,7 +205,11 @@ Measured 2026-11-14 with `run.py readiness`, before the flag rule and the manual
 | queue | 347 | 3 | 11 | **333** |
 | dossier sources | 27 | 13 | 13 | 1 |
 
-**96% of the queue cannot be classified yet**, and no enrichment run has been made. The
+**96% of the queue cannot be classified yet**, and no enrichment run has been made.
+
+On 2026-11-16, after the third prefilter arm was widened to `unasked`, the queue holds
+1,133 records: scope `ready` 319, `provisional` 42, `not_ready` 772. The 772 are the newly
+queued records, none of them read yet. The 361 queued before kept their readiness. The
 layer was seeded with the 41 rows the gold review produced (`mvp/pipeline/seed_context.py`);
 `mvp/gold/context/` stays frozen as the record of what the reviewer saw.
 

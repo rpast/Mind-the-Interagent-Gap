@@ -5,6 +5,22 @@ ontology and is frozen; this tree carries forward its lessons rather than its st
 
 The **input layer** is built. Detection and mapping follow in this same tree until v1.0.
 
+## Start here
+
+New to the project? Read in this order:
+
+1. [`docs/how_it_works.md`](docs/how_it_works.md), 15 minutes: what the index is, one
+   record's journey from fetch to index, the two gates, how to run an update, and what is a
+   model's judgement, a fixed rule, or a person's decision.
+2. [`docs/glossary.md`](docs/glossary.md): every project term in a sentence or two.
+3. [`docs/README.md`](docs/README.md): the reading order for the rest of `docs/`, and where
+   the rules (`pipeline/derive.py`), prompts and skill live.
+
+Where to read what: definitions and the gates are in `docs/definitions.md`; reading sources
+and readiness in `docs/context_layer.md`; the record store and the runbook in
+`docs/input_layer.md`; the classifier design in `docs/classifiers.md`; accuracy in
+`docs/gold_set.md` and `docs/gate1_accuracy.md`.
+
 ## Run it
 
 ```
@@ -14,19 +30,34 @@ python mvp/pipeline/run.py serve                     # the front end: open http:
 python mvp/pipeline/run.py update                    # or run it from the terminal
 python mvp/pipeline/run.py check                     # must exit 0 before committing
 python mvp/pipeline/run.py testrun                   # a dry run on made-up incidents
+python mvp/pipeline/run.py runs [RUN]                # past runs; with RUN, how its numbers changed
 ```
 
 `testrun`, or the page's "Test run" button, runs the real update steps on a small fixed set
 of made-up incidents in a scratch folder under the system temp directory. It never fetches
-AIID and never writes to the real tree. Where a real run waits for `/classify-incidents` or
-for a person, Continue puts sample results in place; Skip shows what skipping costs. The
-command answers every prompt itself, takes `--refetch`, `--manual`, `--discover` and
-`--skip STEP ...`, and exits 0 only if the run ends `done`. See `testenv/README.md`.
+AIID, never writes to the real tree, and keeps no run log.
+Where a real run waits for `/classify-incidents` or for a person, Continue puts sample
+results in place; Skip shows what skipping costs. The command answers every prompt itself,
+takes `--refetch`, `--manual`, `--discover` and `--skip STEP ...`, and exits 0 only if the
+run ends `done`. See `testenv/README.md`.
 
 `serve` shows the pipeline map with live numbers and can start a run from the page. It
 listens on 127.0.0.1 only. When a step needs a person, the run waits and the page says what
-to do. `mvp/out/pipeline_patch.html` also opens from disk, without a server, showing the last
-build's numbers.
+to do. During a run, real or test, the map's numbers are recomputed each time a step changes
+state. `mvp/out/pipeline_patch.html` also opens from disk, without a server, showing the
+last build's numbers.
+
+Every number on the map is a number of records, over all sources (`aiid:1604` is one
+record). `run.py` computes the flow once, in `map_flow`: per box, the records that come
+in, the wires out with their counts, what stops there and what waits there, plus a
+`checks` list of the equations that must hold. Each box opens a breakdown by source and
+by sub-group, with where its records come from, where they go and the files counted. A
+failed equation shows as a warning above the map. Boxes whose number is not a record
+count (sources, notes, rulebook size, a score) are set apart and say so.
+
+Every real run, from the page or the terminal, leaves a log in `state/runs/<run id>.json`:
+its options, steps, logs and a `trace` of the map's numbers at
+each change of state. `run.py runs` lists them; `run.py runs RUN` prints what changed when.
 
 `update` options:
 
@@ -37,26 +68,35 @@ build's numbers.
 - `--discover`: search the discovery sources. A placeholder: not built yet
 
 Reading sources and judging are not in `run.py`. They are the `/classify-incidents` skill,
-run in Claude Code. Promotion to a dossier is a person, with `run.py promote` as the start.
+run in Claude Code. The labels are not the model's: `run.py derive` applies the rules in
+`pipeline/derive.py` to the model's extracted facts and writes `state/verdicts.jsonl`; an
+`update` runs it right after the Judge step. `run.py instances-due` lists the records in
+scope, by the rules or by a person, that still need instances. Promotion to a dossier is a
+person, with `run.py promote` as the start.
 
 ## Layout
 
 | path | what | who writes it |
 |---|---|---|
 | `registry/sources.csv` | the source registry the pipeline reads | hand |
+| `registry/labels/` | hand-made external label files, e.g. the Navigator's multi-agent list | hand |
 | `taxonomy/` | risks, instances, associations, evidence types | hand |
 | `raw/<source>/` | verbatim fetch output; `raw/manual/` holds copies of hand write-ups | `fetch`, `update --manual` |
-| `records/<source>.jsonl` | normalised, append-only, content-hashed; `manual.jsonl` for hand-added incidents | `normalise`, `update --manual` |
+| `records/<source>.jsonl` | normalised, append-only, content-hashed, with a `raw_ref` back to `raw/`; `manual.jsonl` for hand-added incidents | `normalise`, `update --manual` |
 | `context/<source>.jsonl` | what each source says about the gate facts, with quotes and depth read | the skill; `update --manual` for manual rows |
 | `incidents/<ID>.md` | the curated record, one dossier per judged incident: in, out or unclear | hand |
-| `proposals/` | classifier verdicts, never authoritative | the skill |
+| `proposals/` | classifier output, the model's only, never authoritative | the skill |
 | `prompts/` | versioned prompts: enrichment and the two classifier calls | hand |
 | `gold/` | calibration labels | hand |
 | `skills/classify-incidents/` | the reader and classifier runner | hand |
-| `pipeline/` | `run.py`, the source adapters, the map page template, `testenv.py` | hand |
+| `pipeline/` | `run.py`, `derive.py` (the labelling rules), the source adapters, the map page template, `testenv.py` | hand |
 | `testenv/` | the test run's made-up incidents and stand-ins; never read by a real run | hand |
-| `state/` | candidate queue, readiness, work orders, run state | `prefilter`, `readiness`, `discover`, `serve` |
+| `state/` | candidate queue, readiness, derived verdicts, instances due, work orders, run state, run logs in `runs/` (gitignored) | `prefilter`, `readiness`, `derive`, `instances-due`, `discover`, `serve`, `update` |
 | `out/` | the flat index and the pipeline pages | `index`, `viz` |
+
+Every row in `records/`, `context/`, `proposals/` and the `state/` row files carries
+`record_key`, `"<source_id>:<source_record_id>"`, e.g. `aiid:1604`: the string `promote`
+takes. See `docs/input_layer.md` § The record key.
 
 ## Documentation
 
@@ -69,9 +109,11 @@ run in Claude Code. Promotion to a dossier is a person, with `run.py promote` as
 ## Where it stands
 
 26 dossiers, carried over from the index's earlier holdings and re-judged from the primary
-sources: 19 assert `multi_agent: true`, 4 `false`, 3 `unclear`. 1,830 records across four
-sources. 347 candidates in the queue. The enrichment prompt and both classifier prompts are
-written; none has been run over the queue.
+sources: 19 assert `multi_agent: true`, 4 `false`, 3 `unclear`. 1,844 records across four
+sources. 1,133 candidates in the queue on 2026-11-16, after the third prefilter arm became
+`unasked` (`docs/input_layer.md` § prefilter). Call 1 has been run on 103 queued records,
+and on the gold set, where with the labels derived by `pipeline/derive.py` it scores 87.0%
+precision and 90.9% recall (`docs/gate1_accuracy.md`).
 
 **The gold set has been reviewed.** `mvp/gold/multiagent_gold.csv` holds 58 rows in four
 strata, each with a human verdict: 22 `in`, 33 `out`, 3 `unclear`. Rework them with

@@ -32,3 +32,5 @@ mvp/raw/aiid/*.csv
 # The front end's run state (run.py serve): local, per machine
 mvp/state/run.json
 mvp/state/run.json.tmp
+# Retained run logs, real and test (run.py runs): local, per machine, like run.json
+mvp/state/runs/

@@ -18,6 +18,7 @@ import argparse
 import collections
 import csv
 import json
+import sys
 from pathlib import Path
 
 MVP = Path(__file__).resolve().parents[1]
@@ -25,6 +26,12 @@ GOLD = MVP / "gold" / "multiagent_gold.csv"
 ARCHIVE = MVP / "gold" / "archive" / "ceiling_input_multiagent_gold_20261113.csv"
 ARCHIVE_DROPPED = MVP / "gold" / "archive" / "ceiling_input_dropped_20261113.csv"
 QUEUE = MVP / "state" / "queue.jsonl"
+# A blind extract_gate run over the gold rows, keyed by gold_id. Its labels are derived
+# by the same rules the pipeline uses (mvp/pipeline/derive.py), never by hand.
+GATE_RUN = MVP / "out" / "calibration" / "extract_gate_v3_gold_20261115.jsonl"
+
+sys.path.insert(0, str(MVP / "pipeline"))
+import derive  # noqa: E402
 
 
 def score(pairs, name, note="", only_precision=False):
@@ -75,12 +82,6 @@ def main():
           f"({', '.join(r['gold_id'] for r in unclear)})")
     print("Truth:", dict(collections.Counter(r["review_verdict"] for r in gold)))
 
-    proposals = MVP / "proposals"
-    if not proposals.exists():
-        print("\nNOTE: mvp/proposals/ does not exist. The classifier has not been run,")
-        print("so its accuracy cannot be computed. What follows scores the predictors")
-        print("that do exist, which are what the classifier has to beat.")
-
     out = {}
 
     # --- the ceiling: the index's own earlier hand-curation -----------------
@@ -126,12 +127,43 @@ def main():
         "so the predictor is the sampling frame and its precision here is just that "
         f"stratum's base rate. {len(missing)} scorable rows have no queue row at all.")
 
+    # --- the classifier: a gold gate run, labels derived by the rules ----------
+    classifier_run = None
+    if GATE_RUN.exists():
+        rows = [json.loads(l) for l in GATE_RUN.open(encoding="utf-8") if l.strip()]
+        verdicts = sorted((r["gold_id"], derive.derive(r)) for r in rows
+                          if r.get("gold_id") in truth)
+        pairs = [(derive.labels_of(v)["multi_agent"] is True, truth[g]) for g, v in verdicts]
+        settled = [(derive.labels_of(v)["multi_agent"] is True, truth[g])
+                   for g, v in verdicts if v["status"] != "review"]
+        review_ids = [g for g, v in verdicts if v["status"] == "review"]
+        wrong = [f"{g} {'FP' if derive.labels_of(v)['multi_agent'] else 'FN'}"
+                 + (" by presumption" if v["by_presumption"] else "")
+                 for g, v in verdicts if (derive.labels_of(v)["multi_agent"] is True)
+                 != truth[g]]
+        rel = GATE_RUN.relative_to(MVP.parent)
+        out["classifier"] = score(
+            pairs, f"4. CLASSIFIER - extract_gate.v3 on gold, labels by derive.py "
+                   f"(rules {derive.RULES_VERSION})",
+            f"{rel}. All rows, review items scored on the labels the rules would give "
+            f"if a person confirmed the facts. Wrong: {', '.join(wrong) or 'none'}.")
+        out["classifier_settled"] = score(
+            settled, "4b. CLASSIFIER - only the rows the rules settle without review",
+            f"{len(review_ids)} of {len(verdicts)} rows are review items and are left out "
+            f"here.")
+        out["classifier"]["review_items"] = len(review_ids)
+        classifier_run = {"input": str(rel), "rules_version": derive.RULES_VERSION,
+                          "rows": len(verdicts), "review_items": len(review_ids),
+                          "wrong": wrong}
+    else:
+        print(f"\n4. CLASSIFIER - skipped, no {GATE_RUN.name}")
+
     print("\n" + "=" * 72)
     print("Read mvp/docs/gold_set.md before quoting any of these.")
     Path(args.json).write_text(json.dumps(
         {"gold_rows": len(gold), "scorable": len(scorable),
          "excluded_unclear": [r["gold_id"] for r in unclear],
-         "classifier_run": proposals.exists(), "predictors": out}, indent=2))
+         "classifier_run": classifier_run, "predictors": out}, indent=2))
     print(f"wrote {args.json}")
 
 

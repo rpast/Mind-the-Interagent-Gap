@@ -44,8 +44,12 @@ Project-level files stay at the root: `resources/` (source documents),
 1. `python mvp/pipeline/run.py update [--refetch] [--manual DIR] [--discover]`, or start the
    same run from the page `python mvp/pipeline/run.py serve` puts on 127.0.0.1. Default: the
    AIID baseline from the saved snapshot. `--discover` is a placeholder, not built yet.
-2. Run `/classify-incidents` in Claude Code to read the sources and write proposals.
-3. Review `mvp/proposals/`, promote what passes the inclusion test.
+2. Run `/classify-incidents` in Claude Code to read the sources and write proposals. It
+   runs `python mvp/pipeline/run.py derive`, which derives the labels by rule
+   (`mvp/pipeline/derive.py`) into `mvp/state/verdicts.jsonl`, and assigns instances to the
+   records `python mvp/pipeline/run.py instances-due` lists.
+3. Review `mvp/proposals/` with `mvp/state/verdicts.jsonl`, promote what passes the
+   inclusion test.
 4. `python mvp/pipeline/run.py check` — must exit 0.
 5. Commit the records, the dossiers and the rebuilt `mvp/out/` together.
 

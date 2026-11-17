@@ -1,8 +1,49 @@
 # Gate 1 accuracy
 
-As of 2026-11-14, against the reviewed gold set after round 2, with G-024 restored.
 Numbers: `python mvp/gold/score_gate1.py` → `mvp/out/gate1_accuracy.json`.
 Regenerate before citing. Methodology and how to read them: `mvp/docs/gold_set.md`.
+
+## 2026-11-16: the classifier, scored
+
+The classifier has now been run on the gold set. `extract_gate.v3` read each of the 55
+scorable gold rows, with its record and its `mvp/context/` row, blind to the verdict
+(`mvp/out/calibration/extract_gate_v3_gold_20261115.jsonl`, run 2026-11-15). The labels
+were derived by `mvp/pipeline/derive.py`, the code the pipeline runs. The script's block 4
+gives these figures.
+
+| rule | n | TP | FP | FN | TN | precision | recall |
+|---|---|---|---|---|---|---|---|
+| attack presumption as it was to 2026-11-15 | 55 | 20 | 6 | 2 | 27 | 76.9% | 90.9% |
+| **presumption with two conditions, from 2026-11-16** | 55 | 20 | **3** | 2 | 30 | **87.0%** | 90.9% |
+| the ceiling: earlier hand-curation (below) | 23 | 19 | 4 | — | — | 82.6% | — |
+
+**The rule change.** Under the old rule, 5 of the 6 false positives came from the attack
+presumption: an `unreported` attack was put in scope even where the model had answered
+`could`, and even where no AI agent was on the attacking side. From 2026-11-16 the
+presumption fires only when the record does not show fewer than two AI agents and the model
+did not answer `could` (`definitions.md`). That removes G-005, G-013 and G-058. The three
+false positives left are G-002 and G-056, both still by the presumption, and G-014, a
+counterfactual call. The two false negatives, G-011 and G-012, are low-confidence `unclear`
+counterfactuals on non-attack rows. No true positive was lost.
+
+The classifier now beats the ceiling of 82.6%, the precision of the index's own earlier
+hand-curation.
+
+**Most rows still go to a person.** 49 of the 55 rows are review items: confidence below
+high, or a gate field unclear. Under the skill they produce no settled label. The figures
+above score them on the labels the rules would give if a person confirmed the facts. The
+6 rows the rules settle on their own are all correct (3 TP, 3 TN), which is too few to
+quote as a rate.
+
+**Caveat: this measures the gate given good readings, not end to end.** The gold rows'
+readings in `mvp/context/` were written during the gold review, and some carry judgement
+wording such as "NOT LOAD-BEARING". A reading made by the enrichment prompt on a fresh
+record will be weaker. The figures say how well the rules and call 1 do when the reading
+is good.
+
+## 2026-11-14: the predictors before the classifier
+
+As of 2026-11-14, against the reviewed gold set after round 2, with G-024 restored.
 
 ## What is being measured
 
@@ -15,11 +56,11 @@ dropped before scoring and are kept with their reasons in `mvp/gold/dropped.csv`
 duplicate and one row whose only source cannot be read. The 22 in-scope rows cover 21
 distinct incidents: G-049 (Vanderbilt) is one incident with G-016 (DSEWiki).
 
-## The headline: there is nothing of ours to score yet
+## The headline on 2026-11-14: nothing of ours to score yet
 
-**`mvp/proposals/` does not exist. The classifier has never been run,** so its accuracy
-cannot be computed. Everything below scores the predictors that do exist, which is what the
-model will have to beat.
+*Superseded by the 2026-11-16 section above, which scores the classifier.* On 2026-11-14
+the classifier had never been run, so its accuracy could not be computed. What follows
+scores the predictors that did exist, which is what the model had to beat.
 
 | predictor | n | precision | recall | accuracy |
 |---|---|---|---|---|

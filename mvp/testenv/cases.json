@@ -10,7 +10,7 @@
    "shows": "A keyword queues it and only its record text was read, so the flag rule holds it as not ready instead of dismissing it as single-agent."},
   {"ref": "aiid:9904",
    "title": "TEST CASE: Scheduling system at Example Clinic double-books operating rooms",
-   "shows": "Recent and never classified, so it is queued; its source was read in full and is silent on agents, so it is ready and comes out unclear."},
+   "shows": "Recent and never asked the multi-agent question, so the unasked arm queues it; its source was read in full and is silent on agents, so it is ready and comes out unclear."},
   {"ref": "aiid:9905",
    "title": "TEST CASE: Example City's parking-fine model misreads number plates",
    "shows": "Old, classified as not multi-agent and free of keywords, so the prefilter does not queue it at all."},

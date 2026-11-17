@@ -45,7 +45,7 @@ you reached:
 matched a multi-agent term). A flagged record is never finished on its record text alone.
 If the record pass says `one` or `none` on a flagged record, the source pass still runs, and
 the record is out of scope only if a reading of depth `secondary` or better confirms it. A
-record queued only by the `unclassified` arm is not flagged; `one` or `none` from the record
+record queued only by the `unasked` arm (called `unclassified` before 2026-11-16) is not flagged; `one` or `none` from the record
 pass finishes it.
 
 ## Output, exactly this JSON

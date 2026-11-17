@@ -27,7 +27,7 @@ The workspace holds:
 
 | path | from |
 |---|---|
-| `mvp/registry/sources.csv` | `testenv/mvp/registry/`: aiid, one fictional discovery source, manual, one reference |
+| `mvp/registry/sources.csv` | `testenv/mvp/registry/`: aiid, one fictional discovery source, manual, one reference. There is no `registry/labels/`, so the test world has no Navigator labels |
 | `mvp/taxonomy/`, `mvp/docs/`, `mvp/prompts/` | copies of the live tree, so every id is checked against the real taxonomy |
 | `mvp/raw/aiid/` | `testenv/aiid/`: the saved snapshot, in the format `fetch_aiid.py` writes |
 | `writeups/` | `testenv/manual/`: the curator's directory, ingested only with `--manual` |
@@ -48,9 +48,10 @@ Then the real steps run. Three things differ from a real run:
 Each waiting or failed prompt in a test run carries `test_note`, a sentence saying what the
 answer does in the test run.
 
-A test run is persisted only inside its workspace. The server removes a test workspace when
-the next test run starts and when it stops. The command leaves its workspace in place and
-prints its path; delete it when done.
+A test run's state is persisted only inside its workspace, and it keeps no run log: only
+real runs go into `mvp/state/runs/`. The server removes a test workspace when the next test
+run starts and when it stops. The command leaves its workspace in place and prints its
+path; delete the workspace when done.
 
 ## The tree
 
@@ -72,7 +73,7 @@ prints its path; delete it when done.
 | `aiid:9901` | label arm; a full reading shows two interacting agents: in scope. Its first dossier puts it in scope on AIID's label, which `check` refuses |
 | `aiid:9902` | keyword arm; a secondary reading shows one chatbot: dismissed |
 | `aiid:9903` | keyword arm; only the record text was read: the flag rule holds it |
-| `aiid:9904` | recent, never classified; read in full and silent on agents: unclear |
+| `aiid:9904` | recent, never asked the multi-agent question (`unasked` arm); read in full and silent on agents: unclear |
 | `aiid:9905` | not queued by any arm |
 | `aiid:9906` | a drone swarm doing what one agent could: a multi-agent setup, out of scope |
 | `manual:test-case-relay-agents` | hand-added: in scope on the curator's word, never verified |
@@ -82,6 +83,12 @@ prints its path; delete it when done.
 - The records' `url` is `https://incidentdatabase.ai/cite/99nn`, because `normalise_aiid`
   builds it from the id. Those pages do not exist; the sources the readings cite are
   `example.org` pages.
-- The proposals carry a `derived` object with the labels derived by rule. `SKILL.md` says
-  to derive them but does not fix where they go.
+- The stand-in proposals hold model output only, as real ones do. The labels come from the
+  real Derive step, which runs `derive.py` on them and writes the workspace's
+  `state/verdicts.jsonl`: 9901 in scope, 9906 out of scope, 9904 and the manual record for
+  review.
 - The workspace has no gold set or accuracy scores, so the map shows none.
+- The map's record counts are small and many are 0. They obey the same rule as a real
+  run's: every box's incoming records equal what goes on, stops or waits there, and the
+  `checks` that `run.py` computes must all hold. A failed one shows as a warning above the
+  map.

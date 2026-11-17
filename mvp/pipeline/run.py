@@ -13,7 +13,10 @@ Stages, in the order an update runs them:
     read       (claude code skill /classify-incidents, step 0: the readings)
     readiness  say, per record, whether enough has been read to classify it
     judge      (claude code skill /classify-incidents; see mvp/docs/classifiers.md)
-    review     a person promotes proposals to dossiers (`promote`)
+    derive     the labels, by rule (derive.py), from the newest extract_gate proposal
+               of each record -> mvp/state/verdicts.jsonl
+    review     a person promotes proposals to dossiers (`promote`);
+               `instances-due` lists the records in scope with no instance proposal
     check      validate the layer; exits non-zero on any problem
     index      regenerate mvp/out/incident_index.csv and mvp/state/pipeline.json
     viz        render the pages in mvp/out/
@@ -23,6 +26,8 @@ Stages, in the order an update runs them:
     testrun [--refetch] [--manual] [--discover] [--skip STEP ...]
                              the same steps on made-up incidents in a scratch folder
                              (see mvp/testenv/README.md); never touches the real tree
+    runs [RUN]               the retained logs of real runs, newest first; with RUN, its trace:
+                             how the map's numbers changed, step by step
 
 `update` runs them all, step by step. A step that needs a person (a skill run, a
 review) is reported with what is needed, and the run goes on; `serve` runs the same
@@ -38,7 +43,9 @@ import argparse
 import csv
 import hashlib
 import inspect
+import itertools
 import json
+import os
 import re
 import shutil
 import sys
@@ -52,16 +59,20 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit("this pipeline needs PyYAML: pip install -r requirements.txt")
 
+# The labelling rules live in one file beside this one, derive.py, and nowhere else.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import derive as rules  # noqa: E402
+
 # Every path the stages read or write. They live in module globals, set in one place.
 # The test run (testenv.py) loads a second instance of this module and points that
 # one at a scratch workspace; this instance is set once, here, and never re-pointed.
 PATH_NAMES = ("MVP", "ROOT", "REGISTRY", "TAXONOMY", "RAW", "RECORDS", "INCIDENTS",
-              "PROPOSALS", "CONTEXT", "STATE", "OUT", "RUN_FILE")
+              "PROPOSALS", "CONTEXT", "STATE", "OUT", "RUN_FILE", "RUNS")
 
 
 def set_paths(mvp_dir):
     global MVP, ROOT, REGISTRY, TAXONOMY, RAW, RECORDS, INCIDENTS, PROPOSALS, \
-        CONTEXT, STATE, OUT, RUN_FILE
+        CONTEXT, STATE, OUT, RUN_FILE, RUNS
     MVP = Path(mvp_dir).resolve()
     ROOT = MVP.parent
     REGISTRY = MVP / "registry" / "sources.csv"
@@ -74,6 +85,7 @@ def set_paths(mvp_dir):
     STATE = MVP / "state"
     OUT = MVP / "out"
     RUN_FILE = STATE / "run.json"
+    RUNS = STATE / "runs"           # one retained log per run: <run id>.json
 
 
 set_paths(Path(__file__).resolve().parents[1])
@@ -121,12 +133,18 @@ KEYWORD_TERMS = [
 ]
 KEYWORD_RE = [(t, re.compile(t, re.I)) for t in KEYWORD_TERMS]
 
-# A record with no external classification at all is unscreened, not negative.
-# Recent records are the ones that lack classifications, so they go to the queue.
+# A record nobody asked the multi-agent question of is unscreened, not negative.
+# The `unasked` arm queues every such record dated on or after this cutoff.
 UNCLASSIFIED_CUTOFF = "2024-01-01"
 
 MA_FIELD = "Multiple AI Interaction"
 MA_POSITIVE = {"yes", "maybe"}
+# The source whose taxonomies can carry MA_FIELD. Only its records can be "asked".
+MA_SOURCE = "aiid"
+
+# The third prefilter arm was `unclassified` until 2026-11-16. Queue rows written
+# before then still carry the old name; they are read as `unasked`.
+ARM_ALIASES = {"unclassified": "unasked"}
 
 
 # The context layer: what a source says, read for the facts the gates need.
@@ -187,6 +205,65 @@ def content_hash(obj):
     return "sha256:" + hashlib.sha256(blob).hexdigest()[:32]
 
 
+# A record's identity is the pair (source_id, source_record_id). Every file row carries
+# it twice: as the two fields, and as one string, `record_key`, "<source_id>:<record_id>"
+# (e.g. "aiid:1604"). It is the same string `promote` takes. Inside run.py dicts are
+# keyed on the pair; every row written to a file carries the string.
+
+def record_key(source_id, source_record_id):
+    return f"{source_id}:{source_record_id}"
+
+
+def split_key(key):
+    """'aiid:1604' -> ('aiid', '1604'). The record id may itself hold a colon."""
+    if ":" not in str(key):
+        die(f"a record key is <source_id>:<record_id>, got {key!r}")
+    sid, rid = str(key).split(":", 1)
+    return sid, rid
+
+
+def row_pair(row):
+    """(source_id, source_record_id) of a file row: from `record_key` when the row has
+    one, else from the two fields (rows written before the key existed, or by a skill
+    that does not write it)."""
+    if row.get("record_key"):
+        return split_key(row["record_key"])
+    return row["source_id"], str(row["source_record_id"])
+
+
+# The fields a record's content_hash covers: its substance, nothing about when or how it
+# was fetched. A label's `fetched_at` is stored but never hashed, so a re-fetch on a new
+# date with nothing changed appends nothing.
+HASHED_FIELDS = {"title": "", "text": "", "date": "", "url": "",
+                 "external_labels": [], "meta": {}}
+
+
+def record_hash(row):
+    body = {k: row.get(k, default) for k, default in HASHED_FIELDS.items()}
+    body["external_labels"] = [{k: v for k, v in label.items() if k != "fetched_at"}
+                               for label in body["external_labels"] or []]
+    return content_hash(body)
+
+
+def make_record(source_id, source_record_id, fetched_at, body, raw_ref):
+    """One record row. `raw_ref` says where in raw/ it came from; it is not hashed.
+
+    raw_ref = {"path": the raw file, repo-relative; "id_field": the source's own id
+               field in that file; "id": its value; "fetched_at": the fetch date}
+    """
+    rid = str(source_record_id)
+    return {"source_id": source_id, "source_record_id": rid,
+            "record_key": record_key(source_id, rid),
+            "fetched_at": fetched_at, "raw_ref": raw_ref,
+            "content_hash": record_hash(body), **body}
+
+
+def repo_path(path):
+    """A path as the repository names it: relative to the repo root when inside it."""
+    p = Path(path).resolve()
+    return str(p.relative_to(ROOT)) if p.is_relative_to(ROOT) else str(p)
+
+
 def read_jsonl(path):
     if not path.exists():
         return []
@@ -217,7 +294,7 @@ def latest_records(source_id=None):
         else [RECORDS / f"{source_id}.jsonl"]
     for path in paths:
         for row in read_jsonl(path):
-            out[(row["source_id"], row["source_record_id"])] = row
+            out[row_pair(row)] = row
     return out
 
 
@@ -330,9 +407,9 @@ def fetch_aiid(target, token_file):
     except ImportError as e:
         die(f"cannot import fetch_aiid.py: {e}")
     target.mkdir(parents=True, exist_ok=True)
-    token = fa.resolve_token(token_file)
+    token, _where = fa.resolve_token(token_file)
     client = fa.Client(token)
-    schema = fa.Schema(client)
+    schema = fa.Schema(client.query(fa.INTROSPECT))
     for collection, depth, exclude, sort in (
             ("incidents", 0, [], "incident_id"),
             ("classifications", 1, ["reports"], "_id")):
@@ -363,16 +440,18 @@ def stage_normalise(source_ids):
 
 
 def append_records(source_id, incoming):
-    """Append only what changed. Returns how many versions were written."""
+    """Append only what changed: a record whose content_hash (its substance; see
+    record_hash) equals its newest version's is not written again. Returns how many
+    versions were written."""
     path = RECORDS / f"{source_id}.jsonl"
     existing = read_jsonl(path)
     newest = {}
     for row in existing:
-        newest[row["source_record_id"]] = row
+        newest[row_pair(row)] = row
     out = list(existing)
     added = 0
     for row in incoming:
-        prev = newest.get(row["source_record_id"])
+        prev = newest.get(row_pair(row))
         if prev is not None and prev["content_hash"] == row["content_hash"]:
             continue
         out.append(row)
@@ -399,7 +478,8 @@ def normalise_aiid():
         for inc in c.get("incidents") or []:
             by_mongo.setdefault(inc.get("_id"), []).append(c)
 
-    navigator = read_navigator(src)
+    navigator = read_navigator()
+    raw_path = repo_path(src / "incidents.jsonl")
 
     out = []
     for inc in incidents:
@@ -434,9 +514,9 @@ def normalise_aiid():
             "external_labels": labels,
             "meta": meta,
         }
-        out.append({"source_id": "aiid", "source_record_id": iid,
-                    "fetched_at": fetched_at,
-                    "content_hash": content_hash(body), **body})
+        out.append(make_record("aiid", iid, fetched_at, body,
+                               {"path": raw_path, "id_field": "_id",
+                                "id": inc.get("_id"), "fetched_at": fetched_at}))
     return append_records("aiid", out)
 
 
@@ -459,9 +539,15 @@ def decode_value(value_json):
     return decoded if isinstance(decoded, str) else decoded
 
 
-def read_navigator(src):
-    """The Navigator's behaviour facet, read off the rendered page by hand."""
-    path = src / "navigator_multiagent.tsv"
+def navigator_path():
+    """Hand-made, so it lives in the registry, not in raw/ (verbatim fetch output)."""
+    return MVP / "registry" / "labels" / "navigator_multiagent.tsv"
+
+
+def read_navigator():
+    """The Navigator's behaviour facet, copied off the rendered page by hand on
+    2026-11-09. See mvp/registry/labels/README.md."""
+    path = navigator_path()
     if not path.exists():
         return {}
     out = {}
@@ -485,9 +571,11 @@ def normalise_generic(source_id):
     out = []
     for path in files:
         for row in read_jsonl(path):
-            rid = str(row.get("source_record_id") or row.get("id") or "")
+            id_field = "source_record_id" if row.get("source_record_id") else "id"
+            rid = str(row.get(id_field) or "")
             if not rid:
                 die(f"{path}: a record has no source_record_id")
+            fetched_at = row.get("fetched_at") or TODAY
             body = {
                 "title": row.get("title") or "",
                 "text": row.get("text") or row.get("description") or "",
@@ -496,9 +584,9 @@ def normalise_generic(source_id):
                 "external_labels": row.get("external_labels") or [],
                 "meta": row.get("meta") or {},
             }
-            out.append({"source_id": source_id, "source_record_id": rid,
-                        "fetched_at": row.get("fetched_at") or TODAY,
-                        "content_hash": content_hash(body), **body})
+            out.append(make_record(source_id, rid, fetched_at, body,
+                                   {"path": repo_path(path), "id_field": id_field,
+                                    "id": row.get(id_field), "fetched_at": fetched_at}))
     return append_records(source_id, out)
 
 
@@ -627,9 +715,10 @@ def normalise_manual():
                 "meta": {"manual": True, "origin_path": origins.get(path.name, ""),
                          "raw_file": path.name},
             }
-            out.append({"source_id": MANUAL, "source_record_id": rid,
-                        "fetched_at": TODAY, "content_hash": content_hash(body),
-                        **body})
+            # a write-up has no id of its own: the record id is made from its file name
+            out.append(make_record(MANUAL, rid, TODAY, body,
+                                   {"path": repo_path(path), "id_field": "source_record_id",
+                                    "id": rid, "fetched_at": TODAY}))
     # content_hash covers the body only, so an unchanged write-up is not re-appended
     added = append_records(MANUAL, out)
     ensure_manual_context()
@@ -643,7 +732,7 @@ def ensure_manual_context():
     Every other fact stays unread. See mvp/docs/context_layer.md.
     """
     path = CONTEXT / f"{MANUAL}.jsonl"
-    have = {str(r["source_record_id"]) for r in read_jsonl(path) if r.get("manual")}
+    have = {row_pair(r)[1] for r in read_jsonl(path) if r.get("manual")}
     new = []
     for (sid, rid), rec in sorted(latest_records(MANUAL).items()):
         if rid in have:
@@ -652,7 +741,8 @@ def ensure_manual_context():
                  for name in CONTEXT_FACTS}
         facts["agents"] = {"status": "stated", "quote": "",
                            "text": "several agents, on the curator's word"}
-        new.append({"source_id": MANUAL, "source_record_id": rid, "manual": True,
+        new.append({"source_id": MANUAL, "source_record_id": rid,
+                    "record_key": record_key(MANUAL, rid), "manual": True,
                     "agent_count": "several", "attack": None,
                     "read": [{"url": rec.get("url", ""), "depth": "curator",
                               "read_on": TODAY}],
@@ -696,12 +786,49 @@ def stage_discover(source_ids):
 
 # ---------------------------------------------------------------- prefilter
 
+def row_arms(row):
+    """The arms of a queue row, as a list, old names read as the new ones."""
+    return [ARM_ALIASES.get(a, a) for a in str(row.get("arms") or "").split(";") if a]
+
+
+def arm_counts(queue):
+    """Queue rows per arm. A row caught by two arms counts under both."""
+    out = {}
+    for row in queue:
+        for arm in row_arms(row):
+            out[arm] = out.get(arm, 0) + 1
+    return out
+
+
+def ma_asked(rec):
+    """Did any AIID taxonomy ask this record the multi-agent question? True when it
+    carries an external label for MA_FIELD from the AIID namespaces, whatever the
+    answer was."""
+    return any(l.get("source") == MA_SOURCE and l.get("field") == MA_FIELD
+               for l in rec.get("external_labels") or [])
+
+
 def stage_prefilter():
     """Three arms, union. No single net has acceptable recall.
+
+      label    an external label says yes or maybe (MA_POSITIVE), or the Navigator's
+               multi-agent facet lists it
+      keyword  the recall-first regex net, KEYWORD_TERMS
+      unasked  an AIID record dated on or after UNCLASSIFIED_CUTOFF that no AIID
+               taxonomy asked the multi-agent question (no MA_FIELD label at all)
+
+    Only `label` and `keyword` flag a record (FLAG_ARMS); `unasked` does not.
 
     Measured: the keyword net matched 3 of 200 sampled AIID incidents; the
     Navigator's rater missed 3 of the 9 of our incidents that are in AIID; and
     305 of 1,803 AIID incidents carry no classification at all, skewed recent.
+
+    Until 2026-11-16 the third arm was `unclassified`: no classification of any kind.
+    Measured that day: 772 AIID incidents dated 2024-01-01 or later were classified
+    by MIT or GMF only, so that arm skipped them, yet neither taxonomy asks the
+    multi-agent question. A random sample of 100 of them, read from record text, gave
+    22 that need a source read (18 `unknown`, 4 `several`). So the arm now asks
+    whether anybody asked, not whether anybody classified: 361 + 772 = 1,133 queued.
     """
     records = latest_records()
     if not records:
@@ -715,6 +842,7 @@ def stage_prefilter():
         if sid == MANUAL or (rec.get("meta") or {}).get("manual"):
             # the curator put it here; no net needs to catch it
             rows.append({"source_id": sid, "source_record_id": rid,
+                         "record_key": record_key(sid, rid),
                          "date": rec.get("date", ""), "title": rec.get("title", ""),
                          "arms": MANUAL, "label_values": "", "keyword_terms": "",
                          "url": rec.get("url", "")})
@@ -729,14 +857,15 @@ def stage_prefilter():
         terms = [t for t, rx in KEYWORD_RE if rx.search(haystack)]
         if terms:
             arms.append("keyword")
-        classified = rec.get("meta", {}).get("has_classification")
-        if classified is False and rec.get("date", "") >= UNCLASSIFIED_CUTOFF:
-            arms.append("unclassified")
+        if sid == MA_SOURCE and not ma_asked(rec) \
+                and rec.get("date", "") >= UNCLASSIFIED_CUTOFF:
+            arms.append("unasked")
         if not arms:
             continue
         rows.append({
             "source_id": sid,
             "source_record_id": rid,
+            "record_key": record_key(sid, rid),
             "date": rec.get("date", ""),
             "title": rec.get("title", ""),
             "arms": ";".join(arms),
@@ -748,10 +877,7 @@ def stage_prefilter():
         })
     STATE.mkdir(parents=True, exist_ok=True)
     write_jsonl(STATE / "queue.jsonl", rows)
-    by_arm = {}
-    for row in rows:
-        for arm in row["arms"].split(";"):
-            by_arm[arm] = by_arm.get(arm, 0) + 1
+    by_arm = arm_counts(rows)
     info(f"  ok    prefilter: {len(rows)} candidates of {len(records)} records")
     for arm, n in sorted(by_arm.items()):
         info(f"          {arm}: {n}")
@@ -775,7 +901,7 @@ def load_context():
     out = {}
     for path in sorted(CONTEXT.glob("*.jsonl")) if CONTEXT.exists() else []:
         for row in read_jsonl(path):
-            out[(row["source_id"], str(row["source_record_id"]))] = row
+            out[row_pair(row)] = row
     return out
 
 
@@ -787,8 +913,7 @@ def is_flagged(arms):
 def queue_flags(queue=None):
     """(source_id, source_record_id) -> flagged, for every queued record."""
     queue = read_jsonl(STATE / "queue.jsonl") if queue is None else queue
-    return {(r["source_id"], str(r["source_record_id"])): is_flagged(r.get("arms"))
-            for r in queue}
+    return {row_pair(r): is_flagged(r.get("arms")) for r in queue}
 
 
 def best_depth(ctx):
@@ -885,7 +1010,7 @@ def stage_readiness():
     context = load_context()
     queue = read_jsonl(STATE / "queue.jsonl")
     flags = queue_flags(queue)
-    pools = {"queue": [(r["source_id"], str(r["source_record_id"])) for r in queue],
+    pools = {"queue": [row_pair(r) for r in queue],
              "dossiers": sorted(dossier_source_refs())}
     rows, summary = [], {}
     for pool, keys in pools.items():
@@ -893,6 +1018,7 @@ def stage_readiness():
             verdict = readiness(context.get(key), flagged=flags.get(key, True))
             rec = records.get(key, {})
             rows.append({"pool": pool, "source_id": key[0], "source_record_id": key[1],
+                         "record_key": record_key(*key),
                          "title": rec.get("title", ""),
                          "text_chars": len(rec.get("text", "")),
                          **{d: verdict[d]["level"] for d in DECISIONS},
@@ -912,6 +1038,102 @@ def stage_readiness():
     return summary
 
 
+# ------------------------------------------------------------------- derive
+#
+# Proposals hold model output only. The labels are derived from them by rule
+# (derive.py), every time, into state/verdicts.jsonl: generated state, never edited
+# and never written back into a proposal.
+
+VERDICTS = "verdicts.jsonl"
+INSTANCES_DUE = "instances_due.jsonl"
+
+
+def proposal_rows(prompt_id):
+    """Newest proposal row per record for one prompt (extract_gate, assign_instances),
+    keyed (source_id, source_record_id). Files are read in name order, which is run
+    date order, so a later row wins."""
+    out = {}
+    for path in sorted(PROPOSALS.glob(f"{prompt_id}.*.jsonl")) if PROPOSALS.exists() else []:
+        for row in read_jsonl(path):
+            if row.get("record_key") or row.get("source_id") is not None:
+                out[row_pair(row)] = row
+    return out
+
+
+def stage_derive():
+    """Apply the rules to the newest extract_gate proposal of every record."""
+    gates = proposal_rows("extract_gate")
+    rows, split = [], {s: 0 for s in rules.STATUSES}
+    for (sid, rid), gate in sorted(gates.items()):
+        v = rules.derive(gate, manual=(sid == MANUAL))
+        split[v["status"]] += 1
+        rows.append({"record_key": record_key(sid, rid), "source_id": sid,
+                     "source_record_id": rid,
+                     "prompt": f"{gate.get('prompt_id', '')}@{gate.get('prompt_version', '')}",
+                     "run_date": gate.get("run_date", ""), **v})
+    STATE.mkdir(parents=True, exist_ok=True)
+    write_jsonl(STATE / VERDICTS, rows)
+    presumed = sum(1 for r in rows if r["by_presumption"])
+    info(f"  ok    derive: {len(rows)} verdict(s), rules {rules.RULES_VERSION} -> "
+         f"{(STATE / VERDICTS).relative_to(ROOT)}")
+    info(f"          in scope {split['in_scope']}  out of scope {split['out_of_scope']}  "
+         f"review {split['review']}  (of the review items, {presumed} would be in scope "
+         f"only by the attack presumption if a person confirms them)")
+    return split
+
+
+def read_verdicts():
+    """state/verdicts.jsonl, keyed (source_id, source_record_id)."""
+    return {row_pair(r): r for r in read_jsonl(STATE / VERDICTS)}
+
+
+def instances_due():
+    """Records a person, or the rules, have put in scope that have no instance
+    proposal. One row per record:
+
+      dossier  a dossier with multi_agent true and label source `ours`, an empty
+               `instances` list, and no assign_instances proposal for any of its
+               sources. The record named is its canonical source's.
+      verdict  a record derive settled in_scope, with no assign_instances proposal,
+               and no dossier that already lists instances.
+    """
+    have = set(proposal_rows("assign_instances"))
+    out, seen, listed = [], set(), set()
+    for path in all_dossiers():
+        meta, _ = read_dossier(path)
+        refs = [(s.get("source_id"), str(s.get("record_id")))
+                for s in meta.get("sources") or []]
+        if meta.get("instances"):
+            listed.update(refs)
+        if meta.get("multi_agent") is not True \
+                or meta.get("multi_agent_label_source") != "ours" \
+                or meta.get("instances") or not refs or any(r in have for r in refs):
+            continue
+        key = next((r for r in refs if r[0] == meta.get("canonical_source")), refs[0])
+        seen.update(refs)
+        out.append({"record_key": record_key(*key), "source_id": key[0],
+                    "source_record_id": key[1], "why": "dossier",
+                    "dossier": meta.get("id", path.stem)})
+    for key, v in sorted(read_verdicts().items()):
+        if v.get("status") != "in_scope" or key in have or key in seen or key in listed:
+            continue
+        out.append({"record_key": record_key(*key), "source_id": key[0],
+                    "source_record_id": key[1], "why": "verdict", "dossier": ""})
+    return out
+
+
+def stage_instances_due():
+    rows = instances_due()
+    STATE.mkdir(parents=True, exist_ok=True)
+    write_jsonl(STATE / INSTANCES_DUE, rows)
+    info(f"  ok    instances-due: {len(rows)} record(s) in scope with no instance "
+         f"proposal -> {(STATE / INSTANCES_DUE).relative_to(ROOT)}")
+    for r in rows:
+        why = f"dossier {r['dossier']}" if r["why"] == "dossier" else "derived in scope"
+        info(f"          {r['record_key']:28s} {why}")
+    return rows
+
+
 # ------------------------------------------------------------------ promote
 
 def stage_promote(refs, force=False):
@@ -920,8 +1142,8 @@ def stage_promote(refs, force=False):
     made = []
     for ref in refs:
         if ":" not in ref:
-            die(f"promote takes <source_id>:<record_id>, got {ref!r}")
-        sid, rid = ref.split(":", 1)
+            die(f"promote takes a record_key, <source_id>:<record_id>, got {ref!r}")
+        sid, rid = split_key(ref)
         rec = records.get((sid, rid))
         if rec is None:
             die(f"no record {ref}; run normalise first")
@@ -1053,11 +1275,7 @@ def pipeline_state(index_rows):
         else:
             provenance["external"] += 1
 
-    queue_arms = {}
-    for row in queue:
-        for arm in str(row.get("arms", "")).split(";"):
-            if arm:
-                queue_arms[arm] = queue_arms.get(arm, 0) + 1
+    queue_arms = arm_counts(queue)
 
     return {
         "generated": TODAY,
@@ -1100,7 +1318,7 @@ def pipeline_state(index_rows):
         "sources": sorted(per_source),
         "incidents": index_rows,
         "queue": [{k: row.get(k, "") for k in
-                   ("source_id", "source_record_id", "date", "title", "arms",
+                   ("source_id", "source_record_id", "record_key", "date", "title", "arms",
                     "label_values", "keyword_terms", "url")} for row in queue],
         "registry": [{"source_id": r["source_id"], "name": r["name"],
                       "role": r["role"], "access_method": r["access_method"],
@@ -1123,6 +1341,10 @@ MAP_ARTIFACTS = {
                ("The curator's flag on each", "context/manual.jsonl")],
     "normalise": [("Records, one file per source", "records/")],
     "prefilter": [("The queue of candidates", "state/queue.jsonl")],
+    "notqueued": [("The records, one file per source", "records/"),
+                  ("The queue they are not in", "state/queue.jsonl")],
+    "outscope": [("The readings that settled it", "context/"),
+                 ("The readiness report", "state/readiness.jsonl")],
     "readrec": [("Readings, one file per source", "context/"),
                 ("The instructions the model follows", "prompts/enrich_context.v2.md")],
     "readsrc": [("Readings, one file per source", "context/"),
@@ -1134,14 +1356,18 @@ MAP_ARTIFACTS = {
     "extract": [("The instructions the model follows", "prompts/extract_gate.v3.md"),
                 ("Where its output will be saved", "proposals/")],
     "gate1": [("The written rule", "docs/definitions.md"),
-              ("Where its answers will be saved", "proposals/")],
+              ("The rule in code", "pipeline/derive.py"),
+              ("Where its answers are saved", "state/verdicts.jsonl")],
     "gate2": [("The written rule", "docs/definitions.md"),
-              ("Where its answers will be saved", "proposals/")],
+              ("The rule in code", "pipeline/derive.py"),
+              ("Where its answers are saved", "state/verdicts.jsonl")],
     "evtype": [("The four evidence types", "taxonomy/evidence_types.csv"),
-               ("Where its answers will be saved", "proposals/")],
+               ("The rule in code", "pipeline/derive.py"),
+               ("Where its answers are saved", "state/verdicts.jsonl")],
     "instances": [("The named patterns", "taxonomy/instances.csv"),
                   ("The instructions the model follows", "prompts/assign_instances.v2.md"),
-                  ("Where its output will be saved", "proposals/")],
+                  ("Where its output will be saved", "proposals/"),
+                  ("Records in scope still without one", "state/instances_due.jsonl")],
     "proposals": [("The suggestions", "proposals/")],
     "review": [("The incident files a person writes", "incidents/")],
     "dossiers": [("The incident files", "incidents/")],
@@ -1154,29 +1380,387 @@ MAP_ARTIFACTS = {
 }
 
 
-def pipeline_map(reg, records, queue, proposals, index_rows):
-    """The numbers the dataflow map (mvp/pipeline/pipeline_patch.html) prints."""
-    context = load_context()
-    ready = {"ready": 0, "provisional": 0, "not_ready": 0}
-    single = single_flagged = 0
-    judge = {"read_full": 0, "read_part": 0, "not_read": 0}
-    for row in queue:
-        ctx = context.get((row["source_id"], str(row["source_record_id"])))
-        verdict = readiness(ctx, flagged=is_flagged(row.get("arms")))
-        scope = verdict["scope"]
-        ready[scope["level"]] = ready.get(scope["level"], 0) + 1
-        if out_of_scope(verdict):
-            single += 1
-            continue
-        if single_agent_said(ctx):
-            single_flagged += 1
-        judge[{"ready": "read_full", "provisional": "read_part"}
-              .get(scope["level"], "not_read")] += 1
+def queue_stage(row, ctx):
+    """Where one queued record stands on the map's path, by the readiness rule.
+
+      bypass        added by hand and ready on the curator's word: skips the reads
+      unread        no reading at all: waits at "Read the record"
+      oos_record    out of scope on its record text (unflagged, one agent or none)
+      oos_source    out of scope on a reading deeper than the record
+      wait_source   read at record depth only (or unreadable), not settled: waits
+                    at "Read the source"
+      unresolved    read deeper than the record, but a needed fact is still unread
+      ready         scope ready or provisional: ready to judge
+    """
+    verdict = readiness(ctx, flagged=is_flagged(row.get("arms")))
+    level = verdict["scope"]["level"]
+    if MANUAL in row_arms(row) and level in ("ready", "provisional") \
+            and not out_of_scope(verdict):
+        return "bypass", verdict
+    if ctx is None:
+        return "unread", verdict
+    deeper = READ_DEPTH.index(best_depth(ctx)) > READ_DEPTH.index("record")
+    if out_of_scope(verdict):
+        return ("oos_source" if deeper else "oos_record"), verdict
+    if not deeper:
+        return "wait_source", verdict
+    if level in ("ready", "provisional"):
+        return "ready", verdict
+    return "unresolved", verdict
+
+
+def map_flow(reg, records, queue, context, index_rows):
+    """The record flow the map draws: one population, records, over all sources.
+
+    Returns (nodes, checks, counts). Each node: `n` (its headline count), `in`, `out`
+    (edges {to, n, label, branch}), `stop` (what ends here, finished), `held` (what
+    waits here), `by_source` (the node's records per source), `groups` (breakdowns),
+    `files` and `rule` (where the number comes from). A branch edge sends the same
+    records on a second, descriptive path: it is not part of its source's split.
+    `checks` lists every conservation equation with both sides."""
+    def by_source(keys):
+        out = {}
+        for sid, _ in keys:
+            out[sid] = out.get(sid, 0) + 1
+        return dict(sorted(out.items()))
+
+    def rows(*pairs):
+        return [{"label": p[0], "n": p[1], "tech": p[2] if len(p) > 2 else ""}
+                for p in pairs]
+
+    allkeys = set(records)
+    manual_keys = {k for k in allkeys if k[0] == MANUAL
+                   or ((records[k].get("meta") or {}).get("manual"))}
+    fetched = allkeys - manual_keys
+    attested = dossier_source_refs() & allkeys
+    qrows = {row_pair(r): r for r in queue if row_pair(r) in allkeys}
+    queued = set(qrows)
+    to_dossier = attested - queued
+    not_queued = allkeys - queued - to_dossier
+
+    stage, verdicts_r = {}, {}
+    for key, row in qrows.items():
+        stage[key], verdicts_r[key] = queue_stage(row, context.get(key))
+    at = lambda *names: {k for k, s in stage.items() if s in names}
+    bypass = at("bypass")
+    to_readrec = queued - bypass
+    unread = at("unread")
+    oos_record, oos_source = at("oos_record"), at("oos_source")
+    wait_source, unresolved = at("wait_source"), at("unresolved")
+    read_any = to_readrec - unread
+    to_readsrc = read_any - oos_record
+    src_ready = at("ready")
+    read_deeper = to_readsrc - wait_source
+    ready = src_ready | bypass
+
+    gates = proposal_rows("extract_gate")
+    extracted = {k for k in ready if k in gates}
+    verdicts = read_verdicts()
+    derived = {k for k in extracted if (verdicts.get(k) or {}).get("status") in rules.STATUSES}
+    status_of = {k: verdicts[k]["status"] for k in derived}
+    promoted = derived & attested
+    waiting_person = derived - promoted
+    early = (queued & attested) - promoted     # promoted before reaching review
+
+    # dossier facts, per record
+    dossier_of, dmeta = {}, {}
+    for path in all_dossiers():
+        meta, _ = read_dossier(path)
+        dmeta[meta.get("id", path.stem)] = meta
+        for s in meta.get("sources") or []:
+            dossier_of[(s.get("source_id"), str(s.get("record_id")))] = meta.get("id", path.stem)
+    in_dossiers = to_dossier | promoted
+    scope_word = {True: "in", False: "out"}
+    d_scope = {"in": 0, "out": 0, "unclear": 0}
+    d_ver = {}
+    for k in in_dossiers:
+        meta = dmeta.get(dossier_of.get(k), {})
+        d_scope[scope_word.get(meta.get("multi_agent"), "unclear")] += 1
+        v = meta.get("verification") or "not set"
+        d_ver[v] = d_ver.get(v, 0) + 1
+
+    # instances: a branch, fed by records in scope, by the rules or by a person
+    inst = proposal_rows("assign_instances")
+    by_rule = {k for k, s in status_of.items() if s == "in_scope"} - attested
+    by_person = {k for k in in_dossiers
+                 if dmeta.get(dossier_of.get(k), {}).get("multi_agent") is True
+                 and dmeta.get(dossier_of.get(k), {}).get("multi_agent_label_source") == "ours"}
+    in_scope = by_rule | by_person
+    has_inst = {k for k in in_scope if k in inst}
+    listed = {k for k in in_scope - has_inst
+              if dmeta.get(dossier_of.get(k), {}).get("instances")}
+    due = in_scope - has_inst - listed
+    due_rows = len(instances_due())
+
+    def agent_count(k):
+        return (context.get(k) or {}).get("agent_count") or "not said"
+
+    depth_rows = {}
+    for k in read_deeper:
+        d = best_depth(context.get(k))
+        depth_rows[d] = depth_rows.get(d, 0) + 1
+    DEPTH_WORDS = {"secondary": "an aggregator's page, read in full",
+                   "curator": "the curator's own write-up",
+                   "primary_partial": "the original source, read in part",
+                   "primary_full": "the original source, read in full"}
+    conf = {}
+    for k in extracted:
+        c = gates[k].get("confidence") or "not given"
+        conf[c] = conf.get(c, 0) + 1
     arms = {}
-    for row in queue:
-        for arm in str(row.get("arms", "")).split(";"):
-            if arm:
-                arms[arm] = arms.get(arm, 0) + 1
+    for k in queued:
+        for a in row_arms(qrows[k]):
+            arms[a] = arms.get(a, 0) + 1
+    flagged = sum(1 for k in queued if is_flagged(qrows[k].get("arms")))
+    levels = {}
+    for k in src_ready:
+        lv = verdicts_r[k]["scope"]["level"]
+        levels[lv] = levels.get(lv, 0) + 1
+    STATUS_WORDS = {"in_scope": "settled in scope by the rules",
+                    "out_of_scope": "settled out of scope by the rules",
+                    "review": "needs a person"}
+    split = {s: sum(1 for k in derived if status_of[k] == s) for s in rules.STATUSES}
+    presumed = sum(1 for k in derived if verdicts[k].get("by_presumption"))
+
+    E = lambda to, keys, label, branch=False: {"to": to, "n": len(keys), "label": label,
+                                               "branch": branch}
+    nodes = [
+        {"id": "fetch", "n": len(fetched), "origin": True, "in": len(fetched),
+         "out": [E("normalise", fetched, "records collected")], "stop": [], "held": 0,
+         "pop": fetched,
+         "groups": [{"title": "Records per source", "rows": rows(
+             *[(f"{sid}", n, f"records/{sid}.jsonl") for sid, n in by_source(fetched).items()])}],
+         "files": ["raw/aiid/", "records/<source>.jsonl"],
+         "rule": "records of every source but manual: latest_records()"},
+        {"id": "manual", "n": len(manual_keys), "origin": True, "in": len(manual_keys),
+         "out": [E("normalise", manual_keys, "added by hand")], "stop": [], "held": 0,
+         "pop": manual_keys, "groups": [],
+         "files": ["raw/manual/", "records/manual.jsonl"],
+         "rule": "records with source_id manual or meta.manual"},
+        {"id": "normalise", "n": len(allkeys), "in": len(allkeys),
+         "out": [E("prefilter", allkeys, "records")], "stop": [], "held": 0,
+         "pop": allkeys, "groups": [],
+         "files": ["records/<source>.jsonl"],
+         "rule": "newest version of every (source_id, source_record_id): latest_records()"},
+        {"id": "prefilter", "n": len(queued), "in": len(allkeys),
+         "out": [E("dossiers", to_dossier, "already in a dossier"),
+                 E("readrec", to_readrec, "candidates"),
+                 E("ready", bypass, "added by hand: on the curator's word"),
+                 E("notqueued", not_queued, "not queued")],
+         "stop": [], "held": 0, "pop": allkeys,
+         "groups": [
+             {"title": "Candidates per source", "rows": rows(
+                 *[(sid, n, "state/queue.jsonl") for sid, n in by_source(queued).items()])},
+             {"title": "Every record goes one of three ways", "rows": rows(
+                 ("Already in a dossier: a dossier lists it as a source", len(to_dossier),
+                  "dossier_source_refs() and not in state/queue.jsonl"),
+                 ("Queued as a candidate", len(queued), "row in state/queue.jsonl"),
+                 ("Not queued: no rule caught it", len(not_queued),
+                  "neither in the queue nor behind a dossier"))},
+             {"title": "Why each candidate was queued",
+              "note": "A record can be caught by several rules, so these add up to more than the candidates.",
+              "rows": rows(
+                  ("Tagged multi-agent by someone else", arms.get("label", 0), "arm label"),
+                  ("Matched a keyword", arms.get("keyword", 0), "arm keyword"),
+                  ("Unasked: nobody asked the multi-agent question", arms.get("unasked", 0),
+                   f"arm unasked: AIID, dated {UNCLASSIFIED_CUTOFF} or later, no {MA_FIELD} label"),
+                  ("Added by hand", arms.get(MANUAL, 0), "arm manual"))},
+             {"title": "Flagged", "rows": rows(
+                 ("Flagged by a tag or a keyword: never dismissed on the record text alone",
+                  flagged, "is_flagged(arms): label or keyword"),
+                 ("Not flagged", len(queued) - flagged, ""))}],
+         "files": ["state/queue.jsonl", "incidents/"],
+         "rule": "stage_prefilter(): union of the label, keyword and unasked arms; records behind a dossier are left out"},
+        {"id": "notqueued", "n": len(not_queued), "in": len(not_queued), "out": [],
+         "stop": [{"label": "no rule caught it", "n": len(not_queued)}], "held": 0,
+         "pop": not_queued, "groups": [],
+         "files": ["records/<source>.jsonl", "state/queue.jsonl"],
+         "rule": "records neither in state/queue.jsonl nor behind a dossier"},
+        {"id": "readrec", "n": len(read_any), "in": len(to_readrec),
+         "out": [E("outscope", oos_record, "out of scope: record text"),
+                 E("readsrc", to_readsrc, "sent on to the source")],
+         "stop": [], "held": len(unread), "held_label": "not read yet",
+         "pop": to_readrec,
+         "groups": [{"title": "Read so far", "rows": rows(
+             ("Read: there is a reading", len(read_any), "a row in context/<source>.jsonl"),
+             ("Not read yet", len(unread), "no context row"))},
+             {"title": "What the reading of the record settled", "rows": rows(
+                 ("Out of scope: one agent or none, and not flagged", len(oos_record),
+                  "out_of_scope(readiness()) at depth record"),
+                 ("Sent on: several agents, cannot tell, or flagged", len(to_readsrc),
+                  "every other read record, including those already read deeper"))}],
+         "files": ["context/<source>.jsonl", "state/queue.jsonl"],
+         "rule": "queued records, not added by hand; read = has a context row"},
+        {"id": "readsrc", "n": len(read_deeper), "in": len(to_readsrc),
+         "out": [E("outscope", oos_source, "out of scope: confirmed"),
+                 E("ready", src_ready, "ready to judge")],
+         "stop": [], "held": len(wait_source) + len(unresolved),
+         "held_label": "waiting for a source reading",
+         "pop": to_readsrc,
+         "groups": [{"title": "Source read, by how deep", "rows": rows(
+             *[(DEPTH_WORDS.get(d, d), n, d) for d, n in
+               sorted(depth_rows.items(), key=lambda x: READ_DEPTH.index(x[0]))])},
+             {"title": "Waiting here", "rows": rows(
+                 ("Only the record text has been read", len(wait_source),
+                  "best_depth() record or unreadable, not out of scope"),
+                 ("Read deeper, but a needed fact is still unread", len(unresolved),
+                  "readiness() scope not_ready at depth above record"))}],
+         "files": ["context/<source>.jsonl"],
+         "rule": "best_depth() above record: secondary, curator, primary_partial or primary_full"},
+        {"id": "outscope", "n": len(oos_record) + len(oos_source),
+         "in": len(oos_record) + len(oos_source), "out": [],
+         "stop": [{"label": "out of scope", "n": len(oos_record) + len(oos_source)}],
+         "held": 0, "pop": oos_record | oos_source,
+         "groups": [{"title": "Why, and on what reading", "rows": rows(
+             ("No agent, on the record text", sum(1 for k in oos_record if agent_count(k) == "none"),
+              "agent_count none, depth record"),
+             ("One agent, on the record text", sum(1 for k in oos_record if agent_count(k) == "one"),
+              "agent_count one, depth record"),
+             ("No agent, confirmed from a source", sum(1 for k in oos_source if agent_count(k) == "none"),
+              "agent_count none, depth above record"),
+             ("One agent, confirmed from a source", sum(1 for k in oos_source if agent_count(k) == "one"),
+              "agent_count one, depth above record"))}],
+         "files": ["context/<source>.jsonl", "state/readiness.jsonl"],
+         "rule": "out_of_scope(readiness()): agents stated, agent_count one or none"},
+        {"id": "ready", "n": len(ready), "in": len(ready),
+         "out": [E("extract", ready, "ready to judge")], "stop": [], "held": 0,
+         "pop": ready,
+         "groups": [{"title": "How firm", "rows": rows(
+             ("Original source read in full", levels.get("ready", 0), "scope ready"),
+             ("Facts from a partial or secondary reading", levels.get("provisional", 0),
+              "scope provisional"),
+             ("Added by hand: in scope on the curator's word", len(bypass), "arm manual"))}],
+         "files": ["state/readiness.jsonl"],
+         "rule": "readiness() scope ready or provisional, not out of scope"},
+        {"id": "extract", "n": len(extracted), "in": len(ready),
+         "out": [E("gate1", extracted, "facts extracted")], "stop": [],
+         "held": len(ready - extracted), "held_label": "no facts extracted yet",
+         "pop": ready,
+         "groups": [{"title": "Model's confidence", "rows": rows(
+             *[(c, n, f"confidence {c}") for c, n in sorted(conf.items())])}],
+         "files": ["proposals/extract_gate.<date>.jsonl"],
+         "rule": "distinct ready records with an extract_gate proposal: proposal_rows('extract_gate')"},
+        {"id": "gate1", "n": len(derived), "in": len(extracted),
+         "out": [E("review", derived, "labels derived"),
+                 E("instances", by_rule, "in scope by the rules", True)],
+         "stop": [], "held": len(extracted - derived), "held_label": "derive not run on it yet",
+         "pop": extracted,
+         "groups": [{"title": "What the rules settled", "rows": rows(
+             *[(STATUS_WORDS[s], split[s], f"status {s}") for s in rules.STATUSES])},
+             {"title": "Of which", "rows": rows(
+                 ("In scope by the attack presumption", presumed, "by_presumption true"))}],
+         "files": ["state/verdicts.jsonl", "pipeline/derive.py"],
+         "rule": f"state/verdicts.jsonl, rules {rules.RULES_VERSION}"},
+        {"id": "review", "n": len(derived), "in": len(derived),
+         "out": [E("dossiers", promoted, "promoted to a dossier")], "stop": [],
+         "held": len(waiting_person), "held_label": "waiting for a person",
+         "pop": derived,
+         "groups": [{"title": "By what the rules said", "rows": rows(
+             *[(STATUS_WORDS[s], split[s], f"status {s}") for s in rules.STATUSES])},
+             {"title": "Status", "rows": rows(
+                 ("A person has written a dossier", len(promoted), "listed in a dossier's sources"),
+                 ("Waiting for a person", len(waiting_person), "no dossier yet"))}],
+         "files": ["state/verdicts.jsonl", "incidents/"],
+         "rule": "records with a derived label; promoted = a dossier lists the record"},
+        {"id": "dossiers", "n": len(in_dossiers), "in": len(in_dossiers),
+         "out": [E("check", in_dossiers, "checked"),
+                 E("instances", by_person, "in scope by a person", True)],
+         "stop": [], "held": 0, "pop": in_dossiers,
+         "groups": [{"title": "The person's verdict", "rows": rows(
+             ("In scope", d_scope["in"], "multi_agent: true"),
+             ("Out of scope", d_scope["out"], "multi_agent: false"),
+             ("Unclear", d_scope["unclear"], "multi_agent: null"))},
+             {"title": "How well checked", "rows": rows(
+                 *[(v.replace("_", " "), n, f"verification {v}") for v, n in sorted(d_ver.items())])},
+             {"title": "Files", "rows": rows(
+                 ("Dossiers: one file can list several records", len(index_rows), "incidents/<ID>.md"))}],
+         "files": ["incidents/"],
+         "rule": "records listed in a dossier's sources"},
+        {"id": "check", "n": len(in_dossiers), "in": len(in_dossiers),
+         "out": [E("index", in_dossiers, "passed on")], "stop": [], "held": 0,
+         "pop": in_dossiers, "groups": [],
+         "files": ["pipeline/run.py"], "rule": "run.py check validates every dossier"},
+        {"id": "index", "n": len(in_dossiers), "in": len(in_dossiers), "out": [],
+         "stop": [{"label": "in the finished table", "n": len(in_dossiers)}], "held": 0,
+         "pop": in_dossiers,
+         "groups": [{"title": "Table", "rows": rows(
+             ("Rows: one per dossier", len(index_rows), "out/incident_index.csv"))}],
+         "files": ["out/incident_index.csv"], "rule": "index_rows(): one row per dossier"},
+        {"id": "instances", "n": len(has_inst), "in": len(in_scope), "out": [],
+         "stop": [{"label": "patterns proposed", "n": len(has_inst)},
+                  {"label": "patterns already in the dossier", "n": len(listed)}],
+         "held": len(due), "held_label": "in scope, no pattern yet",
+         "pop": in_scope,
+         "groups": [{"title": "Records in scope", "rows": rows(
+             ("In scope by the rules, no dossier yet", len(by_rule), "verdict in_scope"),
+             ("In scope by a person", len(by_person), "dossier multi_agent true, ours"))},
+             {"title": "Of which", "rows": rows(
+                 ("A pattern was proposed", len(has_inst), "assign_instances proposal"),
+                 ("The dossier already lists patterns", len(listed), "dossier instances"),
+                 ("No pattern yet", len(due), "neither"),
+                 ("Rows in the to-do list (one per dossier, not per record)", due_rows,
+                  "state/instances_due.jsonl"))}],
+         "files": ["proposals/assign_instances.<date>.jsonl", "state/instances_due.jsonl"],
+         "rule": "proposal_rows('assign_instances') over records in scope"},
+    ]
+    for nd in nodes:
+        nd["by_source"] = by_source(nd.pop("pop"))
+        nd.setdefault("held_label", "")
+
+    # conservation: per node, and the splits that the map states in words
+    checks = []
+
+    def check(text, lhs, rhs):
+        checks.append({"eq": text, "lhs": lhs, "rhs": rhs, "ok": lhs == rhs})
+
+    incoming = {}
+    for nd in nodes:
+        for e in nd["out"]:
+            incoming[e["to"]] = incoming.get(e["to"], 0) + e["n"]
+    for nd in nodes:
+        if not nd.get("origin"):
+            check(f"{nd['id']}: in = sum of the edges into it", nd["in"],
+                  incoming.get(nd["id"], 0))
+        outs = sum(e["n"] for e in nd["out"] if not e["branch"])
+        stops = sum(s["n"] for s in nd["stop"])
+        check(f"{nd['id']}: in = out + ends here + waiting", nd["in"],
+              outs + stops + nd["held"])
+        check(f"{nd['id']}: by source adds up", sum(nd["by_source"].values()), nd["in"])
+    check("records = already in a dossier + queued + not queued", len(allkeys),
+          len(to_dossier) + len(queued) + len(not_queued))
+    check("queued = sent to reading + added by hand", len(queued),
+          len(to_readrec) + len(bypass))
+    check("read the record = read + not read yet", len(to_readrec),
+          len(read_any) + len(unread))
+    check("derived = in scope + out of scope + needs a person", len(derived),
+          sum(split.values()))
+    check("in scope = proposed + already listed + waiting", len(in_scope),
+          len(has_inst) + len(listed) + len(due))
+    check("dossier verdicts add up", len(in_dossiers), sum(d_scope.values()))
+    # fails when a queued record got a dossier before reaching review: rerun prefilter
+    check("records behind a dossier = the Dossiers box", len(attested), len(in_dossiers))
+
+    counts = {"records": len(allkeys), "queued": len(queued),
+              "not_queued": len(not_queued), "in_dossier_already": len(to_dossier),
+              "read_record": len(read_any), "read_source": len(read_deeper),
+              "out_of_scope": len(oos_record) + len(oos_source), "ready": len(ready),
+              "extracted": len(extracted), "derived": len(derived),
+              "dossier_records": len(in_dossiers), "in_scope": len(in_scope),
+              "instance_records": len(has_inst), "promoted_early": len(early)}
+    return nodes, checks, counts
+
+
+def pipeline_map(reg, records, queue, proposals, index_rows):
+    """The numbers the dataflow map (mvp/pipeline/pipeline_patch.html) prints. Every
+    count on the map is a number of records; `flow` carries them and `checks` the
+    equations that must hold. See map_flow."""
+    context = load_context()
+    flow, checks, counts = map_flow(reg, records, queue, context, index_rows)
+    arms = arm_counts(queue)
+    verdicts = {s: 0 for s in rules.STATUSES}
+    for v in read_verdicts().values():
+        if v.get("status") in verdicts:
+            verdicts[v["status"]] += 1
     scope = {"in": 0, "out": 0, "unclear": 0}
     verification, failure_modes = {}, {}
     for path in all_dossiers():
@@ -1215,15 +1799,19 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
                                if r["adapter"] in ("forummagnum", "companyscope")),
         "records": len(records), "records_by_source": per_source,
         "queue": len(queue), "queue_arms": arms,
-        "context_rows": len(context), "queue_ready": ready, "queue_single": single,
-        "queue_single_flagged": single_flagged, "queue_judge": judge,
+        "flow": flow, "checks": checks, "flow_counts": counts,
+        "sources_with_records": len(per_source),
         "manual": per_source.get(MANUAL, 0),
         "prefilter_rules": {
             "keywords": list(KEYWORD_TERMS), "cutoff": UNCLASSIFIED_CUTOFF,
             "label_values": sorted(MA_POSITIVE),
             "where": f"mvp/pipeline/run.py:{inspect.getsourcelines(stage_prefilter)[1]}"},
         "aiid_snapshot": aiid_snapshot(),
-        "proposals": proposals,
+        "gate_proposals": len(proposal_rows("extract_gate")),
+        "instance_proposals": len(proposal_rows("assign_instances")),
+        "verdicts": verdicts,
+        "verdicts_rules": rules.RULES_VERSION,
+        "instances_due": len(instances_due()),
         "dossiers": len(all_dossiers()), "dossier_scope": scope,
         "dossier_verification": verification, "dossier_failure_modes": failure_modes,
         "risks": len(read_csv(TAXONOMY / "risks.csv")),
@@ -1362,6 +1950,9 @@ def stage_check():
             if not re.search(rf"^## {re.escape(name)}\s*$", body, re.M):
                 problems.append(f"{rel}: missing section '## {name}'")
 
+    # --- keys, hashes and provenance on every file row ---------------------
+    problems.extend(check_rows())
+
     # --- the context layer -------------------------------------------------
     context = load_context()
     for (sid, rid), ctx in sorted(context.items()):
@@ -1439,6 +2030,56 @@ def stage_check():
     return 0
 
 
+RAW_REF_KEYS = ("path", "id_field", "id", "fetched_at")
+
+
+def check_rows():
+    """Every record row: a record_key that matches its pair, a raw_ref, a content_hash
+    that is record_hash of its substance, and no version identical to the one before.
+    Every queue, readiness, verdict and instances-due row: a record_key that matches its
+    pair. Every context and proposal row: a record_key, if it has one, that matches it. A context or proposal row a skill wrote without one is allowed;
+    run.py falls back on the pair."""
+    problems = []
+
+    def key_ok(where, row, required):
+        if "record_key" not in row:
+            if required:
+                problems.append(f"{where}: no record_key")
+            return
+        if row.get("source_id") is None or row.get("source_record_id") is None:
+            return
+        want = record_key(row["source_id"], row["source_record_id"])
+        if row["record_key"] != want:
+            problems.append(f"{where}: record_key {row['record_key']!r} does not match "
+                            f"its source_id and source_record_id ({want!r})")
+
+    for path in sorted(RECORDS.glob("*.jsonl")) if RECORDS.exists() else []:
+        last = {}
+        for n, row in enumerate(read_jsonl(path), 1):
+            where = f"{path.relative_to(ROOT)}:{n}"
+            key_ok(where, row, required=True)
+            ref = row.get("raw_ref")
+            if not isinstance(ref, dict) or any(k not in ref for k in RAW_REF_KEYS):
+                problems.append(f"{where}: raw_ref is missing or lacks one of "
+                                f"{list(RAW_REF_KEYS)}")
+            if row.get("content_hash") != record_hash(row):
+                problems.append(f"{where}: content_hash is not the hash of the record's "
+                                f"substance")
+            pair = (row.get("source_id"), str(row.get("source_record_id")))
+            if pair in last and last[pair] == row.get("content_hash"):
+                problems.append(f"{where}: a version identical to the one before it")
+            last[pair] = row.get("content_hash")
+    for path, required in ((STATE / "queue.jsonl", True), (STATE / "readiness.jsonl", True),
+                           (STATE / VERDICTS, True), (STATE / INSTANCES_DUE, True)):
+        for n, row in enumerate(read_jsonl(path), 1):
+            key_ok(f"{path.relative_to(ROOT)}:{n}", row, required)
+    for folder in (CONTEXT, PROPOSALS):
+        for path in sorted(folder.glob("*.jsonl")) if folder.exists() else []:
+            for n, row in enumerate(read_jsonl(path), 1):
+                key_ok(f"{path.relative_to(ROOT)}:{n}", row, required=False)
+    return problems
+
+
 # ---------------------------------------------------------------------- viz
 
 PAGES = ("input_workflow.html", "pipeline_patch.html")
@@ -1490,8 +2131,8 @@ STEPS = [
     ("prefilter", "Prefilter", ["prefilter"]),
     ("read", "Read", ["readrec", "readsrc"]),
     ("ready", "Readiness", ["ready"]),
-    ("judge", "Judge", ["extract", "gate1", "gate2", "evtype", "instances",
-                        "proposals"]),
+    ("judge", "Judge", ["extract", "instances", "proposals"]),
+    ("derive", "Derive", ["gate1", "gate2", "evtype"]),
     ("review", "Review", ["review", "dossiers"]),
     ("check", "Check", ["check"]),
     ("index", "Index", ["index"]),
@@ -1519,11 +2160,62 @@ def _now():
     return datetime.now().isoformat(timespec="seconds")
 
 
+def current_map():
+    """The map's numbers for this instance's tree, as the page prints them."""
+    return pipeline_state(index_rows())["map"]
+
+
+# Subtrees of the map that are not counts: left out of a run's trace.
+TRACE_SKIP = {"artifacts", "prefilter_rules"}
+
+
+def flat_numbers(tree, prefix=""):
+    """The numeric leaves of the map, under dotted keys. Booleans, strings, lists and
+    None are not numbers here."""
+    out = {}
+    for key, value in tree.items():
+        if not prefix and key in TRACE_SKIP:
+            continue
+        name = f"{prefix}{key}"
+        if isinstance(value, dict):
+            out.update(flat_numbers(value, name + "."))
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            out[name] = value
+    return out
+
+
+def write_json_atomic(path, data):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def claim_log_file(folder, run_id):
+    """A new file in `folder` for the run's retained log: the run id with `:` as `-`,
+    and a suffix if another run already holds that name. Never an existing file."""
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    base = str(run_id).replace(":", "-")
+    for n in itertools.count(1):
+        path = folder / (f"{base}.json" if n == 1 else f"{base}-{n}.json")
+        try:
+            os.close(os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        except FileExistsError:
+            continue
+        return path
+
+
 def proposal_keys():
+    """(source_id, source_record_id) of every proposal row: by record_key when the row
+    has one, else by the pair."""
     keys = set()
     for path in sorted(PROPOSALS.glob("*.jsonl")) if PROPOSALS.exists() else []:
         for row in read_jsonl(path):
-            if row.get("source_id") is not None:
+            if row.get("record_key"):
+                keys.add(split_key(row["record_key"]))
+            elif row.get("source_id") is not None:
                 keys.add((row["source_id"], str(row.get("source_record_id", ""))))
     return keys
 
@@ -1533,6 +2225,11 @@ class UpdateRun:
 
     `wait(run, step)` is called when a step needs a person; it returns an action id
     from the step's prompt. `on_change(run)` is called after every change of state.
+
+    `data["map"]` is the map of this run's own tree, recomputed when the run starts and
+    each time a step changes state after doing work; `data["trace"]` gets one entry per
+    recomputation, with the numbers and what changed. The whole snapshot is kept in a
+    retained log, state/runs/<run id>.json (`save_log`).
     """
 
     def __init__(self, discover=False, refetch=False, manual_dir="", token_file=None,
@@ -1544,10 +2241,12 @@ class UpdateRun:
         self.on_change = on_change or (lambda run: None)
         self.lock = threading.RLock()
         self.cancelled = False
+        self.log_path = None             # the retained log, claimed on the first save
+        self.ended = None                # when the run stopped, for the retained log
         self.data = {
             "id": _now(), "state": "running", "test": False,
             "options": dict(self.options),
-            "current": None, "map": None,
+            "current": None, "map": None, "trace": [],
             "steps": [{"id": sid, "title": title, "nodes": nodes, "state": "pending",
                        "log": [], "counts": [], "prompt": None,
                        "started": None, "ended": None}
@@ -1584,9 +2283,80 @@ class UpdateRun:
             self.data["state"] = state
         self._changed()
 
+    # -- the map, the trace and the retained log ----------------------------
+    def begin(self):
+        """The trace's start entry: the map before any step. Once per run; `run`
+        calls it, and a caller may call it earlier to have the map at once."""
+        with self.lock:
+            if self.data["trace"]:
+                return
+        self._refresh(None, "start")
+
+    def _refresh(self, sid, event):
+        """Recompute the map of this run's tree and add a trace entry. Called when a
+        step's state changes after work, never per log line. A map that cannot be
+        computed keeps the previous one and says why in the entry: it never fails a
+        step. Computed outside the lock, assigned inside it."""
+        new_map, error = None, None
+        try:
+            new_map = current_map()
+            numbers = flat_numbers(new_map)
+        except (Exception, SystemExit) as e:     # noqa: BLE001 - incl. die()
+            new_map = None
+            error = (e.code if isinstance(e, SystemExit) and isinstance(e.code, str)
+                     else f"{type(e).__name__}: {e}")
+        with self.lock:
+            trace = self.data["trace"]
+            before = trace[-1]["numbers"] if trace else None
+            if new_map is None:
+                numbers = dict(before or {})
+                if self.data["map"] is None:
+                    self.data["map"] = {}
+            else:
+                self.data["map"] = new_map
+            changed = {} if before is None else {
+                k: [before.get(k), numbers.get(k)] for k in sorted(set(before) | set(numbers))
+                if before.get(k) != numbers.get(k)}
+            entry = {"at": _now(), "step": sid, "event": event, "numbers": numbers,
+                     "changed": changed}
+            if error is not None:
+                entry["error"] = error
+            trace.append(entry)
+        self._changed()
+        self.save_log()
+
+    def log_file(self):
+        """This run's retained log: state/runs/<run id>.json, claimed once."""
+        with self.lock:
+            if self.log_path is None:
+                self.log_path = claim_log_file(RUNS, self.data["id"])
+            return self.log_path
+
+    def log_data(self):
+        """What the retained log holds: the full snapshot, with when it started and
+        ended."""
+        snap = self.snapshot()
+        snap["started"], snap["ended"] = snap["id"], self.ended
+        return snap
+
+    def save_log(self):
+        """Write the retained log, atomically. A log that cannot be written is said on
+        stderr and never stops the run."""
+        try:
+            write_json_atomic(self.log_file(), self.log_data())
+        except OSError as e:
+            print(f"  warn  the run log was not saved: {e}", file=sys.stderr)
+
+    def finish(self):
+        """Mark the run as stopped and keep its log: at the end of `run`, and by a
+        runner whose thread died."""
+        self.ended = _now()
+        self.save_log()
+
     # -- the walk ----------------------------------------------------------
     def run(self):
         """Walk every step. Returns the final run state."""
+        self.begin()
         for sid, _title, _nodes in STEPS:
             if self.cancelled:
                 break
@@ -1599,6 +2369,7 @@ class UpdateRun:
                 self.data["state"] = "done"
                 self.data["current"] = None
         self._changed()
+        self.finish()
         return self.data["state"]
 
     def _run_step(self, sid):
@@ -1614,6 +2385,7 @@ class UpdateRun:
                 step.update(state="running", prompt=None, counts=[],
                             started=step["started"] or _now(), ended=None)
             self._changed()
+            self.save_log()
             info(f"[{sid}]")
             _LOCAL.sink = _StepLog(self, step)
             outcome = None
@@ -1646,7 +2418,7 @@ class UpdateRun:
             with self.lock:
                 step.update(state=outcome.state, prompt=prompt)
                 self.data["state"] = outcome.state
-            self._changed()
+            self._refresh(sid, outcome.state)
             action = self.wait(self, step) if not self.cancelled else "cancel"
             with self.lock:
                 step["log"].append(f"  ->    {action}")
@@ -1659,6 +2431,7 @@ class UpdateRun:
                 self.answered(step, action)
             finally:
                 _LOCAL.sink = None
+            self._refresh(sid, f"answered:{action}")
             if action == "skip":
                 self._settle(step, "skipped")
                 return True
@@ -1681,7 +2454,7 @@ class UpdateRun:
                 step["prompt"] = None
             if self.data["state"] in ("waiting", "failed") and not keep_prompt:
                 self.data["state"] = "running"
-        self._changed()
+        self._refresh(step["id"], state)
 
     def count(self, step, label, n):
         with self.lock:
@@ -1745,14 +2518,11 @@ class UpdateRun:
 
     def step_prefilter(self, step, _o):
         rows = stage_prefilter()
-        by_arm = {}
-        for row in rows:
-            for arm in row["arms"].split(";"):
-                by_arm[arm] = by_arm.get(arm, 0) + 1
+        by_arm = arm_counts(rows)
         self.count(step, "Candidates", len(rows))
         for arm, label in (("label", "Tagged by someone else"),
                            ("keyword", "Matched a keyword"),
-                           ("unclassified", "Never classified, recent"),
+                           ("unasked", "Recent, never asked if multi-agent"),
                            (MANUAL, "Added by hand")):
             if arm in by_arm:
                 self.count(step, label, by_arm[arm])
@@ -1762,7 +2532,7 @@ class UpdateRun:
         context = load_context()
         unread = record_only = deeper = 0
         for row in queue:
-            ctx = context.get((row["source_id"], str(row["source_record_id"])))
+            ctx = context.get(row_pair(row))
             if ctx is None:
                 unread += 1
             elif best_depth(ctx) in ("unreadable", "record"):
@@ -1777,7 +2547,10 @@ class UpdateRun:
             raise StepOutcome(
                 "waiting", f"{unread} queued record(s) have not been read yet. In Claude "
                 f"Code, run /classify-incidents; its step 0 reads them and writes "
-                f"mvp/context/. Then continue.",
+                f"mvp/context/. One run of this command also does the judging, so "
+                f"you will normally not need to run it again at Judge. When it has "
+                f"finished and reported back, continue: the count below is taken "
+                f"again and shows what is still unread.",
                 command="/classify-incidents", actions=("continue", "skip"))
 
     def step_ready(self, step, _o):
@@ -1793,7 +2566,7 @@ class UpdateRun:
         context = load_context()
         out = []
         for row in queue:
-            key = (row["source_id"], str(row["source_record_id"]))
+            key = row_pair(row)
             verdict = readiness(context.get(key), flagged=is_flagged(row.get("arms")))
             if verdict["scope"]["level"] in ("ready", "provisional") \
                     and not out_of_scope(verdict):
@@ -1802,7 +2575,7 @@ class UpdateRun:
 
     def step_judge(self, step, override):
         keys = self.judgeable()
-        have = proposal_keys()
+        have = set(proposal_rows("extract_gate"))
         missing = [k for k in keys if k not in have]
         self.count(step, "Can be judged", len(keys))
         self.count(step, "Without a proposal", len(missing))
@@ -1811,8 +2584,18 @@ class UpdateRun:
         if missing and override != "recheck":
             raise StepOutcome(
                 "waiting", f"{len(missing)} record(s) are ready to judge and have no "
-                f"proposal. In Claude Code, run /classify-incidents, then continue.",
+                f"proposal. In Claude Code, run /classify-incidents: it skips what is "
+                f"already done and judges the rest. If a run from the Read step is "
+                f"still going, wait for it to finish and report back. Then continue: "
+                f"the count below is taken again and shows what still has no "
+                f"proposal.",
                 command="/classify-incidents", actions=("continue", "skip"))
+
+    def step_derive(self, step, _o):
+        split = stage_derive()
+        self.count(step, "In scope", split["in_scope"])
+        self.count(step, "Out of scope", split["out_of_scope"])
+        self.count(step, "For a person to review", split["review"])
 
     def step_review(self, step, override):
         attested = dossier_source_refs()
@@ -1820,26 +2603,39 @@ class UpdateRun:
         context = load_context()
         manual = sorted(k for k, c in context.items()
                         if c.get("manual") is True and k not in attested)
+        due = stage_instances_due()
         self.count(step, "Proposals awaiting a person", len(proposals))
         self.count(step, "Hand-added incidents without a dossier", len(manual))
+        self.count(step, "In scope, no instance proposal", len(due))
         info(f"  ok    review: {len(proposals)} proposal(s) and {len(manual)} "
-             f"hand-added incident(s) await a person")
+             f"hand-added incident(s) await a person; {len(due)} record(s) in scope "
+             f"have no instance proposal")
         for sid, rid in manual:
-            info(f"  todo  python mvp/pipeline/run.py promote {sid}:{rid}")
+            info(f"  todo  python mvp/pipeline/run.py promote {record_key(sid, rid)}")
         for sid, rid in sorted(proposals)[:50]:
-            info(f"  todo  review the proposal for {sid}:{rid}")
-        if (proposals or manual) and override != "recheck":
+            info(f"  todo  review the proposal for {record_key(sid, rid)}")
+        for r in due[:50]:
+            info(f"  todo  assign instances to {r['record_key']} (/classify-incidents, "
+                 f"call 2)")
+        if (proposals or manual or due) and override != "recheck":
             parts = []
             if proposals:
                 parts.append(f"{len(proposals)} proposal(s) in mvp/proposals/ await "
                              f"review")
             if manual:
                 parts.append(f"{len(manual)} hand-added incident(s) have no dossier")
-            raise StepOutcome(
-                "waiting", "; ".join(parts) + ". Promote what passes the inclusion test "
-                "with `python mvp/pipeline/run.py promote <source_id>:<record_id>` (the "
-                "log lists them), fill in the dossier by hand, then continue.",
-                actions=("continue", "skip"))
+            text = "; ".join(parts) + ". " if parts else ""
+            if proposals or manual:
+                text += ("Promote what passes the inclusion test with `python "
+                         "mvp/pipeline/run.py promote <source_id>:<record_id>` (the log "
+                         "lists them), fill in the dossier by hand. ")
+            if due:
+                text += (f"{len(due)} record(s) in scope have no instance proposal "
+                         f"(`python mvp/pipeline/run.py instances-due` lists them): run "
+                         f"/classify-incidents, which assigns their instances. ")
+            raise StepOutcome("waiting", text + "Then continue.",
+                              command="/classify-incidents" if due else "",
+                              actions=("continue", "skip"))
 
     def step_check(self, step, _o):
         problems_before = len(step["log"])
@@ -1855,8 +2651,7 @@ class UpdateRun:
     def step_index(self, step, _o):
         state = stage_index()
         stage_viz()
-        with self.lock:
-            self.data["map"] = state["map"]
+        # the map itself is refreshed when the step settles, like every other step's
         self.count(step, "Dossiers", len(state["incidents"]))
         self.count(step, "Queued", len(state["queue"]))
 
@@ -1895,9 +2690,66 @@ def stage_update(discover=False, manual_dir="", refetch=False, token_file=None):
                     manual_dir=str(Path(manual_dir).expanduser().resolve())
                     if manual_dir else "",
                     token_file=token_file)
-    state = run.run()
+    try:
+        state = run.run()
+    except BaseException as e:           # ctrl-c, or a bug: the log still says so
+        with run.lock:
+            run.data["state"] = "cancelled" if isinstance(e, KeyboardInterrupt) \
+                else "failed"
+        run.finish()
+        raise
     info(f"{state}.")
+    info(f"log: {run.log_file().relative_to(ROOT)}")
     return 0 if state == "done" else 1
+
+
+# --------------------------------------------------------------------- runs
+#
+# The retained logs: state/runs/<run id>.json, real runs only. A test run keeps none.
+# Read-only here.
+
+def run_logs():
+    """(path, log) of every retained run, newest first."""
+    out = []
+    for path in sorted(RUNS.glob("*.json")) if RUNS.is_dir() else []:
+        try:
+            out.append((path, json.loads(path.read_text(encoding="utf-8"))))
+        except (OSError, json.JSONDecodeError):
+            continue
+    out.sort(key=lambda pl: (str(pl[1].get("id", "")), pl[0].name), reverse=True)
+    return out
+
+
+def stage_runs(ref=None):
+    logs = run_logs()
+    if ref is None:
+        if not logs:
+            info(f"no retained runs in {RUNS.relative_to(ROOT)}/")
+        for path, log in logs:
+            opts = " ".join(k if v is True else f"{k}={v}"
+                            for k, v in (log.get("options") or {}).items()
+                            if v not in (False, "", None))
+            info(f"{path.stem:24s} {'test' if log.get('test') else 'real':4s} "
+                 f"{log.get('state', '?'):9s} {opts}".rstrip())
+        return 0
+    hits = [(p, log) for p, log in logs if ref in (p.stem, log.get("id"))]
+    if not hits:
+        die(f"no retained run {ref!r}; `run.py runs` lists them")
+    if len(hits) > 1:
+        die(f"{ref!r} names {len(hits)} runs: "
+            + ", ".join(str(p.relative_to(ROOT)) for p, _ in hits) + "; give the file name")
+    path, log = hits[0]
+    info(f"{path.relative_to(ROOT)}: {'test' if log.get('test') else 'real'} run, "
+         f"{log.get('state', '?')}")
+    for entry in log.get("trace") or []:
+        at = str(entry.get("at", ""))[11:] or entry.get("at", "")
+        changes = ", ".join(f"{k} {'-' if a is None else a} -> {'-' if b is None else b}"
+                            for k, (a, b) in (entry.get("changed") or {}).items())
+        if entry.get("error"):
+            changes = (changes + "; " if changes else "") + f"map not computed: {entry['error']}"
+        info(f"{at:8s}  {entry.get('step') or '-':10s} {entry.get('event', ''):18s} "
+             f"{changes or 'no change'}".rstrip())
+    return 0
 
 
 # --------------------------------------------------------------------- main
@@ -1931,6 +2783,9 @@ def main():
     tr.add_argument("--skip", nargs="+", action="extend", default=[], metavar="STEP",
                     help="answer `skip` at these steps instead of continuing")
 
+    rs = sub.add_parser("runs", help="list the retained run logs, or show one run's trace")
+    rs.add_argument("run", nargs="?", help="a run id, or its log's file name")
+
     f = sub.add_parser("fetch")
     f.add_argument("source_id", nargs="+")
     f.add_argument("--token-file")
@@ -1945,11 +2800,18 @@ def main():
     sub.add_parser("prefilter")
 
     p = sub.add_parser("promote")
-    p.add_argument("ref", nargs="+", help="<source_id>:<record_id>")
+    p.add_argument("ref", nargs="+",
+                   help="<source_id>:<record_id>, e.g. aiid:1604: the same string as "
+                        "the record_key field every record, queue, readiness, context "
+                        "and proposal row carries")
     p.add_argument("--force", action="store_true",
                    help="scaffold even if the record is not ready to classify")
 
     sub.add_parser("readiness")
+    sub.add_parser("derive", help="derive the labels from the extract_gate proposals, "
+                                  "by rule, into state/verdicts.jsonl")
+    sub.add_parser("instances-due", help="list the records in scope that have no "
+                                         "instance proposal")
 
     sub.add_parser("index")
     sub.add_parser("viz")
@@ -1968,6 +2830,8 @@ def main():
         import testenv
         sys.exit(testenv.cli(sys.modules[__name__], discover=args.discover,
                              refetch=args.refetch, manual=args.manual, skip=args.skip))
+    elif args.cmd == "runs":
+        sys.exit(stage_runs(args.run))
     elif args.cmd == "fetch":
         stage_fetch(args.source_id, args.force, args.token_file)
     elif args.cmd == "normalise":
@@ -1982,6 +2846,10 @@ def main():
         stage_promote(args.ref, args.force)
     elif args.cmd == "readiness":
         stage_readiness()
+    elif args.cmd == "derive":
+        stage_derive()
+    elif args.cmd == "instances-due":
+        stage_instances_due()
     elif args.cmd == "index":
         stage_index()
     elif args.cmd == "viz":

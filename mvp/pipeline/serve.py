@@ -8,9 +8,13 @@ command line runs; only the waiting differs.
 It also runs test runs: `POST /api/run` with `"test": true` walks the same steps on
 the made-up incidents of mvp/testenv/, in a scratch workspace, through a second
 instance of run.py pointed at that workspace (testenv.py). The real instance is never
-re-pointed. A test run is persisted only inside its workspace, never to the real
-state/run.json, so after a restart only real runs are remembered. Each new test run
-removes the previous one's workspace; stopping the server removes the last one.
+re-pointed. A test run's current state is persisted only inside its workspace, never to
+the real state/run.json, so after a restart only real runs are remembered. Each new test
+run removes the previous one's workspace; stopping the server removes the last one.
+
+Every real run also leaves a retained log, written by UpdateRun itself, in
+state/runs/<run id>.json; `run.py runs` reads the logs back. A test run keeps none. Any
+run's `map` and `trace` are refreshed at each step's change of state.
 
 Endpoints:
     GET  /                 the map, with the real tree's numbers
@@ -141,6 +145,7 @@ class Runner:
                                              manual_dir=manual_dir,
                                              token_file=self.token_file,
                                              wait=self.wait, on_change=self.persist)
+            self.run.begin()           # the map and the trace's start entry, at once
             self.persist(self.run)
             self.thread = threading.Thread(target=self._go, args=(self.run,),
                                            name="update-run", daemon=True)
@@ -158,6 +163,7 @@ class Runner:
                     step["state"] = "failed"
                     step["log"].append(f"  FAIL  the runner stopped: {e!r}")
             self.persist(run)
+            run.finish()
 
     def wait(self, run, step):
         """Called on the run's thread: block until the page answers this step."""

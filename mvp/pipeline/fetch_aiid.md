@@ -86,6 +86,44 @@ jq -r '[.incident_id, .title, ([.AllegedDeployerOfAISystem[].name] | join("; "))
 Treat the JSONL as the archive and the CSV as the thing you read. Both are
 overwritten on each run, so note the fetch date when you cite a row.
 
+## What the two AIID files contain
+
+`run.py fetch aiid` writes two files to `mvp/raw/aiid/`. Counts are from the snapshot
+fetched on 2026-11-15.
+
+**`incidents.jsonl`** has one row per incident: 1,817 rows. Each row has the incident's
+`incident_id`, the number AIID shows, and `_id`, AIID's internal id. It is fetched at
+depth 0, so it carries no classifications.
+
+**`classifications.jsonl`** has one row per taxonomy annotation, not one per incident:
+2,623 rows. By namespace:
+
+| namespace | rows |
+|---|---|
+| `MIT` | 1,498 |
+| `GMF` | 326 |
+| `CSETv1` | 214 |
+| `CSETv1_Annotator-1` | 298 |
+| `CSETv1_Annotator-2` | 106 |
+| `CSETv1_Annotator-3` | 81 |
+| `CSETv0` | 100 |
+
+An incident can have several classifications, one per namespace or annotator.
+
+A classification row carries no `incident_id`. It links to its incident through its
+`incidents` list, which holds the incident's `_id`. So the join is on `_id`, and that is
+what `run.py normalise` does.
+
+The multi-agent field is the attribute whose `short_name` is `Multiple AI Interaction`,
+in the classification's `attributes` list. Its `value_json` is `yes`, `no` or `maybe`.
+It exists only in the CSETv1 namespaces: `CSETv1` and the three `CSETv1_Annotator-*`.
+
+313 incidents carry a value for it. None of them is dated 2025 or later. 319 incidents
+have no classification at all, in any namespace.
+
+A record built from these files keeps a pointer back to them: `raw_ref` names
+`mvp/raw/aiid/incidents.jsonl`, the id field `_id`, its value and the fetch date.
+
 ## How the field selection works
 
 There is no literal `SELECT *` in GraphQL, so the script builds one. It
@@ -245,4 +283,5 @@ script is unchanged: `mvp/pipeline/run.py` imports it as a library (`Client`,
 `Schema`, `SelectionBuilder`, `fetch_all`, `resolve_token`) rather than wrapping
 or editing it. It has no incremental fetch — both outputs are overwritten every
 run — so the per-record fetch date and change detection live in the record store
-around it, not here.
+around it, not here. The change detection ignores fetch dates: a re-fetch that changes
+nothing of substance adds no record version (`mvp/docs/input_layer.md` § Idempotency).
