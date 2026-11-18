@@ -5,6 +5,33 @@ Regenerate before citing. Methodology and how to read them: `mvp/docs/gold_set.m
 
 *Note, 2026-11-17: the prefilter's arms were replaced by `basis` and `flags`. "Keyword arm" and "any arm" in the sections below are the figures as measured on 2026-11-16; read them as the `keyword` flag and queue membership.*
 
+## 2026-11-18: the record pass on Opus
+
+`enrich_context.v2`, record pass, run on `claude-opus-5-5` over all 58 gold rows from the
+same blind inputs as the Sonnet run (`mvp/out/calibration/enrich_context_v2_gold_opus_20261118.jsonl`;
+comparison in `enrich_opus_vs_sonnet_20261118.txt`). Until now Opus had never run the
+record pass on a gold row judged `in`: those rows were read by hand during the gold review.
+
+**The safety check passes:** no row judged `in` came out `one` or `none` (21 `several`,
+1 `unknown`), the same as Sonnet.
+
+| | Opus | Sonnet |
+|---|---|---|
+| gold `in` rows called `one` or `none` | 0 of 22 | 0 of 22 |
+| rows that would close if unflagged (`one` or `none`) | 15 of 58 | 21 of 58 |
+| gold `out` rows among them | 15 of 33 | 21 of 33 |
+| `unknown` on gold `out` rows | 11 | 6 |
+
+Every row either model would close is a gold `out`, so both are safe on this set. Opus is
+more cautious: where the text names no agent it says `unknown` and sends the record on to
+a source read, which costs fetches but loses nothing. The two models agree on
+`agent_count` on 47 of 58 rows; all 11 disagreements are gold `out` rows.
+
+**Run-to-run variation.** On the 19 rows Opus also read on 2026-11-15, today's run agrees
+on 13. All 6 changes are on gold `out` rows, and 4 of them moved from `one` to `unknown`,
+the cautious direction. The `agent_count` of a single run is not stable to the row. The
+check that matters, no `in` row closed, held in both runs.
+
 ## 2026-11-17: the same calibration on Sonnet
 
 Both prompts were run on `claude-sonnet-5-5`, blind to the verdicts, and scored with

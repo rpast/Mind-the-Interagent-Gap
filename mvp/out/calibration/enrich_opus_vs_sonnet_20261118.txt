@@ -1,0 +1,37 @@
+rows opus 58 missing none models {'claude-opus-5-5'}
+
+opus
+  truth in      {'several': 21, 'unknown': 1}
+  truth out     {'none': 5, 'one': 10, 'several': 7, 'unknown': 11}
+  truth unclear {'several': 3}
+  SAFETY CHECK, gold in called one/none: none (pass)
+  would close if unflagged: 15 of 58; of the 33 gold out rows: 15
+
+sonnet
+  truth in      {'several': 21, 'unknown': 1}
+  truth out     {'none': 10, 'one': 11, 'several': 6, 'unknown': 6}
+  truth unclear {'several': 3}
+  SAFETY CHECK, gold in called one/none: none (pass)
+  would close if unflagged: 21 of 58; of the 33 gold out rows: 21
+
+opus vs sonnet agent_count agreement: 47/58
+disagreements:
+  G-034 truth=out     opus=unknown  sonnet=none
+  G-035 truth=out     opus=unknown  sonnet=none
+  G-036 truth=out     opus=unknown  sonnet=none
+  G-037 truth=out     opus=one      sonnet=none
+  G-040 truth=out     opus=unknown  sonnet=one
+  G-041 truth=out     opus=none     sonnet=unknown
+  G-042 truth=out     opus=one      sonnet=none
+  G-046 truth=out     opus=unknown  sonnet=one
+  G-053 truth=out     opus=unknown  sonnet=one
+  G-054 truth=out     opus=unknown  sonnet=none
+  G-060 truth=out     opus=several  sonnet=unknown
+
+opus today vs opus 2026-11-15 record pass, same records: 13/19 agree
+  G-036 truth=out then=one now=unknown
+  G-040 truth=out then=one now=unknown
+  G-046 truth=out then=one now=unknown
+  G-050 truth=out then=one now=none
+  G-051 truth=out then=one now=none
+  G-053 truth=out then=one now=unknown

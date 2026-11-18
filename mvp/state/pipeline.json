@@ -901,39 +901,39 @@
       },
       {
         "eq": "readsrc: in = sum of the edges into it",
-        "lhs": 190,
+        "lhs": 204,
         "ok": true,
-        "rhs": 190
+        "rhs": 204
       },
       {
         "eq": "readsrc: in = out + ends here + waiting",
-        "lhs": 190,
+        "lhs": 204,
         "ok": true,
-        "rhs": 190
+        "rhs": 204
       },
       {
         "eq": "readsrc: by source adds up",
-        "lhs": 190,
+        "lhs": 204,
         "ok": true,
-        "rhs": 190
+        "rhs": 204
       },
       {
         "eq": "outscope: in = sum of the edges into it",
-        "lhs": 336,
+        "lhs": 362,
         "ok": true,
-        "rhs": 336
+        "rhs": 362
       },
       {
         "eq": "outscope: in = out + ends here + waiting",
-        "lhs": 336,
+        "lhs": 362,
         "ok": true,
-        "rhs": 336
+        "rhs": 362
       },
       {
         "eq": "outscope: by source adds up",
-        "lhs": 336,
+        "lhs": 362,
         "ok": true,
-        "rhs": 336
+        "rhs": 362
       },
       {
         "eq": "ready: in = sum of the edges into it",
@@ -1454,12 +1454,12 @@
             "rows": [
               {
                 "label": "Read: there is a reading",
-                "n": 461,
+                "n": 501,
                 "tech": "a row in context/<source>.jsonl"
               },
               {
                 "label": "Not read yet",
-                "n": 672,
+                "n": 632,
                 "tech": "no context row"
               }
             ],
@@ -1469,34 +1469,34 @@
             "rows": [
               {
                 "label": "Out of scope: one agent or none, and not flagged",
-                "n": 271,
+                "n": 297,
                 "tech": "out_of_scope(readiness()) at depth record"
               },
               {
                 "label": "Sent on: several agents, cannot tell, or flagged",
-                "n": 190,
+                "n": 204,
                 "tech": "every other read record, including those already read deeper"
               }
             ],
             "title": "What the reading of the record settled"
           }
         ],
-        "held": 672,
+        "held": 632,
         "held_label": "not read yet",
         "id": "readrec",
         "in": 1133,
-        "n": 461,
+        "n": 501,
         "out": [
           {
             "branch": false,
             "label": "out of scope: record text",
-            "n": 271,
+            "n": 297,
             "to": "outscope"
           },
           {
             "branch": false,
             "label": "sent on to the source",
-            "n": 190,
+            "n": 204,
             "to": "readsrc"
           }
         ],
@@ -1505,7 +1505,7 @@
       },
       {
         "by_source": {
-          "aiid": 190
+          "aiid": 204
         },
         "files": [
           "context/<source>.jsonl"
@@ -1535,7 +1535,7 @@
             "rows": [
               {
                 "label": "Only the record text has been read",
-                "n": 22,
+                "n": 36,
                 "tech": "best_depth() record or unreadable, not out of scope"
               },
               {
@@ -1547,10 +1547,10 @@
             "title": "Waiting here"
           }
         ],
-        "held": 22,
+        "held": 36,
         "held_label": "waiting for a source reading",
         "id": "readsrc",
-        "in": 190,
+        "in": 204,
         "n": 168,
         "out": [
           {
@@ -1571,7 +1571,7 @@
       },
       {
         "by_source": {
-          "aiid": 336
+          "aiid": 362
         },
         "files": [
           "context/<source>.jsonl",
@@ -1582,12 +1582,12 @@
             "rows": [
               {
                 "label": "No agent, on the record text",
-                "n": 21,
+                "n": 22,
                 "tech": "agent_count none, depth record"
               },
               {
                 "label": "One agent, on the record text",
-                "n": 250,
+                "n": 275,
                 "tech": "agent_count one, depth record"
               },
               {
@@ -1607,14 +1607,14 @@
         "held": 0,
         "held_label": "",
         "id": "outscope",
-        "in": 336,
-        "n": 336,
+        "in": 362,
+        "n": 362,
         "out": [],
         "rule": "out_of_scope(readiness()): agents stated, agent_count one or none",
         "stop": [
           {
             "label": "out of scope",
-            "n": 336
+            "n": 362
           }
         ]
       },
@@ -2153,10 +2153,10 @@
       "in_scope": 21,
       "instance_records": 1,
       "not_queued": 684,
-      "out_of_scope": 336,
+      "out_of_scope": 362,
       "promoted_early": 0,
       "queued": 1133,
-      "read_record": 461,
+      "read_record": 501,
       "read_source": 168,
       "ready": 103,
       "records": 1844,
