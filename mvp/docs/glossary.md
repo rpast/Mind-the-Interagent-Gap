@@ -155,7 +155,7 @@ the map's Human review box.
 **Proposal.** A row of model output in `mvp/proposals/`. Never authoritative, and it holds no
 derived label.
 
-**Queue.** `mvp/state/queue.jsonl`: the candidates the prefilter queued. 1,137 on 2026-11-17.
+**Queue.** `mvp/state/queue.jsonl`: the candidates the prefilter queued. 1,133 on 2026-11-18.
 
 **raw_ref.** The pointer in a record to the raw row it was built from: file, id field, id and
 fetch date.

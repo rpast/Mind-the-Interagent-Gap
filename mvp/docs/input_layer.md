@@ -155,27 +155,39 @@ AIID files hold is described in `mvp/pipeline/fetch_aiid.md`.
 **prefilter** queues a record for one reason (its `basis`) and flags it for another (its
 `flags`):
 
-| basis | a record is queued when | 2026-11-17 |
+| basis | a record is queued when | 2026-11-18 |
 |---|---|---|
-| `recent` | it is an AIID record dated on or after 2024-01-01, whatever any outside label says | 1,103 |
+| `recent` | it is an AIID record dated on or after 2024-01-01 that no outside rater has answered "not multi-agent" on | 1,099 |
 | `frozen` | its `record_key` is on the frozen list, `mvp/registry/frozen_pre2024.csv` | 34 |
 | `manual` | the curator added it by hand | 0 |
 
-The queue is 1,137 records. Each has exactly one basis.
+The queue is 1,133 records. Each has exactly one basis.
+
+**An outside answer is acted on (decided by the curator, 2026-11-18).** For a 2024+ record
+an outside rater has already answered the multi-agent question on, its answer stands: `no`
+(every `Multiple AI Interaction` label on it says no, and the Navigator does not list it)
+leaves the record out of the queue; `yes` or `maybe` queues it and flags it. A
+disagreement between annotators counts as yes. Only unlabelled records are queued for our
+own reading. The rule is `outside_says_no()` in `run.py`. On 2026-11-18 it leaves out 4
+records, each on one CSETv1 annotator's `no`: `aiid:631`, `633`, `642`, `676`. This is a
+deliberate exception to the principle that an outside label never decides scope: since 2024
+there is almost no outside labelling, apart from the Navigator list copied by hand, so the
+cost is small, and an answer someone has already given is not asked again.
 
 | flag | a queued record is flagged when | 2026-11-17 |
 |---|---|---|
 | `label` | any external label says `yes` or `maybe`, including one dissenting annotator, or the Navigator lists it | 39 |
 | `keyword` | the recall-first regex net, lifted from the exploratory notebook, matches its title or text | 64 |
 
-A flag never queues a record by itself and never takes one out. A record can carry both
+A flag never queues a record by itself. A record can carry both
 flags, so the two counts add up to more than the 93 flagged records.
 
 **Why the prefilter was simplified (2026-11-17).** It used to be a union of three arms,
 `label`, `keyword` and `unasked`, and `unasked` skipped an AIID record that CSETv1 had
 answered `no`. CSETv1 stops in 2024, so for 2024 onwards the arms came to "every AIID
-record". Four records that a CSETv1 `no` had kept out are queued now (`aiid:631`, `633`,
-`642`, `676`), because an outside label may never decide scope. The 1,133 records queued
+record". On 2026-11-17 four records that a CSETv1 `no` had kept out were queued; on
+2026-11-18 the curator decided an outside answer is acted on, and they are out again (see
+above). The 1,133 records queued
 before keep their readiness; the 34 dated before 2024 were copied once into the frozen
 list, which is now kept by hand. Normalise still harvests the CSETv1 labels into
 `external_labels` exactly as before; they just no longer decide queue membership. For 2024

@@ -119,7 +119,7 @@ takes. See `docs/input_layer.md` § The record key.
 
 26 dossiers, carried over from the index's earlier holdings and re-judged from the primary
 sources: 19 assert `multi_agent: true`, 4 `false`, 3 `unclear`. 1,844 records across four
-sources. 1,137 candidates in the queue on 2026-11-17: every AIID record dated 2024 or later, plus the
+sources. 1,133 candidates in the queue on 2026-11-18: every AIID record dated 2024 or later that no outside rater has answered "not multi-agent" on, plus the
 34 on the frozen pre-2024 list (`docs/input_layer.md` § prefilter). Call 1 has been run on 103 queued records,
 and on the gold set, where with the labels derived by `pipeline/derive.py` it scores 87.0%
 precision and 90.9% recall (`docs/gate1_accuracy.md`).

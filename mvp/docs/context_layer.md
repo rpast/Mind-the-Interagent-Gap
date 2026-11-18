@@ -208,7 +208,7 @@ Measured 2026-11-14 with `run.py readiness`, before the flag rule and the manual
 **96% of the queue cannot be classified yet**, and no enrichment run has been made.
 
 On 2026-11-16, after the third prefilter arm was widened to `unasked` (replaced on
-2026-11-17 by the `recent` basis, which adds 4 records), the queue held
+2026-11-17 by the `recent` basis, which holds the same records), the queue held
 1,133 records: scope `ready` 319, `provisional` 42, `not_ready` 772. The 772 are the newly
 queued records, none of them read yet. The 361 queued before kept their readiness. The
 layer was seeded with the 41 rows the gold review produced (`mvp/pipeline/seed_context.py`);

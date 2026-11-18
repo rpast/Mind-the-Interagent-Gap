@@ -89,7 +89,7 @@ Incident Database, is the only `baseline` source; no discovery source has a work
 
   | basis | a record is queued when |
   |---|---|
-  | `recent` | it is an AIID record dated 2024-01-01 or later, whatever any outside label says |
+  | `recent` | it is an AIID record dated 2024-01-01 or later that no outside rater has answered "not multi-agent" on |
   | `frozen` | it is on the hand-kept list of pre-2024 candidates (`registry/frozen_pre2024.csv`) |
   | `manual` | the curator added it by hand |
 
@@ -102,12 +102,13 @@ Incident Database, is the only `baseline` source; no discovery source has a work
   | `keyword` | a regex net matches title or text (`KEYWORD_TERMS` in `run.py`) |
 
   Why: AIID's only multi-agent field stopped being filled in mid-2024, so for recent records
-  the only signal is our own classification, and an outside label may mark a record but never
-  decide its scope. The Navigator's rater misses a third of our known cases and the keyword
-  net's recall is unmeasured, so every recent record is read. A record nobody asked is
-  *unscreened*, not negative. [aiid_background.md](aiid_background.md) tells the full story.
+  the only signal is our own classification. Where an outside rater has already answered,
+  its answer is acted on: "no" leaves the record out (4 records on 2026-11-18), "yes" queues
+  and flags it. Every unlabelled recent record is read, because the Navigator's rater misses
+  a third of our known cases and the keyword net's recall is unmeasured. A record nobody
+  asked is *unscreened*, not negative. [aiid_background.md](aiid_background.md) tells the full story.
 - **Who:** script. Records already cited by a dossier are skipped.
-- **Writes:** `mvp/state/queue.jsonl`. On 2026-11-17: 1,137 queued (recent 1,103, frozen 34),
+- **Writes:** `mvp/state/queue.jsonl`. On 2026-11-18: 1,133 queued (recent 1,099, frozen 34),
   93 of them flagged (label 39, keyword 64; a record with both counts under both).
 - **1668:** `basis: "recent"`, `flags: "label;keyword"`,
   `label_values: "navigator=Multi-agent"`,

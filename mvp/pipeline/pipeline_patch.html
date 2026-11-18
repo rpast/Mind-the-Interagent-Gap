@@ -849,7 +849,7 @@ function prefilterRules(box) {
   box.appendChild(el("h3", "", "Why a record is queued"));
   const ql = el("ol");
   const q1 = el("li"); q1.appendChild(el("b", "", "Recent (" + n(B.recent) + "). "));
-  q1.appendChild(document.createTextNode("An AIID record dated " + (R.recent_from || "2024-01-01") + " or later, whatever any outside label says. AIID's own multi-agent label stops in 2024, so from then on the only multi-agent signal is our own classification."));
+  q1.appendChild(document.createTextNode("An AIID record dated " + (R.recent_from || "2024-01-01") + " or later that no outside rater has answered “not multi-agent” on. Where an outside answer exists it is acted on: “no” leaves the record out, “yes” queues it and flags it. AIID's own multi-agent label stops in 2024, so from then on almost every record is unlabelled and is read by us; the only outside source still active is the Navigator list, copied by hand."));
   const q2 = el("li"); q2.appendChild(el("b", "", "Frozen (" + n(B.frozen) + "). "));
   q2.appendChild(document.createTextNode("A record dated before then that was a candidate when the rule was simplified. The list is kept by hand in mvp/registry/frozen_pre2024.csv."));
   const q3 = el("li"); q3.appendChild(el("b", "", "Added by hand (" + n(B.manual) + "). "));
@@ -867,7 +867,7 @@ function prefilterRules(box) {
     const t = el("div", "terms"); R.keywords.forEach(k => t.appendChild(el("code", "", k))); li2.appendChild(t);
   } else li2.appendChild(document.createTextNode("The title or text contains a word like “agents”, “swarm” or “collusion”. The full list is in the code."));
   [li1, li2].forEach(l => ol.appendChild(l)); box.appendChild(ol);
-  box.appendChild(el("p", "note", "A flag never queues a record and never takes one out. A record can carry both flags, so the two counts can add up to more than the flagged records. A flagged record is never dismissed from its short text alone."));
+  box.appendChild(el("p", "note", "A flag never queues a record by itself. A record can carry both flags, so the two counts can add up to more than the flagged records. A flagged record is never dismissed from its short text alone."));
   box.appendChild(el("p", "", "Where the rules live:")); box.appendChild(el("code", "", R.where || "mvp/pipeline/run.py"));
 }
 

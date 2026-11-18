@@ -145,10 +145,10 @@ KEYWORD_TERMS = [
 ]
 KEYWORD_RE = [(t, re.compile(t, re.I)) for t in KEYWORD_TERMS]
 
-# Every AIID record dated on or after this day is queued, whatever any outside label
-# says. AIID's own multi-agent label (CSETv1) stops in 2024, so from here on the only
-# multi-agent signal is our own classification. An outside label may flag a record;
-# it never decides whether the record is in scope.
+# Every AIID record dated on or after this day is queued unless an outside rater has
+# already answered "not multi-agent" on it (outside_says_no). AIID's own multi-agent
+# label (CSETv1) stops in 2024, so from here on almost every record is unlabelled and
+# read by us. An outside "yes" flags a record; it never puts it in scope.
 RECENT_FROM = "2024-01-01"
 
 MA_FIELD = "Multiple AI Interaction"
@@ -836,13 +836,26 @@ def flag_counts(queue):
     return out
 
 
+def outside_says_no(rec):
+    """An outside rater answered the multi-agent question and nobody said yes or maybe:
+    at least one MA_FIELD label, and no label in MA_POSITIVE or on the Navigator's
+    `behaviour` facet. A disagreement between annotators counts as yes."""
+    labels = rec.get("external_labels") or []
+    answered = any(l.get("field") == MA_FIELD and l.get("value") not in (None, "")
+                   for l in labels)
+    positive = any(str(l.get("value", "")).lower() in MA_POSITIVE
+                   or l.get("field") == "behaviour" for l in labels)
+    return answered and not positive
+
+
 def stage_prefilter():
     """Queue a record for one reason (its `basis`) and flag it for another.
 
     Basis, one per queued record:
 
-      recent   an AIID record dated on or after RECENT_FROM, whatever any outside
-               label says
+      recent   an AIID record dated on or after RECENT_FROM that no outside rater has
+               answered "no" on (outside_says_no). Unlabelled records are queued; an
+               outside "yes" or "maybe" is queued and flagged.
       frozen   its record_key is on the frozen pre-2024 list (registry/frozen_pre2024.csv)
       manual   added by hand (update --manual)
 
@@ -853,12 +866,15 @@ def stage_prefilter():
       keyword  the recall-first regex net, KEYWORD_TERMS
 
     A flagged record may not be dismissed as single-agent on its record text alone.
-    A flag never queues a record by itself and an outside label never takes one out.
+    A flag never queues a record by itself.
 
-    Until 2026-11-17 there were three arms (label, keyword, unasked) and an AIID
-    record that a CSETv1 label had answered "no" was not queued. CSETv1 stops in 2024,
-    so for 2024 onwards the arms came to "every AIID record"; the 4 that a "no" had
-    kept out are queued now.
+    Until 2026-11-17 there were three arms (label, keyword, unasked). CSETv1 stops in
+    2024, so for 2024 onwards they came to "every AIID record not answered no".
+    Decided by the curator 2026-11-18: where an outside rater has already answered the
+    multi-agent question for a 2024+ record, its answer is acted on: "no" leaves the
+    record out, "yes" or "maybe" queues and flags it. Only unlabelled records are
+    queued for our own reading. Since 2024 the only outside activity is the Navigator
+    list, copied by hand.
     """
     records = latest_records()
     if not records:
@@ -874,6 +890,8 @@ def stage_prefilter():
         if sid == MANUAL or (rec.get("meta") or {}).get("manual"):
             basis = BASIS_MANUAL
         elif sid == MA_SOURCE and rec.get("date", "") >= RECENT_FROM:
+            if outside_says_no(rec):
+                continue
             basis = BASIS_RECENT
         elif key in frozen:
             basis = BASIS_FROZEN
@@ -1969,7 +1987,9 @@ def map_flow(reg, records, queue, context, index_rows):
     f_frozen = {k for k in fetched & queued if qrows[k].get("basis") == BASIS_FROZEN}
     f_old = {k for k in fetched & not_queued
              if k[0] == MA_SOURCE and records[k].get("date", "") < RECENT_FROM}
-    f_other = (fetched & not_queued) - f_old
+    f_said_no = {k for k in fetched & not_queued - f_old
+                 if k[0] == MA_SOURCE and outside_says_no(records[k])}
+    f_other = (fetched & not_queued) - f_old - f_said_no
 
     stage, verdicts_r = {}, {}
     for key, row in qrows.items():
@@ -2104,11 +2124,15 @@ def map_flow(reg, records, queue, context, index_rows):
              *[(f"{sid}", n, f"records/{sid}.jsonl") for sid, n in by_source(fetched).items()])},
              {"title": "Which records the pipeline looks at",
               "note": f"AIID is fetched in full, but only incidents dated {RECENT_FROM} or "
-                      "later are looked at. An earlier incident is looked at only if it is "
-                      "on the frozen list: pre-2024 candidates analysed before 2026-11-17.",
+                      "later are looked at, and of those only the ones no outside rater "
+                      "has already answered \"no\" on: where an outside answer exists, it "
+                      "is acted on. An earlier incident is looked at only if it is on the "
+                      "frozen list: pre-2024 candidates analysed before 2026-11-17.",
               "rows": rows(
                   (f"Dated {RECENT_FROM} or later: queued as candidates", len(f_recent),
                    "basis recent in state/queue.jsonl"),
+                  (f"Dated {RECENT_FROM} or later, an outside rater said not multi-agent",
+                   len(f_said_no), "outside_says_no(): a Multiple AI Interaction label, none yes or maybe"),
                   ("Before 2024, on the frozen list: queued as candidates", len(f_frozen),
                    "basis frozen: registry/frozen_pre2024.csv"),
                   ("Already in a dossier: a dossier lists it as a source", len(f_dossier),
@@ -2134,8 +2158,11 @@ def map_flow(reg, records, queue, context, index_rows):
          "out": [E("dossiers", to_dossier, "already in a dossier"),
                  E("readrec", to_readrec, "candidates"),
                  E("ready", bypass, "added by hand: on the curator's word")],
-         "stop": [{"label": "not looked at: before 2024 and not on the frozen list (see Fetch)",
-                   "n": len(not_queued)}],
+         "stop": [s for s in (
+             {"label": "not looked at: before 2024 and not on the frozen list (see Fetch)",
+              "n": len(not_queued - f_said_no)},
+             {"label": "an outside rater said not multi-agent (see Fetch)",
+              "n": len(f_said_no)}) if s["n"]],
          "held": 0, "pop": allkeys,
          "groups": [
              {"title": "Candidates per source", "rows": rows(
@@ -2144,12 +2171,13 @@ def map_flow(reg, records, queue, context, index_rows):
                  ("Already in a dossier: a dossier lists it as a source", len(to_dossier),
                   "dossier_source_refs() and not in state/queue.jsonl"),
                  ("Queued as a candidate", len(queued), "row in state/queue.jsonl"),
-                 ("Not looked at: before 2024 and not on the frozen list", len(not_queued),
+                 ("Not queued: before 2024 and not on the frozen list, or an outside "
+                  "rater said not multi-agent", len(not_queued),
                   "neither in the queue nor behind a dossier"))},
              {"title": "Why each candidate was queued",
               "note": "Each candidate has exactly one reason, so these add up to the candidates.",
               "rows": rows(
-                  (f"Recent: an AIID record dated {RECENT_FROM} or later, whatever any outside label says",
+                  (f"Recent: an AIID record dated {RECENT_FROM} or later that no outside rater answered no on",
                    basis.get(BASIS_RECENT, 0), "basis recent"),
                   ("Frozen: a pre-2024 record on the hand-kept list",
                    basis.get(BASIS_FROZEN, 0), "basis frozen: registry/frozen_pre2024.csv"),

@@ -1476,21 +1476,21 @@ const D = {
       },
       {
         "eq": "readrec: in = sum of the edges into it",
-        "lhs": 1137,
+        "lhs": 1133,
         "ok": true,
-        "rhs": 1137
+        "rhs": 1133
       },
       {
         "eq": "readrec: in = out + ends here + waiting",
-        "lhs": 1137,
+        "lhs": 1133,
         "ok": true,
-        "rhs": 1137
+        "rhs": 1133
       },
       {
         "eq": "readrec: by source adds up",
-        "lhs": 1137,
+        "lhs": 1133,
         "ok": true,
-        "rhs": 1137
+        "rhs": 1133
       },
       {
         "eq": "readsrc: in = sum of the edges into it",
@@ -1698,15 +1698,15 @@ const D = {
       },
       {
         "eq": "queued = sent to reading + added by hand",
-        "lhs": 1137,
+        "lhs": 1133,
         "ok": true,
-        "rhs": 1137
+        "rhs": 1133
       },
       {
         "eq": "read the record = read + not read yet",
-        "lhs": 1137,
+        "lhs": 1133,
         "ok": true,
-        "rhs": 1137
+        "rhs": 1133
       },
       {
         "eq": "derived = in scope + out of scope + needs a person",
@@ -1807,12 +1807,17 @@ const D = {
             "title": "Records per source"
           },
           {
-            "note": "AIID is fetched in full, but only incidents dated 2024-01-01 or later are looked at. An earlier incident is looked at only if it is on the frozen list: pre-2024 candidates analysed before 2026-11-17.",
+            "note": "AIID is fetched in full, but only incidents dated 2024-01-01 or later are looked at, and of those only the ones no outside rater has already answered \"no\" on: where an outside answer exists, it is acted on. An earlier incident is looked at only if it is on the frozen list: pre-2024 candidates analysed before 2026-11-17.",
             "rows": [
               {
                 "label": "Dated 2024-01-01 or later: queued as candidates",
-                "n": 1103,
+                "n": 1099,
                 "tech": "basis recent in state/queue.jsonl"
+              },
+              {
+                "label": "Dated 2024-01-01 or later, an outside rater said not multi-agent",
+                "n": 4,
+                "tech": "outside_says_no(): a Multiple AI Interaction label, none yes or maybe"
               },
               {
                 "label": "Before 2024, on the frozen list: queued as candidates",
@@ -1918,7 +1923,7 @@ const D = {
             "rows": [
               {
                 "label": "aiid",
-                "n": 1137,
+                "n": 1133,
                 "tech": "state/queue.jsonl"
               }
             ],
@@ -1933,12 +1938,12 @@ const D = {
               },
               {
                 "label": "Queued as a candidate",
-                "n": 1137,
+                "n": 1133,
                 "tech": "row in state/queue.jsonl"
               },
               {
-                "label": "Not looked at: before 2024 and not on the frozen list",
-                "n": 680,
+                "label": "Not queued: before 2024 and not on the frozen list, or an outside rater said not multi-agent",
+                "n": 684,
                 "tech": "neither in the queue nor behind a dossier"
               }
             ],
@@ -1948,8 +1953,8 @@ const D = {
             "note": "Each candidate has exactly one reason, so these add up to the candidates.",
             "rows": [
               {
-                "label": "Recent: an AIID record dated 2024-01-01 or later, whatever any outside label says",
-                "n": 1103,
+                "label": "Recent: an AIID record dated 2024-01-01 or later that no outside rater answered no on",
+                "n": 1099,
                 "tech": "basis recent"
               },
               {
@@ -1985,7 +1990,7 @@ const D = {
               },
               {
                 "label": "Not flagged",
-                "n": 1044,
+                "n": 1040,
                 "tech": ""
               }
             ],
@@ -1996,7 +2001,7 @@ const D = {
         "held_label": "",
         "id": "prefilter",
         "in": 1844,
-        "n": 1137,
+        "n": 1133,
         "out": [
           {
             "branch": false,
@@ -2007,7 +2012,7 @@ const D = {
           {
             "branch": false,
             "label": "candidates",
-            "n": 1137,
+            "n": 1133,
             "to": "readrec"
           },
           {
@@ -2022,12 +2027,16 @@ const D = {
           {
             "label": "not looked at: before 2024 and not on the frozen list (see Fetch)",
             "n": 680
+          },
+          {
+            "label": "an outside rater said not multi-agent (see Fetch)",
+            "n": 4
           }
         ]
       },
       {
         "by_source": {
-          "aiid": 1137
+          "aiid": 1133
         },
         "files": [
           "context/<source>.jsonl",
@@ -2043,7 +2052,7 @@ const D = {
               },
               {
                 "label": "Not read yet",
-                "n": 676,
+                "n": 672,
                 "tech": "no context row"
               }
             ],
@@ -2065,10 +2074,10 @@ const D = {
             "title": "What the reading of the record settled"
           }
         ],
-        "held": 676,
+        "held": 672,
         "held_label": "not read yet",
         "id": "readrec",
-        "in": 1137,
+        "in": 1133,
         "n": 461,
         "out": [
           {
@@ -2736,10 +2745,10 @@ const D = {
       "in_dossier_already": 27,
       "in_scope": 21,
       "instance_records": 1,
-      "not_queued": 680,
+      "not_queued": 684,
       "out_of_scope": 336,
       "promoted_early": 0,
-      "queued": 1137,
+      "queued": 1133,
       "read_record": 461,
       "read_source": 168,
       "ready": 103,
@@ -2784,12 +2793,12 @@ const D = {
         "yes"
       ],
       "recent_from": "2024-01-01",
-      "where": "mvp/pipeline/run.py:839"
+      "where": "mvp/pipeline/run.py:851"
     },
-    "queue": 1137,
+    "queue": 1133,
     "queue_basis": {
       "frozen": 34,
-      "recent": 1103
+      "recent": 1099
     },
     "queue_flags": {
       "keyword": 64,
@@ -12603,18 +12612,6 @@ const D = {
     },
     {
       "basis": "recent",
-      "date": "2024-01-18",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:631",
-      "source_id": "aiid",
-      "source_record_id": "631",
-      "title": "Chatbot for DPD Malfunctioned and Swore at Customers and Criticized Its Own Company",
-      "url": "https://incidentdatabase.ai/cite/631"
-    },
-    {
-      "basis": "recent",
       "date": "2024-01-24",
       "flags": "",
       "keyword_terms": "",
@@ -12624,18 +12621,6 @@ const D = {
       "source_record_id": "632",
       "title": "Significant Increase in Deepfake Nudes of Taylor Swift Circulating on Social Media",
       "url": "https://incidentdatabase.ai/cite/632"
-    },
-    {
-      "basis": "recent",
-      "date": "2024-01-28",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:633",
-      "source_id": "aiid",
-      "source_record_id": "633",
-      "title": "Nine Network's AI Alters Lawmaker Georgie Purcell's Image Inappropriately",
-      "url": "https://incidentdatabase.ai/cite/633"
     },
     {
       "basis": "recent",
@@ -12696,18 +12681,6 @@ const D = {
       "source_record_id": "641",
       "title": "Nonconsensual Deepfake Porn of Bobbi Althoff Spreads Rapidly on X",
       "url": "https://incidentdatabase.ai/cite/641"
-    },
-    {
-      "basis": "recent",
-      "date": "2024-02-20",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:642",
-      "source_id": "aiid",
-      "source_record_id": "642",
-      "title": "ChatGPT Glitch Disrupts User Interactions with Nonsensical Outputs",
-      "url": "https://incidentdatabase.ai/cite/642"
     },
     {
       "basis": "recent",
@@ -13044,18 +13017,6 @@ const D = {
       "source_record_id": "675",
       "title": "High School Athletic Director in Baltimore County Allegedly Created Racist Deepfake Audio Impersonating Principal",
       "url": "https://incidentdatabase.ai/cite/675"
-    },
-    {
-      "basis": "recent",
-      "date": "2024-04-24",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:676",
-      "source_id": "aiid",
-      "source_record_id": "676",
-      "title": "Alleged Deepfake Audio Depicts Philippines President Ferdinand Marcos Jr. Ordering Military Action",
-      "url": "https://incidentdatabase.ai/cite/676"
     },
     {
       "basis": "recent",
@@ -16761,12 +16722,12 @@ const D = {
       "label": "Discover"
     },
     {
-      "count": 1137,
+      "count": 1133,
       "detail": {
         "flagged keyword": 64,
         "flagged label": 39,
         "frozen": 34,
-        "recent": 1103
+        "recent": 1099
       },
       "id": "prefilter",
       "label": "Prefilter"
@@ -16780,9 +16741,9 @@ const D = {
       "label": "Classify"
     },
     {
-      "count": 1033,
+      "count": 1029,
       "detail": {
-        "awaiting": 1033
+        "awaiting": 1029
       },
       "id": "review",
       "label": "Review"
@@ -17061,7 +17022,7 @@ function prefilterRules(box) {
   box.appendChild(el("h3", "", "Why a record is queued"));
   const ql = el("ol");
   const q1 = el("li"); q1.appendChild(el("b", "", "Recent (" + n(B.recent) + "). "));
-  q1.appendChild(document.createTextNode("An AIID record dated " + (R.recent_from || "2024-01-01") + " or later, whatever any outside label says. AIID's own multi-agent label stops in 2024, so from then on the only multi-agent signal is our own classification."));
+  q1.appendChild(document.createTextNode("An AIID record dated " + (R.recent_from || "2024-01-01") + " or later that no outside rater has answered “not multi-agent” on. Where an outside answer exists it is acted on: “no” leaves the record out, “yes” queues it and flags it. AIID's own multi-agent label stops in 2024, so from then on almost every record is unlabelled and is read by us; the only outside source still active is the Navigator list, copied by hand."));
   const q2 = el("li"); q2.appendChild(el("b", "", "Frozen (" + n(B.frozen) + "). "));
   q2.appendChild(document.createTextNode("A record dated before then that was a candidate when the rule was simplified. The list is kept by hand in mvp/registry/frozen_pre2024.csv."));
   const q3 = el("li"); q3.appendChild(el("b", "", "Added by hand (" + n(B.manual) + "). "));
@@ -17079,7 +17040,7 @@ function prefilterRules(box) {
     const t = el("div", "terms"); R.keywords.forEach(k => t.appendChild(el("code", "", k))); li2.appendChild(t);
   } else li2.appendChild(document.createTextNode("The title or text contains a word like “agents”, “swarm” or “collusion”. The full list is in the code."));
   [li1, li2].forEach(l => ol.appendChild(l)); box.appendChild(ol);
-  box.appendChild(el("p", "note", "A flag never queues a record and never takes one out. A record can carry both flags, so the two counts can add up to more than the flagged records. A flagged record is never dismissed from its short text alone."));
+  box.appendChild(el("p", "note", "A flag never queues a record by itself. A record can carry both flags, so the two counts can add up to more than the flagged records. A flagged record is never dismissed from its short text alone."));
   box.appendChild(el("p", "", "Where the rules live:")); box.appendChild(el("code", "", R.where || "mvp/pipeline/run.py"));
 }
 
