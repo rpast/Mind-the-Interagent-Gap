@@ -194,8 +194,10 @@ characters), and the facts the gates need are usually missing from them.
   them.
 - **Which records:** those `derive` settles `in_scope`, manual records, and every record
   listed by `python mvp/pipeline/run.py instances-due`, which writes
-  `mvp/state/instances_due.jsonl`: dossiers a person put in scope that have no instances and
-  no instance proposal, plus in-scope verdicts with no instance proposal. On 2026-11-16 it
+  `mvp/state/instances_due.jsonl`: every record in scope once Gate 1 is complete, with no
+  instance proposal yet. That is the dossiers a person put in scope that have no instances,
+  the records you decided `in` on the scope sheet (promoted or not), and the in-scope
+  verdicts you have not decided `out` or `unclear`. On 2026-11-16 it
   lists one record, `lesswrong:LW-03` (dossier MIG-0017).
 - **Who:** model, following `mvp/prompts/assign_instances.v2.md`.
 - **Writes:** `mvp/proposals/assign_instances.<date>.jsonl`.
@@ -207,8 +209,16 @@ characters), and the facts the gates need are usually missing from them.
 
 ### 10. Review by a person
 
-- **What:** a person reads the verdict, the proposals and the source, and decides. The
-  update's Review step lists what is waiting.
+- **What:** a person reads the verdict, the proposals and the source, and decides, in two
+  spreadsheets in `mvp/review/`. **Sheet 1**, `1_decide_scope.xlsx`, lists every derived
+  record that has no scope decision yet, the rule-settled ones too: the rules never put
+  anything in scope, a person does. Each row carries the title, the link, what the rules
+  would say (`rules_say`), why a person is needed, and a quote. The person fills the
+  `decision` column (a drop-down: `in`, `out`, `unclear`) and, if they like, a `reason`.
+  `in` sends the record on to sheet 2; `out` and `unclear` end it there. The answers go
+  into the log `mvp/review/scope_decisions.csv`. A hand-added incident counts as decided
+  `in` on the curator's word. The update's Review step writes the sheets and waits for the
+  person; on the map the **Decide scope** box counts the rows left.
 - **1668:** the person finds it duplicates an incident already in the index: dossier
   **MIG-0016**, "OpenAI agent swarm on DSEWiki and the Vanderbilt link shortener", which a
   person already judged `multi_agent: true`, `multi_agent_label_source: ours`,
@@ -218,13 +228,18 @@ characters), and the facts the gates need are usually missing from them.
 
 ### 11. Promote and write the dossier
 
-- **What:** for a new incident, `python mvp/pipeline/run.py promote aiid:NNNN` scaffolds
+- **What:** **sheet 2**, `mvp/review/2_promote.xlsx`, lists the records a person decided
+  `in` that have no dossier yet (the map's **Human review** box). The person fills the
+  `promote` column: `yes` or `no`. On the next run a `yes` scaffolds
   `mvp/incidents/AIID-NNNN.md` (or `MIG-nnnn.md` for a non-AIID source) with every narrative
-  section marked `_pending_` and `multi_agent: false`. The person fills the seven sections
-  against the primary source and sets `multi_agent`, `multi_agent_label_source: ours`,
-  `failure_mode`, `instances`, `evidence_type` and `verification` themselves. `promote`
-  refuses a `not_ready` record unless given `--force`.
-- **Who:** person, helped by the script.
+  section marked `_pending_` and `multi_agent: false`; a `no` is logged and the record does
+  not come back. The person fills the seven sections against the primary source and sets
+  `multi_agent`, `multi_agent_label_source: ours`, `failure_mode`, `instances`,
+  `evidence_type` and `verification` themselves. A `yes` for a `not_ready` record is
+  refused and stays on the sheet. `python mvp/pipeline/run.py promote aiid:NNNN` still
+  scaffolds one dossier by hand, and refuses a `not_ready` record unless given `--force`.
+- **Who:** person, helped by the script. The sheets need openpyxl; without it the step says
+  how to install it, skips the sheets, and the run goes on.
 
 ### 12. Check, then index
 
@@ -293,7 +308,7 @@ Blue: script. Amber: model. Green: fixed rule. Pink: person.
 | derive | fixed rule, `derive.py` | newest `extract_gate` proposals | `state/verdicts.jsonl` | `run.py derive` |
 | instances-due | script | dossiers, verdicts, instance proposals | `state/instances_due.jsonl` | `run.py instances-due` |
 | call 2 | model, `assign_instances.v2` | record, context, `taxonomy/instances.csv` | `proposals/assign_instances.<date>.jsonl` | `/classify-incidents` |
-| review, promote | person, helped by script | verdicts, proposals, sources | `incidents/<ID>.md` | `run.py promote <record_key>` |
+| decide scope, promote | person, helped by script | verdicts, proposals, sources | `review/*.csv` logs, then `incidents/<ID>.md` | `run.py review`; `run.py promote <record_key>` by hand |
 | check | script | everything | exit code only | `run.py check` |
 | index, viz | script | `incidents/` | `out/incident_index.csv`, `out/*.html`, `state/pipeline.json` | `run.py index`, `run.py viz` |
 
@@ -463,18 +478,22 @@ It is not a verdict for the index until a person has read the source.
 1. **Update.** `python mvp/pipeline/run.py update`. It walks `sources -> discover -> fetch
    -> manual -> normalise -> prefilter -> read -> ready -> judge -> derive -> review -> check
    -> index`, printing `[step]` and `ok` lines. At `read`, `judge` and `review` it prints a
-   `note` saying what a person or the skill must do, then "Not waiting: the run goes on
+   `note` saying what a person or the skill must do (at `review`: write the two sheets in
+   `mvp/review/` and ask for them to be filled in), then "Not waiting: the run goes on
    without it." It ends `done.` and the path of its log, `mvp/state/runs/<run id>.json`;
    `python mvp/pipeline/run.py runs` lists past runs.
    Options: `--refetch` (fresh AIID download), `--manual DIR`, `--discover` (a placeholder:
    not built yet).
 2. **Classify.** In Claude Code, run `/classify-incidents`. It reads sources (step 0),
    writes proposals for call 1, runs `run.py derive`, then call 2 for what is due. It asks
-   before long runs and before fetching. It writes only to `context/` and `proposals/`.
-3. **Review and promote.** Read `mvp/state/verdicts.jsonl` (start with `in_scope`, then
-   `review` items) and the proposals; check each against the source. For an incident that
-   passes the inclusion test: `python mvp/pipeline/run.py promote aiid:NNNN`, then write the
-   dossier.
+   before long runs and before fetching. It writes only to `context/` and `proposals/`; the `run.py derive` it runs also writes
+`state/verdicts.jsonl` and refreshes the review sheets in `review/`.
+3. **Review and promote.** Open `mvp/review/1_decide_scope.xlsx` and fill `decision` (in,
+   out, unclear) for each record, checking it against the source. Run `python
+   mvp/pipeline/run.py review` (or press Continue on the page): the decisions are logged and
+   `mvp/review/2_promote.xlsx` lists the records you decided in. Fill `promote` (yes or no),
+   run `review` again, and each `yes` makes a blank dossier in `mvp/incidents/`. Write the
+   dossier. `mvp/review/README.md` has the details.
 4. **Check.** `python mvp/pipeline/run.py check` must end `ok check: N dossiers, no
    problems` and exit 0. `warn` lines do not fail it; `FAIL` lines do.
 5. **Commit** the records, the dossiers and the rebuilt `mvp/out/` together.

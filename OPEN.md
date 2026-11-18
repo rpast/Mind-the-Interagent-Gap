@@ -574,6 +574,25 @@
     dossier. To do: review the 103 proposals; promote the new candidates (strongest: AIID
     7, 1263, 28, 528, 794, 1633, 1794, 1796, 1766).
 
+64. **Review is two spreadsheets, 2026-11-18.** `mvp/review/1_decide_scope.xlsx` (scope:
+    in, out, unclear) and `2_promote.xlsx` (yes, no), with the logs `scope_decisions.csv`
+    and `promote_decisions.csv`. Left open:
+    - *Settled 2026-11-18:* *Name the pattern* takes every record in scope once Gate 1 is
+      complete: the rules' `in_scope` unless a person decided `out` or `unclear`, a scope
+      decision `in` on sheet 1 (promoted or not), and dossiers with `multi_agent: true`, ours.
+    - A scope decision `in` that a dossier later contradicts with `multi_agent: false` only
+      warns in `check`; the dossier is the later judgement. `out` against `multi_agent: true`
+      fails.
+    - A promote `no` is final: the record does not return to sheet 2. To reverse it, delete
+      its row from `promote_decisions.csv`. There is no sheet column for that.
+    - Reversing a scope decision (a record decided `out` then thought `in`) is the same:
+      delete or append a row by hand in `scope_decisions.csv`; sheet 1 does not list a
+      decided record.
+    - The sheets are generated and gitignored. `review` and `derive` read a sheet before
+      they replace it, so filled rows are kept; an invalid row is reported by record_key and
+      comes back blank, so what was typed in it is lost. A sheet that cannot be read is left
+      in place and not rewritten.
+
 ## Layer 2. Detection
 17. Write the one-page coding protocol: the definition of coverage and the 0–3 validity weight.
 18. Build `data/evals.csv` (technique, what it measures, method, access, validity note). Seed it from METR, Apollo Research, UK AISI, GovSim, Melting Pot, agent-security benchmarks and steganography evals.

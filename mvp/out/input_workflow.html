@@ -134,7 +134,7 @@ h2 { font-size: 14px; margin: 0 0 10px; }
 
 <script>
 const D = {
-  "generated": "2026-11-17",
+  "generated": "2026-11-18",
   "incidents": [
     {
       "canonical_source": "aivillage",
@@ -820,18 +820,6 @@ const D = {
           "path": "records/"
         }
       ],
-      "notqueued": [
-        {
-          "exists": true,
-          "label": "The records, one file per source",
-          "path": "records/"
-        },
-        {
-          "exists": true,
-          "label": "The queue they are not in",
-          "path": "state/queue.jsonl"
-        }
-      ],
       "orders": [
         {
           "exists": true,
@@ -904,8 +892,35 @@ const D = {
       "review": [
         {
           "exists": true,
+          "label": "The sheet to fill in",
+          "path": "review/2_promote.xlsx"
+        },
+        {
+          "exists": true,
+          "label": "The decisions so far",
+          "path": "review/promote_decisions.csv"
+        },
+        {
+          "exists": true,
           "label": "The incident files a person writes",
           "path": "incidents/"
+        }
+      ],
+      "scope": [
+        {
+          "exists": true,
+          "label": "The sheet to fill in",
+          "path": "review/1_decide_scope.xlsx"
+        },
+        {
+          "exists": true,
+          "label": "The decisions so far",
+          "path": "review/scope_decisions.csv"
+        },
+        {
+          "exists": true,
+          "label": "How to fill it in",
+          "path": "review/README.md"
         }
       ],
       "score": [
@@ -1000,24 +1015,6 @@ const D = {
         "lhs": 1844,
         "ok": true,
         "rhs": 1844
-      },
-      {
-        "eq": "notqueued: in = sum of the edges into it",
-        "lhs": 680,
-        "ok": true,
-        "rhs": 680
-      },
-      {
-        "eq": "notqueued: in = out + ends here + waiting",
-        "lhs": 680,
-        "ok": true,
-        "rhs": 680
-      },
-      {
-        "eq": "notqueued: by source adds up",
-        "lhs": 680,
-        "ok": true,
-        "rhs": 680
       },
       {
         "eq": "readrec: in = sum of the edges into it",
@@ -1128,22 +1125,40 @@ const D = {
         "rhs": 103
       },
       {
-        "eq": "review: in = sum of the edges into it",
+        "eq": "scope: in = sum of the edges into it",
         "lhs": 103,
         "ok": true,
         "rhs": 103
+      },
+      {
+        "eq": "scope: in = out + ends here + waiting",
+        "lhs": 103,
+        "ok": true,
+        "rhs": 103
+      },
+      {
+        "eq": "scope: by source adds up",
+        "lhs": 103,
+        "ok": true,
+        "rhs": 103
+      },
+      {
+        "eq": "review: in = sum of the edges into it",
+        "lhs": 0,
+        "ok": true,
+        "rhs": 0
       },
       {
         "eq": "review: in = out + ends here + waiting",
-        "lhs": 103,
+        "lhs": 0,
         "ok": true,
-        "rhs": 103
+        "rhs": 0
       },
       {
         "eq": "review: by source adds up",
-        "lhs": 103,
+        "lhs": 0,
         "ok": true,
-        "rhs": 103
+        "rhs": 0
       },
       {
         "eq": "dossiers: in = sum of the edges into it",
@@ -1242,6 +1257,24 @@ const D = {
         "rhs": 103
       },
       {
+        "eq": "derived = decided in + decided out + unclear + already in a dossier + left to decide",
+        "lhs": 103,
+        "ok": true,
+        "rhs": 103
+      },
+      {
+        "eq": "left to decide = rows on the decide-scope sheet",
+        "lhs": 103,
+        "ok": true,
+        "rhs": 103
+      },
+      {
+        "eq": "decided in = promoted + not promoted + rows on the promote sheet",
+        "lhs": 0,
+        "ok": true,
+        "rhs": 0
+      },
+      {
         "eq": "in scope = proposed + already listed + waiting",
         "lhs": 21,
         "ok": true,
@@ -1286,7 +1319,8 @@ const D = {
         },
         "files": [
           "raw/aiid/",
-          "records/<source>.jsonl"
+          "records/<source>.jsonl",
+          "registry/frozen_pre2024.csv"
         ],
         "groups": [
           {
@@ -1313,6 +1347,32 @@ const D = {
               }
             ],
             "title": "Records per source"
+          },
+          {
+            "note": "AIID is fetched in full, but only incidents dated 2024-01-01 or later are looked at. An earlier incident is looked at only if it is on the frozen list: pre-2024 candidates analysed before 2026-11-17.",
+            "rows": [
+              {
+                "label": "Dated 2024-01-01 or later: queued as candidates",
+                "n": 1103,
+                "tech": "basis recent in state/queue.jsonl"
+              },
+              {
+                "label": "Before 2024, on the frozen list: queued as candidates",
+                "n": 34,
+                "tech": "basis frozen: registry/frozen_pre2024.csv"
+              },
+              {
+                "label": "Already in a dossier: a dossier lists it as a source",
+                "n": 27,
+                "tech": "dossier_source_refs()"
+              },
+              {
+                "label": "Not looked at: before 2024 and not on the frozen list",
+                "n": 680,
+                "tech": "AIID, dated before 2024-01-01, not in state/queue.jsonl"
+              }
+            ],
+            "title": "Which records the pipeline looks at"
           }
         ],
         "held": 0,
@@ -1329,7 +1389,7 @@ const D = {
             "to": "normalise"
           }
         ],
-        "rule": "records of every source but manual: latest_records()",
+        "rule": "records of every source but manual: latest_records(). Looked at: AIID dated 2024-01-01 or later, or on registry/frozen_pre2024.csv",
         "stop": []
       },
       {
@@ -1419,7 +1479,7 @@ const D = {
                 "tech": "row in state/queue.jsonl"
               },
               {
-                "label": "Not queued: no rule caught it",
+                "label": "Not looked at: before 2024 and not on the frozen list",
                 "n": 680,
                 "tech": "neither in the queue nor behind a dossier"
               }
@@ -1497,36 +1557,12 @@ const D = {
             "label": "added by hand: on the curator's word",
             "n": 0,
             "to": "ready"
-          },
-          {
-            "branch": false,
-            "label": "not queued",
-            "n": 680,
-            "to": "notqueued"
           }
         ],
         "rule": "stage_prefilter(): queued = recent AIID, frozen pre-2024 or manual; flagged = an outside label or a keyword; records behind a dossier are left out",
-        "stop": []
-      },
-      {
-        "by_source": {
-          "aiid": 680
-        },
-        "files": [
-          "records/<source>.jsonl",
-          "state/queue.jsonl"
-        ],
-        "groups": [],
-        "held": 0,
-        "held_label": "",
-        "id": "notqueued",
-        "in": 680,
-        "n": 680,
-        "out": [],
-        "rule": "records neither in state/queue.jsonl nor behind a dossier",
         "stop": [
           {
-            "label": "no rule caught it",
+            "label": "not looked at: before 2024 and not on the frozen list (see Fetch)",
             "n": 680
           }
         ]
@@ -1731,7 +1767,7 @@ const D = {
               {
                 "label": "Added by hand: in scope on the curator's word",
                 "n": 0,
-                "tech": "arm manual"
+                "tech": "basis manual"
               }
             ],
             "title": "How firm"
@@ -1848,7 +1884,7 @@ const D = {
             "branch": false,
             "label": "labels derived",
             "n": 103,
-            "to": "review"
+            "to": "scope"
           },
           {
             "branch": true,
@@ -1865,10 +1901,27 @@ const D = {
           "aiid": 103
         },
         "files": [
-          "state/verdicts.jsonl",
-          "incidents/"
+          "review/1_decide_scope.xlsx",
+          "review/scope_decisions.csv",
+          "state/verdicts.jsonl"
         ],
         "groups": [
+          {
+            "note": "The rules never put a record in scope: only a person's decision does. `The rules said` is a suggestion.",
+            "rows": [
+              {
+                "label": "The rules said in: still to decide",
+                "n": 31,
+                "tech": "rules_say in; left"
+              },
+              {
+                "label": "The rules said out: still to decide",
+                "n": 72,
+                "tech": "rules_say out; left"
+              }
+            ],
+            "title": "What the rules said, and what a person decided"
+          },
           {
             "rows": [
               {
@@ -1887,29 +1940,100 @@ const D = {
                 "tech": "status review"
               }
             ],
-            "title": "By what the rules said"
+            "title": "What the rules said"
           },
           {
             "rows": [
               {
-                "label": "A person has written a dossier",
+                "label": "Rows left on the sheet",
+                "n": 103,
+                "tech": "review/1_decide_scope.xlsx"
+              },
+              {
+                "label": "Decisions in the log, newest per record",
+                "n": 0,
+                "tech": "review/scope_decisions.csv"
+              }
+            ],
+            "title": "The sheet"
+          }
+        ],
+        "held": 103,
+        "held_label": "left to decide",
+        "id": "scope",
+        "in": 103,
+        "n": 103,
+        "out": [
+          {
+            "branch": false,
+            "label": "decided in",
+            "n": 0,
+            "to": "review"
+          },
+          {
+            "branch": false,
+            "label": "already in a dossier",
+            "n": 0,
+            "to": "dossiers"
+          },
+          {
+            "branch": true,
+            "label": "decided in by a person",
+            "n": 0,
+            "to": "instances"
+          }
+        ],
+        "rule": "records with a derived label; decided = the newest row of review/scope_decisions.csv (a hand-added record counts as decided in); run.py review reads the sheet",
+        "stop": [
+          {
+            "label": "decided out by a person",
+            "n": 0
+          },
+          {
+            "label": "can't tell: unclear",
+            "n": 0
+          }
+        ]
+      },
+      {
+        "by_source": {},
+        "files": [
+          "review/2_promote.xlsx",
+          "review/promote_decisions.csv",
+          "incidents/"
+        ],
+        "groups": [
+          {
+            "rows": [
+              {
+                "label": "Decided in by a person",
+                "n": 0,
+                "tech": "newest scope decision in"
+              },
+              {
+                "label": "Promoted: a dossier lists the record",
                 "n": 0,
                 "tech": "listed in a dossier's sources"
               },
               {
-                "label": "Waiting for a person",
-                "n": 103,
-                "tech": "no dossier yet"
+                "label": "Not promoted: a person said no",
+                "n": 0,
+                "tech": "newest promote decision no"
+              },
+              {
+                "label": "Left to review: on the promote sheet",
+                "n": 0,
+                "tech": "review/2_promote.xlsx"
               }
             ],
             "title": "Status"
           }
         ],
-        "held": 103,
-        "held_label": "waiting for a person",
+        "held": 0,
+        "held_label": "left to review",
         "id": "review",
-        "in": 103,
-        "n": 103,
+        "in": 0,
+        "n": 0,
         "out": [
           {
             "branch": false,
@@ -1918,8 +2042,13 @@ const D = {
             "to": "dossiers"
           }
         ],
-        "rule": "records with a derived label; promoted = a dossier lists the record",
-        "stop": []
+        "rule": "records a person decided in; promoted = a dossier lists the record; run.py review reads the sheet and makes the dossier",
+        "stop": [
+          {
+            "label": "not promoted by a person",
+            "n": 0
+          }
+        ]
       },
       {
         "by_source": {
@@ -2080,12 +2209,17 @@ const D = {
           {
             "rows": [
               {
-                "label": "In scope by the rules, no dossier yet",
+                "label": "In scope by the rules, not yet decided by a person",
                 "n": 1,
-                "tech": "verdict in_scope"
+                "tech": "verdict in_scope, no row in review/scope_decisions.csv"
               },
               {
-                "label": "In scope by a person",
+                "label": "Decided in by a person, no dossier yet",
+                "n": 0,
+                "tech": "review/scope_decisions.csv decision in"
+              },
+              {
+                "label": "In scope in a person's dossier",
                 "n": 20,
                 "tech": "dossier multi_agent true, ours"
               }
@@ -2151,7 +2285,14 @@ const D = {
       "read_record": 461,
       "read_source": 168,
       "ready": 103,
-      "records": 1844
+      "records": 1844,
+      "review_left": 0,
+      "review_not_promoted": 0,
+      "review_promoted": 0,
+      "scope_decided_in": 0,
+      "scope_decided_out": 0,
+      "scope_decided_unclear": 0,
+      "scope_left": 103
     },
     "gate_proposals": 103,
     "gold": {
@@ -2185,7 +2326,7 @@ const D = {
         "yes"
       ],
       "recent_from": "2024-01-01",
-      "where": "mvp/pipeline/run.py:827"
+      "where": "mvp/pipeline/run.py:839"
     },
     "queue": 1137,
     "queue_basis": {

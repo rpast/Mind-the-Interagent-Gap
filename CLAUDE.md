@@ -31,8 +31,13 @@ Project-level files stay at the root: `resources/` (source documents),
   `mvp/records/manual.jsonl` holds the incidents added by hand.
 - `mvp/context/<source>.jsonl` is what each source says about the facts the gates need: a
   reading, with quotes and the depth read. Machine-written. See `mvp/docs/context_layer.md`.
-- `mvp/incidents/<ID>.md` is the curated record: one dossier per judged incident, whatever
-  the verdict. Hand-edited.
+- `mvp/review/` holds the two sheets a person fills in (`1_decide_scope.xlsx`,
+  `2_promote.xlsx`; generated, gitignored) and the two decision logs
+  (`scope_decisions.csv`, `promote_decisions.csv`; data, committed, written only by
+  `run.py review` when it reads a filled sheet). See `mvp/review/README.md`.
+- `mvp/incidents/<ID>.md` is the curated record: one dossier per incident a person
+  promotes. Scope decisions that are not promoted live in `mvp/review/scope_decisions.csv`.
+  Hand-edited.
 - `mvp/proposals/` holds classifier output. It is never authoritative; a human promotes.
 - `mvp/out/` is generated. Never edit it by hand.
 - `mvp/testenv/` holds the test run's fixtures: made-up incidents and the stand-ins for
@@ -48,7 +53,10 @@ Project-level files stay at the root: `resources/` (source documents),
    runs `python mvp/pipeline/run.py derive`, which derives the labels by rule
    (`mvp/pipeline/derive.py`) into `mvp/state/verdicts.jsonl`, and assigns instances to the
    records `python mvp/pipeline/run.py instances-due` lists.
-3. Review `mvp/proposals/` with `mvp/state/verdicts.jsonl`, promote what passes the
+3. Decide on the sheets in `mvp/review/` (`python mvp/pipeline/run.py review` writes
+   them): fill `decision` in `1_decide_scope.xlsx` (in, out, unclear), run `review`, then
+   fill `promote` in `2_promote.xlsx` (yes makes the blank dossier). Check against
+   `mvp/proposals/` and `mvp/state/verdicts.jsonl`; promote what passes the
    inclusion test.
 4. `python mvp/pipeline/run.py check` — must exit 0.
 5. Commit the records, the dossiers and the rebuilt `mvp/out/` together.

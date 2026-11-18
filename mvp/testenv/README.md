@@ -43,7 +43,15 @@ Then the real steps run. Three things differ from a real run:
   place, as that work would have, and logs each one. `skip` puts nothing in place, and the
   later steps show the consequence. A stand-in puts in place only what the workspace
   allows: no reading for a record that is not queued, no proposal for a record that
-  cannot be judged, no dossier that nothing proposed.
+  cannot be judged, no dossier that no promote decision made.
+- **The review stand-in works the real sheets.** The run writes `mvp/review/1_decide_scope.xlsx`
+  in the workspace. On Continue the stand-in opens it with openpyxl and types the decisions
+  of `standins/review/decisions.json` into it (9901 `in`, 9906 `out`, 9904 a wrong value),
+  and the real `stage_review` reads it: it logs two decisions, reports the wrong one by
+  `record_key` and writes sheet 2. The stand-in fills that too (9901 `yes`, and the manual
+  record `yes` with `--manual`), the real step reads it and makes the blank dossiers, and the
+  stand-in puts the filled-in sample dossiers over them. 9906 is stopped by its `out`: it has
+  no dossier. Without openpyxl the stand-in says so and decides nothing.
 
 Each waiting or failed prompt in a test run carries `test_note`, a sentence saying what the
 answer does in the test run.
@@ -63,7 +71,8 @@ path; delete the workspace when done.
 | `mvp/registry/sources.csv` | the registry of the test world |
 | `standins/read/context/` | the readings `/classify-incidents` step 0 would write |
 | `standins/judge/proposals/` | its two classifier calls' proposals, named by run date when put in place |
-| `standins/review/incidents/` | the dossiers a person would write; `AIID-9901.md` has a deliberate fault |
+| `standins/review/decisions.json` | what a person would type into the two review sheets |
+| `standins/review/incidents/` | the dossiers a person would write over the blank ones the promote step makes; `AIID-9901.md` has a deliberate fault |
 | `standins/check/incidents/` | the corrected `AIID-9901.md`, put in place on Try again |
 
 ## The cases
@@ -73,9 +82,9 @@ path; delete the workspace when done.
 | `aiid:9901` | recent, flagged by an external label; a full reading shows two interacting agents: in scope. Its first dossier puts it in scope on AIID's label, which `check` refuses |
 | `aiid:9902` | recent, flagged by a keyword; a secondary reading shows one chatbot: dismissed |
 | `aiid:9903` | dated before 2024, queued as frozen (it is on the test's own frozen list) and flagged by a keyword; only the record text was read: the flag rule holds it |
-| `aiid:9904` | recent, no flag; read in full and silent on agents: unclear |
+| `aiid:9904` | recent, no flag; read in full and silent on agents: unclear. On sheet 1 its stand-in decision is a wrong value, which the run reports and does not log, so it stays left to decide |
 | `aiid:9905` | dated before 2024 and not on the frozen list: not queued |
-| `aiid:9906` | recent, although a CSETv1 label answers "no" (an outside label never keeps a record out); a drone swarm doing what one agent could: a multi-agent setup, out of scope |
+| `aiid:9906` | recent, although a CSETv1 label answers "no" (an outside label never keeps a record out); a drone swarm doing what one agent could: a multi-agent setup, out of scope. Decided `out` on sheet 1: the decision stops it, and it gets no dossier |
 | `manual:test-case-relay-agents` | hand-added: in scope on the curator's word, never verified |
 
 ## Limits

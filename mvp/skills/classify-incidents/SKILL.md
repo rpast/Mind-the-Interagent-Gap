@@ -133,9 +133,11 @@ For two kinds of record, including those with no failure mode:
 
 - records `derive` settles `in_scope` in `mvp/state/verdicts.jsonl`, and manual records;
 - every record `python mvp/pipeline/run.py instances-due` lists. It lists the records a
-  person has put in scope — a dossier with `multi_agent: true` and label source `ours` —
-  that have no instances and no instance proposal, and the in-scope verdicts with no
-  instance proposal. Run it after `derive`.
+  person has put in scope — a scope decision `in` on sheet 1 (`mvp/review/`), promoted or
+  not, or a dossier with `multi_agent: true` and label source `ours` — that have no
+  instances and no instance proposal, and the in-scope verdicts no person has decided
+  `out` or `unclear`. In short: every record in scope once Gate 1 is complete. Run it
+  after `derive`.
 
 An instance proposal for a record a person put in scope is a proposal like any other. It
 does not touch the dossier; a person copies what passes into it.
@@ -174,9 +176,11 @@ When the run finishes, report:
 - how many records carry presumed instances, and how many had the pair replaced by a quote
 - the strongest few candidates, with the quote that carried them
 
-Then say what to do next, which is normally
-`python mvp/pipeline/run.py promote <source_id>:<record_id>` for the records a human should
-write up.
+Then say what to do next, which is normally: fill in `mvp/review/1_decide_scope.xlsx`
+(`run.py derive` has just written it; the column `decision` takes in, out or unclear), then
+run `python mvp/pipeline/run.py review`, which writes `mvp/review/2_promote.xlsx` for the
+records decided in. A `yes` there makes the blank dossier a human writes up. Do not decide
+scope yourself, and never fill in either sheet.
 
 ## Rules
 

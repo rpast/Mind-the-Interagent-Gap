@@ -20,6 +20,7 @@ Outside this folder:
 - `mvp/prompts/`: the prompts the model follows (`enrich_context.v2`, `extract_gate.v3`,
   `assign_instances.v2`).
 - `mvp/skills/classify-incidents/SKILL.md`: what `/classify-incidents` does, step by step.
+- `mvp/review/README.md`: the two review sheets a person fills in, and their logs.
 - `mvp/testenv/README.md`: the test run and its made-up cases.
 - `OPEN.md` at the repo root: open questions and recorded decisions, by number.
 - `docs/project_outline.md`: the project's goal and its three layers.

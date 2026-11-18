@@ -170,6 +170,7 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .node.end .nb { min-height: 0; }
 .node.picked { outline: 2px solid var(--ink); outline-offset: 3px; }
 .port { position: absolute; width: 7px; height: 7px; background: var(--paper); border: 1px solid var(--ink); }
+.port.in { background: var(--ink); }
 
 /* ---- a real update, painted on the boxes ---- */
 .node .rsb {
@@ -239,6 +240,10 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .sw.solid { border: 0; border-top: 2px solid var(--ink); height: 0; background: none; }
 .sw.refsw { border: 0; border-top: 1px dotted var(--c1); height: 0; background: none; }
 .sw.branchsw { border: 0; height: 2px; background: repeating-linear-gradient(90deg, var(--ink) 0 10px, transparent 10px 13px, var(--ink) 13px 15px, transparent 15px 18px); }
+.sw.flowsw { position: relative; border: 0; border-top: 1px solid var(--ink); height: 0; background: none; overflow: visible; }
+.sw.flowsw::before, .sw.flowsw::after { content: ""; position: absolute; top: -4px; width: 7px; height: 7px; border: 1px solid var(--ink); box-sizing: border-box; }
+.sw.flowsw::before { left: 0; background: var(--paper); }
+.sw.flowsw::after { right: 0; background: var(--ink); }
 .sw.metasw { border-style: dotted; font-size: 9px; font-style: italic; text-align: center; line-height: 12px; }
 
 /* ---- the message line ---- */
@@ -433,6 +438,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
         <span class="sw hand"></span><span>Done by a person</span>
         <span class="sw docsw"></span><span>A document or a store of files</span>
         <span class="sw endsw"></span><span>End point: the record stops here</span>
+        <span class="sw flowsw"></span><span>Direction: from the hollow end into the filled end</span>
         <span class="sw solid"></span><span>Passed on automatically</span>
         <span class="sw line"></span><span>Hand-off to or from a person</span>
         <span class="sw dots"></span><span>Not built yet</span>
@@ -672,7 +678,8 @@ function defs() {
     num: n(fl("fetch").n), cap: "records collected, from " + n(Object.keys(O(fl("fetch").by_source)).length) + " sources",
     plain: ["Downloads an untouched copy of what a source publishes. The number counts the records collected from every source except the curator's own write-ups, whichever way they arrived.",
             "Of the " + n(F.fetchable != null ? F.fetchable : M.sources) + " sources it could read, only " + n(M.sources_automatic) + " can be downloaded by a program today: the AI Incident Database. The records of the other sources were copied in by hand earlier, from the to-do notes.",
-            "AIID's copy holds " + aiidTxt + " plus AIID's own classifications of them. Nothing is changed or tidied here, so there is always an original to go back to." + snapTxt + " An update reuses the saved copy unless you ask to download it again, which needs the AIID token."],
+            "AIID's copy holds " + aiidTxt + " plus AIID's own classifications of them. Nothing is changed or tidied here, so there is always an original to go back to." + snapTxt + " An update reuses the saved copy unless you ask to download it again, which needs the AIID token.",
+            "AIID is fetched in full, but the pipeline looks only at incidents dated " + (F.rules.recent_from || "2024-01-01") + " or later. AIID's own multi-agent label stops in 2024, so from then on our classification is the only one. An earlier incident is looked at only if it is on the frozen list: the pre-2024 candidates analysed before 2026-11-17, kept in mvp/registry/frozen_pre2024.csv. The rest of the older incidents are kept but not looked at; open the box for the split."],
     tech: "run.py fetch aiid. Dispatches on the registry's adapter column; AIID over GraphQL into mvp/raw/aiid/ (" + aiidTxt + " and their classifications). update reuses the snapshot unless --refetch (needs the token: --token-file). The count: records of every source but manual, from latest_records().",
     inp: "A source that a program can read.", out: "An untouched copy, kept as it arrived.", prod: "mvp/raw/aiid/",
     facts: F.snap.present ? [["Saved AIID copy, fetched", F.snap.fetched || "date not recorded"], ["Incidents in the saved AIID copy", F.snap.records]] : [],
@@ -693,18 +700,11 @@ function defs() {
     cmd: "python mvp/pipeline/run.py normalise aiid" },
   { id: "prefilter", status: "run", by: "script", x: 730, y: 300, title: "Prefilter",
     num: n(fl("prefilter").n), cap: "candidates queued, of " + nIn("prefilter") + " records",
-    plain: ["Every record goes one of three ways. A record a dossier already covers goes straight to the dossiers. Any other record is queued as a candidate if it is a recent AIID record, is on the frozen pre-2024 list, or was added by hand. The rest are not queued.",
+    plain: ["Every record goes one of three ways. A record a dossier already covers goes straight to the dossiers. Any other record is queued as a candidate if it is a recent AIID record, is on the frozen pre-2024 list, or was added by hand. The rest, older incidents not on the frozen list, stop here and are not looked at (see Fetch).",
             "The rules are a wide, cheap net: most of what it keeps will turn out to be irrelevant; the point is not to miss anything. They are written in the code, in " + where + ". Records added by hand are queued on the curator's word and go straight to “Ready to judge”."],
     tech: "run.py prefilter. Queued: a recent AIID record, a record on the frozen pre-2024 list, or a record added by hand (its basis). Flagged: an outside label or a keyword (its flags). Records already behind a dossier (dossier_source_refs) are left out. Writes mvp/state/queue.jsonl. Rules in " + where + ".",
     inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "mvp/state/queue.jsonl",
     extra: prefilterRules, cmd: "python mvp/pipeline/run.py prefilter" },
-  { id: "notqueued", kind: "end", status: "run", by: "script", x: 510, y: 150, title: "Not queued",
-    num: n(fl("notqueued").n), cap: "records no rule caught",
-    plain: "An end point. Records that no prefilter rule caught and that no dossier covers stop here. They stay in mvp/records/; the next prefilter looks at them again, so a new tag or a new keyword can still queue them.",
-    tech: "Records neither in mvp/state/queue.jsonl nor in dossier_source_refs(). Recomputed by every prefilter.",
-    byNote: "run.py prefilter leaves them out.",
-    inp: "A record no rule caught.", out: "Nothing further. The record is kept.", prod: "mvp/records/<source>.jsonl",
-    cmd: "python mvp/pipeline/run.py prefilter" },
 
   { id: "readrec", status: "waiting", by: "model", x: 990, y: 300, title: "Read the record",
     num: n(fl("readrec").n) + " read", cap: "so far, of " + nIn("readrec") + " candidates" + waiting("readrec"),
@@ -783,19 +783,29 @@ function defs() {
     num: n(fl("instances").n), cap: "with a pattern proposed, of " + nIn("instances") + " in scope" + waiting("instances"),
     plain: ["The finer description under a label. For an in-scope incident, a model says which of the paper's named patterns it shows, for example “Swarm Attacks”, and must quote the words that show each.",
             "What it is for: later, to show which of the paper's named patterns have real incidents behind them and which have none. It does not decide whether an incident is in scope, nor its failure type. Nothing uses its output yet.",
-            "A side path: the records that come in here, in scope by the rules or by a person, also go on along the main path. They are counted there too, so this box is not part of any split. A record whose dossier already lists its patterns needs no proposal."],
-    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. No downstream consumer yet. An attack with unreported multiplicity gets I28 and I29 as presumed. In: records with verdict in_scope and no dossier, plus records of dossiers with multi_agent true and label source ours. The count: those with an assign_instances proposal; waiting: neither a proposal nor instances in the dossier (instances_due).",
+            "A side path: the records that come in here, in scope by the rules, by your decision on the scope sheet or by your dossier, also go on along the main path. They are counted there too, so this box is not part of any split. A record whose dossier already lists its patterns needs no proposal."],
+    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. No downstream consumer yet. An attack with unreported multiplicity gets I28 and I29 as presumed. In: every record in scope once Gate 1 is complete: verdict in_scope that no person decided out or unclear, a scope decision in on sheet 1 (promoted or not), and records of dossiers with multi_agent true and label source ours. The count: those with an assign_instances proposal; waiting: neither a proposal nor instances in the dossier (instances_due).",
     byNote: "Instructions: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Run in Claude Code: /classify-incidents, call 2.",
     inp: "An in-scope incident and the rulebook.", out: "Pattern names with quotes.", prod: "mvp/proposals/",
     cmd: "/classify-incidents  (call 2)" },
+  { id: "scope", kind: "hand", status: "run", by: "person", x: 520, y: 680, title: "Decide scope",
+    num: n(fl("scope").held), cap: "left to decide, of " + nIn("scope") + " · " + n(edgeN("scope", "review")) + " in · " + n(O((fl("scope").stop || [])[0]).n) + " out",
+    plain: ["A person decides, record by record, whether the incident is multi-agent: in, out, or unclear. The rules and the model have only made a suggestion, and the suggestion is shown beside each record. A rule never puts an incident in scope: only this decision does.",
+            "The records come as a spreadsheet, mvp/review/1_decide_scope.xlsx, one row each. Fill the yellow column “decision” with in, out or unclear and save it. The next run reads the sheet, keeps your answers in a log, and writes a new sheet with what is left.",
+            "A record you decide “in” goes on to Human review. “Out” and “unclear” end here: the answer stays in the log, no dossier is made. A record that already has a dossier goes straight on."],
+    tech: "run.py review (also the Review step of an update) writes mvp/review/1_decide_scope.xlsx from state/verdicts.jsonl: every record with a derived label, no scope decision yet, no dossier. Filled rows are validated and appended to mvp/review/scope_decisions.csv (record_key, decision in | out | unclear, reason, decided_on, sheet_generated_on); the newest row per record wins. A hand-added record counts as decided in. run.py check validates the log.",
+    byNote: "The sheet is written by a script; the decisions are a person’s.",
+    inp: "Every record the rules labelled.", out: "A decision: in, out or unclear.", prod: "mvp/review/scope_decisions.csv",
+    extra: scopeGuide, cmd: "python mvp/pipeline/run.py review" },
   { id: "review", kind: "hand", status: "run", by: "person", x: 780, y: 680, title: "Human review",
-    num: n(fl("review").n), cap: "labelled records for a person · " + n(edgeN("review", "dossiers")) + " promoted" + waiting("review"),
-    plain: ["A person reads the original source, checks the suggestion and decides. Only a person can put an incident into the index. A machine or somebody else’s tag can only nominate one.",
-            "Every record the rules labelled comes here, whatever the label. It leaves when a person writes it up in a dossier; until then it waits."],
-    tech: "run.py promote <source_id>:<record_id> scaffolds a dossier; refuses a record that is not ready unless --force.",
-    byNote: "run.py promote makes the blank file; the person fills it in.",
-    inp: "A suggestion, or a record added by hand.", out: "A decision, written up as a dossier.", prod: "mvp/incidents/<ID>.md",
-    extra: reviewGuide, cmd: "python mvp/pipeline/run.py promote aiid:1731" },
+    num: n(fl("review").held), cap: "left to review, of " + nIn("review") + " decided in · " + n(edgeN("review", "dossiers")) + " promoted",
+    plain: ["A person has decided these records are in scope. Here they say which get a dossier. Only a person can put an incident into the index. A machine or somebody else’s tag can only nominate one.",
+            "The records come as a second spreadsheet, mvp/review/2_promote.xlsx. Fill the yellow column “promote” with yes or no. Yes makes a blank dossier on the next run; then fill the dossier in by hand, as before. No keeps the record out of the index; the answer stays in a log.",
+            "A record leaves when a dossier lists it; until then it waits on the sheet."],
+    tech: "run.py review reads mvp/review/2_promote.xlsx: records with a newest scope decision in, no dossier, no promote decision no. A yes runs the promote logic (scaffolds the dossier; a record that is not ready is refused and stays on the sheet). Filled rows go to mvp/review/promote_decisions.csv (record_key, decision yes | no, note, decided_on, sheet_generated_on). run.py promote <source_id>:<record_id> still scaffolds one dossier by hand.",
+    byNote: "The sheet and the blank file are made by a script; the person decides and fills the dossier in.",
+    inp: "A record a person decided in.", out: "A decision, written up as a dossier.", prod: "mvp/incidents/<ID>.md",
+    extra: reviewGuide, cmd: "python mvp/pipeline/run.py review" },
   { id: "dossiers", kind: "doc", status: "run", by: "person", x: 1030, y: 680, title: "Dossiers",
     num: n(fl("dossiers").n), cap: "records in " + n(M.dossiers) + " dossiers",
     plain: ["One file per incident a person has judged: in scope, out of scope or unclear. It says what happened, how, which agents were involved, and how well it was checked against the original source.",
@@ -864,12 +874,40 @@ function prefilterRules(box) {
 // How a person fills in a dossier: shown on the Human review box and on the Review
 // step's waiting card. One copy, so the two never disagree. The rules behind it are in
 // CLAUDE.md § Rules and mvp/docs/input_layer.md; run.py check enforces them.
+function scopeGuide(box) {
+  const line = (parts, tag) => { const p = el(tag || "p"); parts.forEach(x => p.appendChild(Array.isArray(x) ? el(x[0], "", x[1]) : document.createTextNode(x))); return p; };
+  box.appendChild(el("h3", "", "How to decide scope"));
+  const ol = el("ol");
+  [
+    ["Open ", ["code", "mvp/review/1_decide_scope.xlsx"], ". One row is one record. Read the title and the quote; open the link when you need more."],
+    ["The columns ", ["code", "rules_say"], " and ", ["code", "why_a_person"], " are the rules’ suggestion and the reason it is not settled. They are not an answer."],
+    ["Fill the yellow column ", ["code", "decision"], " (a drop-down): ", ["code", "in"], ", ", ["code", "out"], " or ", ["code", "unclear"], ". Add a ", ["code", "reason"], " if you can."],
+    ["Save, then press Continue, or run ", ["code", "python mvp/pipeline/run.py review"], ". Your answers go into the log mvp/review/scope_decisions.csv. A row you left blank stays on the next sheet; a row filled wrongly is reported and comes back blank."],
+  ].forEach(parts => ol.appendChild(line(parts, "li")));
+  box.appendChild(ol);
+  const scope = el("ul", "scope");
+  [[["b", "in: "], "two or more AI agents, and the harm came from them acting on each other. It goes on to Human review."],
+   [["b", "out: "], "one agent, or many doing what one could have done. It ends here."],
+   [["b", "unclear: "], "the source was read and does not say. It ends here."]]
+    .forEach(parts => scope.appendChild(line(parts, "li")));
+  box.appendChild(scope);
+  box.appendChild(el("p", "note", "Only a person puts an incident in scope. A rule, a model or another database’s tag can only suggest it."));
+}
+
 function reviewGuide(box) {
   const line = (parts, tag) => { const p = el(tag || "p"); parts.forEach(x => p.appendChild(Array.isArray(x) ? el(x[0], "", x[1]) : document.createTextNode(x))); return p; };
+  box.appendChild(el("h3", "", "How to review"));
+  const sh = el("ol");
+  [
+    ["First decide scope in ", ["code", "mvp/review/1_decide_scope.xlsx"], ": fill the ", ["code", "decision"], " column with in, out or unclear."],
+    ["Then open ", ["code", "mvp/review/2_promote.xlsx"], ". It lists the records you decided in. Fill the ", ["code", "promote"], " column: ", ["code", "yes"], " makes a blank dossier on the next run, ", ["code", "no"], " leaves the record out of the index."],
+    ["Save the sheets, then press Continue, or run ", ["code", "python mvp/pipeline/run.py review"], ". The answers go into mvp/review/scope_decisions.csv and promote_decisions.csv."],
+  ].forEach(parts => sh.appendChild(line(parts, "li")));
+  box.appendChild(sh);
   box.appendChild(el("h3", "", "How to fill in a dossier"));
   const ol = el("ol");
   [
-    ["Make the file: ", ["code", "python mvp/pipeline/run.py promote <source_id>:<record_id>"], " writes a blank dossier in mvp/incidents/. Open it in a text editor."],
+    ["Open the blank dossier in mvp/incidents/ that a promote “yes” made (", ["code", "python mvp/pipeline/run.py promote <source_id>:<record_id>"], " makes one by hand). Open it in a text editor."],
     ["Read the original source, not only the summary or the machine’s suggestion."],
     ["Decide the scope, and say it was you: ", ["code", "multi_agent_label_source: ours"], ", with one sentence of reasons in ", ["code", "multi_agent_basis"], "."],
   ].forEach(parts => ol.appendChild(line(parts, "li")));
@@ -907,7 +945,6 @@ function wireDefs() {
     c("fetch", "normalise"),
     c("manual", "normalise", "hand"),
     c("normalise", "prefilter"),
-    c("prefilter", "notqueued", "", "tb"),
     c("prefilter", "readrec"),
     c("prefilter", "ready", "hand", "bb"),
     c("prefilter", "dossiers", "", "bt"),
@@ -918,8 +955,11 @@ function wireDefs() {
     c("ready", "extract", "", "bt"),
     ["taxonomy", "extract", "", "ref", "tb"],
     c("extract", "gate1"), ["extract", "gate2", "", "ref"], ["extract", "evtype", "", "ref"],
-    c("gate1", "review", "hand"),
+    c("gate1", "scope", "hand"),
+    c("scope", "review", "hand"),
+    c("scope", "dossiers", "hand", "tt"),
     c("gate1", "instances", "branch"),
+    c("scope", "instances", "branch"),
     c("review", "dossiers", "hand"),
     c("dossiers", "check"), c("check", "index"),
     c("dossiers", "instances", "branch", "bt"),
@@ -928,10 +968,10 @@ function wireDefs() {
 }
 
 const GROUPS = [
-  ["1 · Collect", ["sources", "discover", "orders", "fetch", "manual", "normalise", "prefilter", "notqueued"]],
+  ["1 · Collect", ["sources", "discover", "orders", "fetch", "manual", "normalise", "prefilter"]],
   ["Discover · not built", ["discover", "orders"], "sub"],
   ["2 · Read", ["readrec", "readsrc", "outscope", "ready"]],
-  ["3 · Judge", ["taxonomy", "extract", "gate1", "gate2", "evtype", "instances"]],
+  ["3 · Judge", ["taxonomy", "extract", "gate1", "scope", "gate2", "evtype", "instances"]],
   ["4 · Record", ["review", "dossiers", "check", "index"]],
   ["Test", ["gold", "score"]],
 ];
@@ -1056,7 +1096,8 @@ function route() {
 }
 function ports(pts) {
   canvas.querySelectorAll(".port").forEach(p => p.remove());
-  pts.forEach(pair => pair.forEach(pt => { const p = el("div", "port"); p.style.left = (pt[0] - 3.5) + "px"; p.style.top = (pt[1] - 3.5) + "px"; canvas.appendChild(p); }));
+  // [start, end]: the end a wire flows into is filled, so the direction reads at a glance
+  pts.forEach(pair => pair.forEach((pt, i) => { const p = el("div", i ? "port in" : "port"); p.style.left = (pt[0] - 3.5) + "px"; p.style.top = (pt[1] - 3.5) + "px"; canvas.appendChild(p); }));
 }
 
 function drag(handle, target, onMove, onEnd, onTap, onStart) {
@@ -1721,7 +1762,7 @@ function askBox(s, run) {
   }
   // the review step: how to fill in what it asks for, folded so the buttons stay in view
   if (s.id === "review" && s.state === "waiting") {
-    const d = el("details", "guide"); d.appendChild(el("summary", "", "How to fill in a dossier"));
+    const d = el("details", "guide"); d.appendChild(el("summary", "", "How to fill in the sheets and the dossier"));
     reviewGuide(d); box.appendChild(d);
   }
   const acts = el("div", "acts"), btns = [];

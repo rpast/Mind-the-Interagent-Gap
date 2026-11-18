@@ -174,27 +174,64 @@ def standin_judge(rm, run):
             rm.info(f"  test  left out {left}: their records cannot be judged yet")
 
 
+def fill_sheet(rm, kind, answers):
+    """Fill in a generated review sheet the way a person would: open the workbook the
+    run wrote, type into the decision and note columns of the rows the answers name,
+    save it. Returns the keys filled in."""
+    cfg = rm.SHEETS[kind]
+    path = rm.REVIEW / cfg["file"]
+    if not path.exists():
+        return []
+    wb = rm.openpyxl.load_workbook(path)
+    ws = wb[cfg["title"]]
+    head = {c.value: i for i, c in enumerate(ws[1], 1)}
+    by_key = {a["record_key"]: a for a in answers}
+    done = []
+    for r in range(2, ws.max_row + 1):
+        a = by_key.get(str(ws.cell(r, head["record_key"]).value))
+        if a is None:
+            continue
+        ws.cell(r, head[cfg["field"]]).value = a["decision"]
+        ws.cell(r, head[cfg["text"]]).value = a.get("reason") or a.get("note") or ""
+        done.append(a["record_key"])
+    wb.save(path)
+    return done
+
+
 def standin_review(rm, run):
-    proposed = rm.proposal_keys()
-    manual = {k for k, c in rm.load_context().items() if c.get("manual") is True}
+    """A person at the review step, with the real sheets: fill sheet 1, let the run read
+    it (which writes sheet 2), fill sheet 2, let the run read that (which makes the
+    dossiers), then fill in each blank dossier from the sample."""
+    if rm.openpyxl is None:
+        rm.info(f"  test  {rm.OPENPYXL_HINT}: the sheets cannot be filled in, so no "
+                f"decision is made")
+        return
+    answers = json.loads((STANDINS / "review" / "decisions.json").read_text(encoding="utf-8"))
+    for kind, after in (("scope", "decide scope: read sheet 1, write sheet 2"),
+                        ("promote", "promote: read sheet 2, make the dossiers")):
+        done = fill_sheet(rm, kind, answers[kind])
+        rm.info(f"  test  filled in {rm.SHEETS[kind]['file']} for {len(done)} record(s), "
+                f"as a person would have: {', '.join(done) or 'none listed'}")
+        rm.info(f"  test  now the run reads it ({after})")
+        rm.stage_review()
+    attested = rm.dossier_source_refs()
     put = left = 0
     for src in sorted((STANDINS / "review" / "incidents").glob("*.md")):
         dest = rm.INCIDENTS / src.name
         meta, _ = rm.read_dossier(src)
         refs = {(s.get("source_id"), str(s.get("record_id")))
                 for s in meta.get("sources") or []}
-        if dest.exists() or not refs or not refs <= (proposed | manual):
+        if not dest.exists() or not refs or not refs <= attested:
             left += 1
             continue
-        dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dest)
         put += 1
-        rm.info(f"  test  put {dest.relative_to(rm.ROOT)} in place, as a person "
-                f"promoting and filling it in would have")
+        rm.info(f"  test  put the filled-in {dest.relative_to(rm.ROOT)} over the blank "
+                f"dossier the promote step made, as a person filling it in would have")
     if not put:
-        rm.info("  test  no sample dossier applies: nothing was proposed")
+        rm.info("  test  no blank dossier was made, so none was filled in")
     if left:
-        rm.info(f"  test  left out {left} sample dossier(s): nothing proposed them")
+        rm.info(f"  test  left out {left} sample dossier(s): no promote decision made them")
 
 
 def standin_check(rm, run):
@@ -226,9 +263,11 @@ TEST_NOTES = {
     ("judge", "waiting"): "In this test run, Continue puts the sample proposals in place "
                           "for the records that can be judged, as /classify-incidents "
                           "would have.",
-    ("review", "waiting"): "In this test run, Continue puts the sample dossiers in place, "
-                           "as a person promoting and filling them in would, and one of "
-                           "them has a deliberate fault for the check to catch.",
+    ("review", "waiting"): "In this test run, Continue fills in the two generated sheets "
+                           "as a person would (scope: one in, one out, one wrong value; "
+                           "promote: yes), lets the run read them, and puts the filled-in "
+                           "sample dossiers over the blank ones; one of them has a "
+                           "deliberate fault for the check to catch.",
     ("check", "failed"): "In this test run, Try again puts the corrected dossier in "
                          "place, as a person fixing it would, and runs the check again.",
 }

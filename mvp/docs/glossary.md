@@ -59,6 +59,11 @@ mid-2024.
 **Curator.** The person who keeps the index. A curator's hand write-up is a manual incident,
 in scope on their word; its read depth is `curator`.
 
+**Decide scope.** The map's box, and the sheet behind it, `mvp/review/1_decide_scope.xlsx`,
+where a person says `in`, `out` or `unclear` for each derived record. The rules only
+suggest (`rules_say`); a record is in scope only by a person's decision, which goes into the
+scope decision log. `in` goes on to Human review; `out` and `unclear` end there.
+
 **Derive.** `run.py derive`: applies `derive.py` to the newest call-1 proposal of every
 record and writes `mvp/state/verdicts.jsonl`.
 
@@ -139,7 +144,13 @@ frozen list and every manual record, and flags the queued records an outside lab
 keyword calls multi-agent.
 
 **Promote.** `run.py promote <record_key>`: scaffolds a dossier from a record for a person to
-fill in. Refuses a `not_ready` record unless given `--force`.
+fill in. Refuses a `not_ready` record unless given `--force`. The review step does the same
+for each `yes` on the promote sheet.
+
+**Promote sheet.** `mvp/review/2_promote.xlsx`: the records a person decided `in` that have
+no dossier yet. The person fills `promote` with `yes` (the next run scaffolds the dossier)
+or `no` (logged in `mvp/review/promote_decisions.csv`; the record does not come back). It is
+the map's Human review box.
 
 **Proposal.** A row of model output in `mvp/proposals/`. Never authoritative, and it holds no
 derived label.
@@ -172,6 +183,11 @@ likely, RF1 to RF7, such as RF7 Multi-Agent Security.
 
 **Rules version.** The date stamped on each derived verdict, saying which version of
 `derive.py` made it. Currently `2026-11-16`.
+
+**Scope decision log.** `mvp/review/scope_decisions.csv`: a person's scope decisions, one row
+per decision (`record_key, decision, reason, decided_on, sheet_generated_on`), append-only,
+the newest row per record winning. Written only when `run.py review` reads a filled sheet.
+`check` validates it.
 
 **Security record.** A record about an attack, intrusion or abuse campaign: call 1 set
 `multiplicity_role` to anything but `not_applicable`.

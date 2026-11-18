@@ -1,0 +1,15 @@
+{
+  "scope": [
+    {"record_key": "aiid:9901", "decision": "in",
+     "reason": "Test: two interacting bots, the harm needed both."},
+    {"record_key": "aiid:9906", "decision": "out",
+     "reason": "Test: a swarm doing what one agent with the same map would have done."},
+    {"record_key": "aiid:9904", "decision": "maybe",
+     "reason": "Test: not one of in, out, unclear. It is reported, not logged, and the record comes back on the next sheet."}
+  ],
+  "promote": [
+    {"record_key": "aiid:9901", "decision": "yes", "note": "Test: make the dossier."},
+    {"record_key": "manual:test-case-relay-agents", "decision": "yes",
+     "note": "Test: a hand-added record is decided in on the curator's word."}
+  ]
+}

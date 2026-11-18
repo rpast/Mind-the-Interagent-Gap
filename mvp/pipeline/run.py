@@ -15,8 +15,12 @@ Stages, in the order an update runs them:
     judge      (claude code skill /classify-incidents; see mvp/docs/classifiers.md)
     derive     the labels, by rule (derive.py), from the newest extract_gate proposal
                of each record -> mvp/state/verdicts.jsonl
-    review     a person promotes proposals to dossiers (`promote`);
-               `instances-due` lists the records in scope with no instance proposal
+    review     two spreadsheets in mvp/review/: a person decides scope on sheet 1, then
+               says on sheet 2 which in-scope records get a dossier; this step reads
+               the filled sheets, logs the decisions, scaffolds the dossiers, and writes
+               fresh sheets (`review` alone does the same). `promote` still makes one
+               dossier by hand; `instances-due` lists the records in scope with no
+               instance proposal
     check      validate the layer; exits non-zero on any problem
     index      regenerate mvp/out/incident_index.csv and mvp/state/pipeline.json
     viz        render the pages in mvp/out/
@@ -59,6 +63,13 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit("this pipeline needs PyYAML: pip install -r requirements.txt")
 
+# The review sheets are spreadsheets. Without openpyxl the review step says so, skips
+# the sheets, and the rest of the run goes on.
+try:
+    import openpyxl
+except ImportError:  # pragma: no cover
+    openpyxl = None
+
 # The labelling rules live in one file beside this one, derive.py, and nowhere else.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import derive as rules  # noqa: E402
@@ -67,12 +78,12 @@ import derive as rules  # noqa: E402
 # The test run (testenv.py) loads a second instance of this module and points that
 # one at a scratch workspace; this instance is set once, here, and never re-pointed.
 PATH_NAMES = ("MVP", "ROOT", "REGISTRY", "TAXONOMY", "RAW", "RECORDS", "INCIDENTS",
-              "PROPOSALS", "CONTEXT", "STATE", "OUT", "RUN_FILE", "RUNS")
+              "PROPOSALS", "CONTEXT", "STATE", "OUT", "RUN_FILE", "RUNS", "REVIEW")
 
 
 def set_paths(mvp_dir):
     global MVP, ROOT, REGISTRY, TAXONOMY, RAW, RECORDS, INCIDENTS, PROPOSALS, \
-        CONTEXT, STATE, OUT, RUN_FILE, RUNS
+        CONTEXT, STATE, OUT, RUN_FILE, RUNS, REVIEW
     MVP = Path(mvp_dir).resolve()
     ROOT = MVP.parent
     REGISTRY = MVP / "registry" / "sources.csv"
@@ -86,6 +97,7 @@ def set_paths(mvp_dir):
     OUT = MVP / "out"
     RUN_FILE = STATE / "run.json"
     RUNS = STATE / "runs"           # one retained log per run: <run id>.json
+    REVIEW = MVP / "review"         # the two sheets a person fills in, and their logs
 
 
 set_paths(Path(__file__).resolve().parents[1])
@@ -1109,10 +1121,18 @@ def instances_due():
       dossier  a dossier with multi_agent true and label source `ours`, an empty
                `instances` list, and no assign_instances proposal for any of its
                sources. The record named is its canonical source's.
-      verdict  a record derive settled in_scope, with no assign_instances proposal,
-               and no dossier that already lists instances.
+      verdict  a record derive settled in_scope that no person has decided out or
+               unclear on sheet 1, with no assign_instances proposal, and no dossier
+               that already lists instances.
+      decided  a record a person decided `in` on sheet 1 (mvp/review/), whatever the
+               rules said, with no assign_instances proposal and no dossier that
+               already lists instances. It need not be promoted yet.
+
+    So once Gate 1 is complete, by the rules or by a person, an in-scope record is due.
     """
     have = set(proposal_rows("assign_instances"))
+    records = latest_records()
+    person = {k: r.get("decision") for k, r in scope_newest(records).items()}
     out, seen, listed = [], set(), set()
     for path in all_dossiers():
         meta, _ = read_dossier(path)
@@ -1130,10 +1150,17 @@ def instances_due():
                     "source_record_id": key[1], "why": "dossier",
                     "dossier": meta.get("id", path.stem)})
     for key, v in sorted(read_verdicts().items()):
-        if v.get("status") != "in_scope" or key in have or key in seen or key in listed:
+        said = person.get(record_key(*key))
+        if said == "in":
+            why = "decided"
+        elif v.get("status") == "in_scope" and said not in ("out", "unclear"):
+            why = "verdict"
+        else:
+            continue
+        if key in have or key in seen or key in listed:
             continue
         out.append({"record_key": record_key(*key), "source_id": key[0],
-                    "source_record_id": key[1], "why": "verdict", "dossier": ""})
+                    "source_record_id": key[1], "why": why, "dossier": ""})
     return out
 
 
@@ -1144,70 +1171,90 @@ def stage_instances_due():
     info(f"  ok    instances-due: {len(rows)} record(s) in scope with no instance "
          f"proposal -> {(STATE / INSTANCES_DUE).relative_to(ROOT)}")
     for r in rows:
-        why = f"dossier {r['dossier']}" if r["why"] == "dossier" else "derived in scope"
+        why = {"dossier": f"dossier {r['dossier']}", "decided": "decided in by a person",
+               "verdict": "derived in scope"}[r["why"]]
         info(f"          {r['record_key']:28s} {why}")
     return rows
 
 
 # ------------------------------------------------------------------ promote
 
+class PromoteRefused(Exception):
+    """promote_one will not scaffold this record; the message says why."""
+
+
 def stage_promote(refs, force=False):
     records = latest_records()
     context = load_context()
     made = []
     for ref in refs:
-        if ":" not in ref:
-            die(f"promote takes a record_key, <source_id>:<record_id>, got {ref!r}")
-        sid, rid = split_key(ref)
-        rec = records.get((sid, rid))
-        if rec is None:
-            die(f"no record {ref}; run normalise first")
-        flagged = queue_flags().get((sid, rid), True)
-        scope = readiness(context.get((sid, rid)), flagged=flagged)["scope"]
-        if scope["level"] == "not_ready" and not force:
-            die(f"{ref} is not ready to classify ({scope['why']}). Enrich it first - "
-                f"see mvp/docs/context_layer.md - or pass --force to scaffold anyway.")
-        doc_id = f"AIID-{int(rid):04d}" if sid == "aiid" else next_mig_id(made)
-        path = dossier_path(doc_id)
-        if path.exists():
-            info(f"  skip  {doc_id}: already exists")
-            continue
-        ok, precision = parse_iso(rec.get("date") or "")
-        meta = {
-            "id": doc_id,
-            "title": rec.get("title") or "",
-            "canonical_source": sid,
-            "sources": [{"source_id": sid, "record_id": rid,
-                         "url": rec.get("url", ""), "first_seen": TODAY}],
-            "occurrence_date": rec.get("date") or "",
-            "occurrence_date_precision": precision or "year",
-            "first_seen": TODAY,
-            "last_verified": "",
-            "systems": [],
-            "actor_count": "unclear",
-            "interaction_kind": "unclear",
-            "evidence_type": "",
-            "multi_agent": False,
-            "multi_agent_basis": "",
-            "multi_agent_label_source": "",
-            "external_labels": rec.get("external_labels") or [],
-            "failure_mode": None,
-            "failure_mode_source": "",
-            "instances": [],
-            "instances_presumed": [],
-            "verification": "unverified",
-        }
-        pending = "_pending_"
-        sections = {name: pending for name in SECTIONS}
-        sections["What happened"] = rec.get("text") or pending
-        sections["Sources"] = f"- {sid}: {rec.get('url', '')}"
-        write_dossier(path, meta, sections)
-        made.append(doc_id)
-        info(f"  ok    {doc_id}: scaffolded from {ref}")
+        try:
+            doc_id = promote_one(ref, records, context, made, force)
+        except PromoteRefused as e:
+            die(str(e))
+        if doc_id:
+            made.append(doc_id)
     if made:
         info("  note  a scaffold is not a record: fill every _pending_ section, verify "
              "against the primary source, and set multi_agent yourself.")
     return made
+
+
+def promote_one(ref, records, context, made, force=False):
+    """Scaffold the dossier of one record. Returns its id, or None when that dossier
+    already exists. Raises PromoteRefused for a record it will not scaffold: the CLI
+    turns that into die(); the review step reports it and goes on. `made` holds the
+    ids made earlier in the same call, so two hand-added records do not share an id."""
+    if ":" not in ref:
+        raise PromoteRefused(
+            f"promote takes a record_key, <source_id>:<record_id>, got {ref!r}")
+    sid, rid = split_key(ref)
+    rec = records.get((sid, rid))
+    if rec is None:
+        raise PromoteRefused(f"no record {ref}; run normalise first")
+    flagged = queue_flags().get((sid, rid), True)
+    scope = readiness(context.get((sid, rid)), flagged=flagged)["scope"]
+    if scope["level"] == "not_ready" and not force:
+        raise PromoteRefused(
+            f"{ref} is not ready to classify ({scope['why']}). Enrich it first - "
+            f"see mvp/docs/context_layer.md - or pass --force to scaffold anyway.")
+    doc_id = f"AIID-{int(rid):04d}" if sid == "aiid" else next_mig_id(made)
+    path = dossier_path(doc_id)
+    if path.exists():
+        info(f"  skip  {doc_id}: already exists")
+        return None
+    ok, precision = parse_iso(rec.get("date") or "")
+    meta = {
+        "id": doc_id,
+        "title": rec.get("title") or "",
+        "canonical_source": sid,
+        "sources": [{"source_id": sid, "record_id": rid,
+                     "url": rec.get("url", ""), "first_seen": TODAY}],
+        "occurrence_date": rec.get("date") or "",
+        "occurrence_date_precision": precision or "year",
+        "first_seen": TODAY,
+        "last_verified": "",
+        "systems": [],
+        "actor_count": "unclear",
+        "interaction_kind": "unclear",
+        "evidence_type": "",
+        "multi_agent": False,
+        "multi_agent_basis": "",
+        "multi_agent_label_source": "",
+        "external_labels": rec.get("external_labels") or [],
+        "failure_mode": None,
+        "failure_mode_source": "",
+        "instances": [],
+        "instances_presumed": [],
+        "verification": "unverified",
+    }
+    pending = "_pending_"
+    sections = {name: pending for name in SECTIONS}
+    sections["What happened"] = rec.get("text") or pending
+    sections["Sources"] = f"- {sid}: {rec.get('url', '')}"
+    write_dossier(path, meta, sections)
+    info(f"  ok    {doc_id}: scaffolded from {ref}")
+    return doc_id
 
 
 def next_mig_id(pending):
@@ -1216,6 +1263,468 @@ def next_mig_id(pending):
     while f"MIG-{n:04d}" in used:
         n += 1
     return f"MIG-{n:04d}"
+
+
+# ------------------------------------------------------------ review sheets
+#
+# Two spreadsheets in mvp/review/, filled in by a person: sheet 1 decides scope, sheet 2
+# says which records decided in get a dossier. A person's answers go into two logs, CSV,
+# append-only, committed: scope_decisions.csv and promote_decisions.csv. The newest row
+# per record_key wins. The run writes them only when it reads a filled sheet. The rules
+# never put anything in scope: a decision `in` is a person's.
+
+SHEETS = {
+    "scope": {
+        "file": "1_decide_scope.xlsx", "log": "scope_decisions.csv", "title": "Decide scope",
+        "cols": ["record_key", "decision", "reason", "decided_on", "sheet_generated_on"],
+        "allowed": ("in", "out", "unclear"), "field": "decision", "text": "reason",
+    },
+    "promote": {
+        "file": "2_promote.xlsx", "log": "promote_decisions.csv", "title": "Promote",
+        "cols": ["record_key", "decision", "note", "decided_on", "sheet_generated_on"],
+        "allowed": ("yes", "no"), "field": "promote", "text": "note",
+    },
+}
+HELP_SHEET = "How to fill this in"
+META_SHEET = "_meta"
+OPENPYXL_HINT = "install openpyxl: pip install -r requirements.txt"
+NOTHING_LEFT = "(nothing is left on this sheet)"
+# Decisions logged since the current update run began (an update run resets it): the
+# review step can run more than once in a run, and says the total.
+REVIEW_DECIDED = {"scope": 0, "promote": 0}
+HAND_ADDED_REASON = "added by hand: in scope on the curator's word"
+
+
+def natural(key):
+    """Sort key: aiid:99 before aiid:1015."""
+    return [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", str(key))]
+
+
+def read_log(kind):
+    path = REVIEW / SHEETS[kind]["log"]
+    return read_csv(path) if path.exists() else []
+
+
+def newest_by_key(rows):
+    """The newest row per record_key: the log is append-only, a later row wins."""
+    return {r["record_key"]: r for r in rows if r.get("record_key")}
+
+
+def ensure_logs():
+    """Both logs exist, with their header at least."""
+    REVIEW.mkdir(parents=True, exist_ok=True)
+    for cfg in SHEETS.values():
+        path = REVIEW / cfg["log"]
+        if not path.exists():
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                csv.writer(f, lineterminator="\n").writerow(cfg["cols"])
+
+
+def append_log(kind, rows):
+    ensure_logs()
+    cfg = SHEETS[kind]
+    if not rows:
+        return
+    with open(REVIEW / cfg["log"], "a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=cfg["cols"], lineterminator="\n")
+        w.writerows({c: r.get(c, "") for c in cfg["cols"]} for r in rows)
+
+
+def scope_newest(records=None):
+    """record_key -> the newest scope decision. A hand-added record is in scope on the
+    curator's word, which is a person's verdict: it counts as decided `in` unless the
+    log says otherwise."""
+    rows = newest_by_key(read_log("scope"))
+    records = latest_records() if records is None else records
+    for sid, rid in records:
+        if sid == MANUAL:
+            key = record_key(sid, rid)
+            rows.setdefault(key, {"record_key": key, "decision": "in",
+                                  "reason": HAND_ADDED_REASON, "decided_on": "",
+                                  "sheet_generated_on": ""})
+    return rows
+
+
+def rules_say(verdict):
+    """What the rules would say about scope: in, out or unclear. Not a decision."""
+    if verdict.get("gate1") == "curator":
+        return "in"
+    return {True: "in", False: "out"}.get(rules.labels_of(verdict).get("multi_agent"),
+                                          "unclear")
+
+
+def review_state(records=None):
+    """What each sheet lists, from the files on disk: the keys, and what they rest on."""
+    verdicts = read_verdicts()
+    attested = dossier_source_refs()
+    scope = scope_newest(records)
+    promo = newest_by_key(read_log("promote"))
+    keys = {record_key(*pair): pair for pair in verdicts}
+    on_scope = sorted((k for k, p in keys.items() if k not in scope and p not in attested),
+                      key=natural)
+    on_promote = sorted((k for k, p in keys.items()
+                         if scope.get(k, {}).get("decision") == "in"
+                         and p not in attested
+                         and promo.get(k, {}).get("decision") != "no"), key=natural)
+    return {"verdicts": verdicts, "attested": attested, "scope_log": scope,
+            "promote_log": promo, "scope": on_scope, "promote": on_promote}
+
+
+def cut(text, n=300):
+    text = " ".join(str(text).split())
+    return text if len(text) <= n else text[:n - 1].rstrip() + "…"
+
+
+def scope_sheet_rows(state, records):
+    gates = proposal_rows("extract_gate")
+    rows = []
+    for key in state["scope"]:
+        pair = split_key(key)
+        v, rec, gate = state["verdicts"][pair], records.get(pair, {}), gates.get(pair, {})
+        say = rules_say(v)
+        quotes = [q for q in (gate.get("quotes") or {}).values() if q][:2]
+        rows.append({
+            "record_key": key, "title": rec.get("title", ""), "date": rec.get("date", ""),
+            "url": rec.get("url", ""), "rules_say": say,
+            "settled_by_rules": "no" if v.get("status") == "review" else "yes",
+            "why_a_person": "; ".join(v.get("review_why") or []),
+            "confidence": gate.get("confidence", ""),
+            "counterfactual": rules.labels_of(v).get("counterfactual_resolved") or "",
+            "by_presumption": "yes" if v.get("by_presumption") else "no",
+            "key_quote": cut(" | ".join(quotes)),
+            "_order": (0 if say == "in" else 1 if v.get("status") == "review" else 2,
+                       natural(key))})
+    rows.sort(key=lambda r: r["_order"])
+    return rows
+
+
+def promote_sheet_rows(state, records):
+    rows = []
+    for key in state["promote"]:
+        rec = records.get(split_key(key), {})
+        log = state["scope_log"][key]
+        rows.append({"record_key": key, "title": rec.get("title", ""),
+                     "date": rec.get("date", ""), "url": rec.get("url", ""),
+                     "decided_in_on": log.get("decided_on") or "added by hand",
+                     "scope_reason": log.get("reason", "")})
+    return rows
+
+
+SCOPE_COLUMNS = ["record_key", "title", "date", "url", "rules_say", "settled_by_rules",
+                 "why_a_person", "confidence", "counterfactual", "by_presumption",
+                 "key_quote", "decision", "reason"]
+PROMOTE_COLUMNS = ["record_key", "title", "date", "url", "decided_in_on", "scope_reason",
+                   "promote", "note"]
+SHEET_WIDTHS = {"record_key": 16, "title": 48, "date": 12, "url": 30, "rules_say": 10,
+                "settled_by_rules": 12, "why_a_person": 30, "confidence": 11,
+                "counterfactual": 15, "by_presumption": 12, "key_quote": 60,
+                "decision": 12, "reason": 40, "decided_in_on": 14, "scope_reason": 40,
+                "promote": 12, "note": 40}
+SHEET_WRAP = {"title", "why_a_person", "key_quote", "reason", "scope_reason", "note"}
+SCOPE_HELP = [
+    "Decide scope: is this record a multi-agent incident, yes or no?",
+    "Read the title and the quote, and open the url when you need more. Only you can say "
+    "'in': the rules and the model only suggest (columns rules_say and why_a_person).",
+    "Fill the yellow column `decision` with the drop-down: in, out or unclear.",
+    "in = two or more AI agents, and the harm came from them acting on each other. "
+    "out = one agent, or many doing what one could have done. "
+    "unclear = the source was read and does not say.",
+    "Write a short `reason` if you can. It is kept in mvp/review/scope_decisions.csv.",
+    "You do not have to finish. Leave a row blank and it stays on the next sheet.",
+    "Save the file, then run `python mvp/pipeline/run.py review` or press Continue on "
+    "the page. A row you filled wrongly is reported and comes back blank.",
+    "Records you decide `in` go on to sheet 2, 2_promote.xlsx, where you say which get a "
+    "dossier.",
+]
+PROMOTE_HELP = [
+    "Promote: which in-scope records get a dossier?",
+    "These are records you decided `in` on sheet 1 that have no dossier yet.",
+    "Fill the yellow column `promote` with the drop-down: yes or no.",
+    "yes = the next run writes a blank dossier in mvp/incidents/. You then fill it in by "
+    "hand, verify it against the primary source and set multi_agent yourself, and "
+    "`python mvp/pipeline/run.py check` must pass.",
+    "no = leave it undossiered. It is kept in mvp/review/promote_decisions.csv and does "
+    "not come back.",
+    "A `yes` for a record that is not ready to classify is refused and is not logged: it "
+    "stays on the sheet. Read the record first (see mvp/docs/context_layer.md).",
+    "Leave a row blank to decide later.",
+    "Save the file, then run `python mvp/pipeline/run.py review` or press Continue on "
+    "the page.",
+]
+
+
+def clean(value):
+    """Cell text: no control characters, and nothing that Excel would read as a formula."""
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", str(value if value is not None else ""))
+    return " " + text if text.startswith("=") else text
+
+
+def write_sheet(kind, columns, rows, help_lines):
+    """Write one sheet to mvp/review/, replacing the last one. The last two columns are
+    the ones a person fills in; the first of them gets a drop-down."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    cfg = SHEETS[kind]
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = cfg["title"]
+    ws.append(columns)
+    head = PatternFill("solid", start_color="D9E1F2")
+    ask = PatternFill("solid", start_color="FFF2CC")
+    ask_head = PatternFill("solid", start_color="FFD966")
+    fill_cols = columns[-2:]
+    for i, name in enumerate(columns, 1):
+        c = ws.cell(1, i)
+        c.font = Font(bold=True)
+        c.fill = ask_head if name in fill_cols else head
+        c.alignment = Alignment(vertical="top", wrap_text=True)
+        ws.column_dimensions[get_column_letter(i)].width = SHEET_WIDTHS.get(name, 14)
+    if rows:
+        for row in rows:
+            ws.append([clean(row.get(c, "")) for c in columns])
+    else:
+        ws.append([NOTHING_LEFT] + [""] * (len(columns) - 1))
+    last = len(rows) + 1 if rows else 2
+    for r in range(2, last + 1):
+        for i, name in enumerate(columns, 1):
+            c = ws.cell(r, i)
+            c.alignment = Alignment(vertical="top", wrap_text=name in SHEET_WRAP)
+            if name in fill_cols:
+                c.fill = ask
+            if name == "url" and str(c.value).startswith(("http://", "https://")):
+                c.hyperlink = str(c.value)
+                c.style = "Hyperlink"
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(columns))}{last}"
+    allowed = ",".join(cfg["allowed"])
+    dv = DataValidation(type="list", formula1=f'"{allowed}"', allow_blank=True,
+                        showErrorMessage=True, errorTitle="Not a choice",
+                        error=f"Pick one of: {allowed}.")
+    ws.add_data_validation(dv)
+    col = get_column_letter(columns.index(cfg["field"]) + 1)
+    dv.add(f"{col}2:{col}{last}")
+    hs = wb.create_sheet(HELP_SHEET)
+    hs.column_dimensions["A"].width = 110
+    for i, line in enumerate(help_lines, 1):
+        hs.cell(i, 1, line).alignment = Alignment(wrap_text=True, vertical="top")
+    hs.cell(1, 1).font = Font(bold=True)
+    meta = wb.create_sheet(META_SHEET)
+    meta.append(["generated_on", TODAY])
+    meta.append(["sheet", kind])
+    meta.sheet_state = "hidden"
+    wb.properties.title = f"{cfg['title']} (generated {TODAY})"
+    REVIEW.mkdir(parents=True, exist_ok=True)
+    path = REVIEW / cfg["file"]
+    tmp = path.with_name(path.name + ".tmp")
+    wb.save(tmp)
+    os.replace(tmp, path)
+    return path
+
+
+def read_sheet(kind):
+    """The filled rows of a sheet: (generated_on, [{row, record_key, value, text}]), or
+    None when there is no sheet. Raises ValueError for a file that cannot be read."""
+    cfg = SHEETS[kind]
+    path = REVIEW / cfg["file"]
+    if not path.exists():
+        return None
+    try:
+        wb = openpyxl.load_workbook(path, data_only=True)
+        ws = wb[cfg["title"]]
+    except Exception as e:  # noqa: BLE001 - a corrupt or half-written file
+        raise ValueError(f"{type(e).__name__}: {e}") from None
+    head = {str(c.value).strip(): i for i, c in enumerate(ws[1]) if c.value is not None}
+    for need in ("record_key", cfg["field"], cfg["text"]):
+        if need not in head:
+            raise ValueError(f"the column {need!r} is gone from the header row")
+    generated = ""
+    if META_SHEET in wb.sheetnames:
+        generated = str(wb[META_SHEET].cell(1, 2).value or "")
+    out = []
+    for n, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
+        def cell(name):
+            v = row[head[name]] if head[name] < len(row) else None
+            return "" if v is None else str(v).strip()
+        value = cell(cfg["field"]).lower()
+        if value:
+            out.append({"row": n, "record_key": cell("record_key"), "value": value,
+                        "text": cell(cfg["text"])})
+    return generated, out
+
+
+def ingest_sheet(kind, listed):
+    """Validate the filled rows of a sheet against what it should still list.
+    Returns (valid log rows, [(row, record_key, why)]); None when there is no sheet."""
+    cfg = SHEETS[kind]
+    got = read_sheet(kind)
+    if got is None:
+        return None
+    generated, filled = got
+    good, bad, seen = [], [], set()
+    for r in filled:
+        key = r["record_key"]
+        if r["value"] not in cfg["allowed"]:
+            bad.append((r["row"], key, f"{r['value']!r} is not one of "
+                        + ", ".join(cfg["allowed"])))
+        elif key not in listed:
+            bad.append((r["row"], key, "this record is not listed for this sheet "
+                        "(unknown, already decided, or already in a dossier)"))
+        elif key in seen:
+            bad.append((r["row"], key, "the record is on the sheet twice"))
+        else:
+            seen.add(key)
+            good.append({"record_key": key, "decision": r["value"], cfg["text"]: r["text"],
+                         "decided_on": TODAY, "sheet_generated_on": generated})
+    return good, bad
+
+
+def stage_review():
+    """The review step's work, in order: read the filled sheets and log the decisions,
+    scaffold the dossiers a person said yes to, write both sheets again from the
+    current state, and say what is left. Without openpyxl it says so and skips the
+    sheets."""
+    ensure_logs()
+    records = latest_records()
+    state = review_state(records)
+    listed = {"scope": set(state["scope"]), "promote": set(state["promote"])}
+    decided = {"scope": 0, "promote": 0}
+    detail = {"scope": "", "promote": ""}
+    unreadable = set()
+    if openpyxl is None:
+        info(f"  warn  {OPENPYXL_HINT}. The review sheets are skipped; the run goes on.")
+    else:
+        # 1. ingest
+        for kind in ("scope", "promote"):
+            cfg = SHEETS[kind]
+            try:
+                got = ingest_sheet(kind, listed[kind])
+            except ValueError as e:
+                unreadable.add(kind)
+                info(f"  FAIL  {cfg['file']} cannot be read ({e}). It is left as it is "
+                     f"and not rewritten; fix or delete it.")
+                continue
+            if got is None:
+                continue
+            good, bad = got
+            for row, key, why in bad:
+                info(f"  warn  {cfg['file']} row {row} {key or '(no record_key)'}: {why}. "
+                     f"Not logged; the record comes back on the new sheet.")
+            if kind == "promote":
+                good = promote_yes(good, records)
+            append_log(kind, good)
+            decided[kind] = len(good)
+            counts = {}
+            for r in good:
+                counts[r["decision"]] = counts.get(r["decision"], 0) + 1
+            detail[kind] = ", ".join(f"{v} {k}" for k, v in sorted(counts.items()))
+            if good:
+                info(f"  ok    {cfg['file']}: logged {len(good)} decision(s) "
+                     f"({detail[kind]}) in mvp/review/{cfg['log']}")
+            elif not bad:
+                info(f"  note  {cfg['file']}: nothing filled in")
+    # 3. write both sheets again from the state now
+    state = review_state(records)
+    if openpyxl is not None:
+        for kind, columns, rows, lines in (
+                ("scope", SCOPE_COLUMNS, scope_sheet_rows(state, records), SCOPE_HELP),
+                ("promote", PROMOTE_COLUMNS, promote_sheet_rows(state, records),
+                 PROMOTE_HELP)):
+            if kind not in unreadable:
+                write_sheet(kind, columns, rows, lines)
+    # 4. the numbers
+    for kind, n in decided.items():
+        REVIEW_DECIDED[kind] += n
+    result = {"openpyxl": openpyxl is not None}
+    for kind, label in (("scope", "decide scope"), ("promote", "promote")):
+        cfg = SHEETS[kind]
+        left = len(state[kind])
+        result[kind] = {"decided": decided[kind], "left": left,
+                        "path": str((REVIEW / cfg["file"]).relative_to(ROOT))}
+        where = result[kind]["path"] if openpyxl is not None else "no sheet: openpyxl missing"
+        info(f"  ok    {label:13s} decided this run {decided[kind]:4d}   "
+             f"left {left:4d}   {where}")
+    return result
+
+
+def promote_yes(rows, records):
+    """Act on the `yes` rows of the promote sheet: scaffold each dossier. A yes the
+    promote logic refuses, or that has nothing to make, is reported and dropped, so the
+    record stays on the sheet. Returns the rows to log."""
+    context = load_context()
+    made, keep = [], []
+    for row in rows:
+        if row["decision"] != "yes":
+            keep.append(row)
+            continue
+        try:
+            doc_id = promote_one(row["record_key"], records, context, made)
+        except PromoteRefused as e:
+            info(f"  warn  promote {row['record_key']}: {e} Its yes is not logged; it "
+                 f"stays on the sheet.")
+            continue
+        if doc_id is None:
+            info(f"  warn  promote {row['record_key']}: a dossier of that name already "
+                 f"exists. Its yes is not logged; it stays on the sheet.")
+            continue
+        made.append(doc_id)
+        keep.append(row)
+    if made:
+        info("  note  a scaffold is not a record: fill every _pending_ section, verify "
+             "against the primary source, and set multi_agent yourself.")
+    return keep
+
+
+def check_review_logs(records, problems, warnings):
+    """Both decision logs: header, values, keys, dates; a promote yes rests on a scope
+    decision `in`; a scope decision against a dossier."""
+    keys = {record_key(*p) for p in records}
+    rel = lambda cfg: (REVIEW / cfg["log"]).relative_to(ROOT)
+    bad_header = False
+    for kind, cfg in SHEETS.items():
+        path = REVIEW / cfg["log"]
+        if not path.exists():
+            continue
+        with open(path, newline="", encoding="utf-8") as f:
+            header = next(csv.reader(f), [])
+        if header != cfg["cols"]:
+            problems.append(f"{rel(cfg)}: the header is {header}, it must be {cfg['cols']}")
+            bad_header = True
+            continue
+        for n, row in enumerate(read_csv(path), 2):
+            where = f"{rel(cfg)}:{n}"
+            if row["decision"] not in cfg["allowed"]:
+                problems.append(f"{where}: decision {row['decision']!r} is not one of "
+                                f"{list(cfg['allowed'])}")
+            if row["record_key"] not in keys:
+                problems.append(f"{where}: {row['record_key']!r} is no record")
+            for col in ("decided_on", "sheet_generated_on"):
+                if not parse_iso(row[col])[0]:
+                    problems.append(f"{where}: {col} {row[col]!r} is not an ISO date")
+    if bad_header:
+        return
+    scope = scope_newest(records)
+    promo = newest_by_key(read_log("promote"))
+    for key, row in sorted(promo.items()):
+        if row["decision"] == "yes" and scope.get(key, {}).get("decision") != "in":
+            problems.append(f"mvp/review/promote_decisions.csv: {key} has a promote yes "
+                            f"but no newest scope decision `in`")
+    real = newest_by_key(read_log("scope"))
+    for path in all_dossiers():
+        meta, _ = read_dossier(path)
+        for s in meta.get("sources") or []:
+            key = record_key(s.get("source_id"), str(s.get("record_id")))
+            decision = real.get(key, {}).get("decision")
+            rel_d = path.relative_to(ROOT)
+            if decision == "out" and meta.get("multi_agent") is True:
+                problems.append(f"{rel_d}: multi_agent is true, but the newest scope "
+                                f"decision for {key} is `out`. Decide again on sheet 1, or "
+                                f"fix the dossier.")
+            elif decision == "in" and meta.get("multi_agent") is False:
+                warnings.append(f"{rel_d}: multi_agent is false; the scope decision for "
+                                f"{key} was `in`. The dossier is the later, fuller "
+                                f"judgement.")
 
 
 # -------------------------------------------------------------------- index
@@ -1355,8 +1864,6 @@ MAP_ARTIFACTS = {
                ("The curator's flag on each", "context/manual.jsonl")],
     "normalise": [("Records, one file per source", "records/")],
     "prefilter": [("The queue of candidates", "state/queue.jsonl")],
-    "notqueued": [("The records, one file per source", "records/"),
-                  ("The queue they are not in", "state/queue.jsonl")],
     "outscope": [("The readings that settled it", "context/"),
                  ("The readiness report", "state/readiness.jsonl")],
     "readrec": [("Readings, one file per source", "context/"),
@@ -1383,7 +1890,12 @@ MAP_ARTIFACTS = {
                   ("Where its output will be saved", "proposals/"),
                   ("Records in scope still without one", "state/instances_due.jsonl")],
     "proposals": [("The suggestions", "proposals/")],
-    "review": [("The incident files a person writes", "incidents/")],
+    "scope": [("The sheet to fill in", "review/1_decide_scope.xlsx"),
+              ("The decisions so far", "review/scope_decisions.csv"),
+              ("How to fill it in", "review/README.md")],
+    "review": [("The sheet to fill in", "review/2_promote.xlsx"),
+               ("The decisions so far", "review/promote_decisions.csv"),
+               ("The incident files a person writes", "incidents/")],
     "dossiers": [("The incident files", "incidents/")],
     "check": [("The program that runs the check", "pipeline/run.py")],
     "index": [("The finished table", "out/incident_index.csv")],
@@ -1451,6 +1963,13 @@ def map_flow(reg, records, queue, context, index_rows):
     queued = set(qrows)
     to_dossier = attested - queued
     not_queued = allkeys - queued - to_dossier
+    # the Fetch box's breakdown: which fetched records the pipeline looks at
+    f_dossier = fetched & to_dossier
+    f_recent = {k for k in fetched & queued if qrows[k].get("basis") == BASIS_RECENT}
+    f_frozen = {k for k in fetched & queued if qrows[k].get("basis") == BASIS_FROZEN}
+    f_old = {k for k in fetched & not_queued
+             if k[0] == MA_SOURCE and records[k].get("date", "") < RECENT_FROM}
+    f_other = (fetched & not_queued) - f_old
 
     stage, verdicts_r = {}, {}
     for key, row in qrows.items():
@@ -1472,9 +1991,28 @@ def map_flow(reg, records, queue, context, index_rows):
     verdicts = read_verdicts()
     derived = {k for k in extracted if (verdicts.get(k) or {}).get("status") in rules.STATUSES}
     status_of = {k: verdicts[k]["status"] for k in derived}
-    promoted = derived & attested
-    waiting_person = derived - promoted
-    early = (queued & attested) - promoted     # promoted before reaching review
+    derived_att = derived & attested
+    early = (queued & attested) - derived_att   # a dossier before reaching Decide scope
+
+    # the person's two decisions (mvp/review/): scope on sheet 1, promote on sheet 2.
+    # A decision `in` has priority: the record goes on to Human review, and from there
+    # to the dossiers. Then a record already in a dossier goes straight to the dossiers.
+    # Of the rest, a decision `out` or `unclear` ends here, and the others are left.
+    scope_log = scope_newest(records)
+    promo_log = newest_by_key(read_log("promote"))
+    decision = lambda k: (scope_log.get(record_key(*k)) or {}).get("decision")
+    dec_in = {k for k in derived if decision(k) == "in"}
+    a_only = derived_att - dec_in
+    rest = derived - dec_in - a_only
+    dec_out = {k for k in rest if decision(k) == "out"}
+    dec_unc = {k for k in rest if decision(k) == "unclear"}
+    left = rest - dec_out - dec_unc
+    promoted = dec_in & attested
+    promo_no = {k for k in dec_in - attested
+                if (promo_log.get(record_key(*k)) or {}).get("decision") == "no"}
+    review_left = dec_in - attested - promo_no
+    rs = review_state(records)
+    said = lambda k: rules_say(verdicts[k])
 
     # dossier facts, per record
     dossier_of, dmeta = {}, {}
@@ -1483,7 +2021,7 @@ def map_flow(reg, records, queue, context, index_rows):
         dmeta[meta.get("id", path.stem)] = meta
         for s in meta.get("sources") or []:
             dossier_of[(s.get("source_id"), str(s.get("record_id")))] = meta.get("id", path.stem)
-    in_dossiers = to_dossier | promoted
+    in_dossiers = to_dossier | derived_att
     scope_word = {True: "in", False: "out"}
     d_scope = {"in": 0, "out": 0, "unclear": 0}
     d_ver = {}
@@ -1495,11 +2033,15 @@ def map_flow(reg, records, queue, context, index_rows):
 
     # instances: a branch, fed by records in scope, by the rules or by a person
     inst = proposal_rows("assign_instances")
-    by_rule = {k for k, s in status_of.items() if s == "in_scope"} - attested
+    # in scope once Gate 1 is complete: by the rules (unless a person said out or
+    # unclear), by a person's decision on sheet 1, or by a person's dossier
+    by_rule = {k for k, s in status_of.items() if s == "in_scope"} - attested \
+        - {k for k in derived if decision(k) in ("in", "out", "unclear")}
+    by_decision = dec_in - attested
     by_person = {k for k in in_dossiers
                  if dmeta.get(dossier_of.get(k), {}).get("multi_agent") is True
                  and dmeta.get(dossier_of.get(k), {}).get("multi_agent_label_source") == "ours"}
-    in_scope = by_rule | by_person
+    in_scope = by_rule | by_decision | by_person
     has_inst = {k for k in in_scope if k in inst}
     listed = {k for k in in_scope - has_inst
               if dmeta.get(dossier_of.get(k), {}).get("instances")}
@@ -1534,6 +2076,24 @@ def map_flow(reg, records, queue, context, index_rows):
     split = {s: sum(1 for k in derived if status_of[k] == s) for s in rules.STATUSES}
     presumed = sum(1 for k in derived if verdicts[k].get("by_presumption"))
 
+    def decided_as(k):
+        if k in dec_in:
+            return "in"
+        if k in a_only:
+            return "dossier"
+        return decision(k) if k in dec_out | dec_unc else "left"
+
+    cross = {}
+    for k in derived:
+        cross[(said(k), decided_as(k))] = cross.get((said(k), decided_as(k)), 0) + 1
+    DECIDED_WORDS = {"in": "a person decided in", "out": "a person decided out",
+                     "unclear": "a person decided unclear",
+                     "dossier": "already in a dossier", "left": "still to decide"}
+    cross_rows = [(f"The rules said {r}: {DECIDED_WORDS[d]}", cross[(r, d)],
+                   f"rules_say {r}; {d}")
+                  for r in ("in", "out", "unclear")
+                  for d in ("in", "out", "unclear", "dossier", "left") if cross.get((r, d))]
+
     E = lambda to, keys, label, branch=False: {"to": to, "n": len(keys), "label": label,
                                                "branch": branch}
     nodes = [
@@ -1541,9 +2101,25 @@ def map_flow(reg, records, queue, context, index_rows):
          "out": [E("normalise", fetched, "records collected")], "stop": [], "held": 0,
          "pop": fetched,
          "groups": [{"title": "Records per source", "rows": rows(
-             *[(f"{sid}", n, f"records/{sid}.jsonl") for sid, n in by_source(fetched).items()])}],
-         "files": ["raw/aiid/", "records/<source>.jsonl"],
-         "rule": "records of every source but manual: latest_records()"},
+             *[(f"{sid}", n, f"records/{sid}.jsonl") for sid, n in by_source(fetched).items()])},
+             {"title": "Which records the pipeline looks at",
+              "note": f"AIID is fetched in full, but only incidents dated {RECENT_FROM} or "
+                      "later are looked at. An earlier incident is looked at only if it is "
+                      "on the frozen list: pre-2024 candidates analysed before 2026-11-17.",
+              "rows": rows(
+                  (f"Dated {RECENT_FROM} or later: queued as candidates", len(f_recent),
+                   "basis recent in state/queue.jsonl"),
+                  ("Before 2024, on the frozen list: queued as candidates", len(f_frozen),
+                   "basis frozen: registry/frozen_pre2024.csv"),
+                  ("Already in a dossier: a dossier lists it as a source", len(f_dossier),
+                   "dossier_source_refs()"),
+                  ("Not looked at: before 2024 and not on the frozen list", len(f_old),
+                   f"AIID, dated before {RECENT_FROM}, not in state/queue.jsonl"),
+                  *([("Not looked at: a source the prefilter does not queue", len(f_other),
+                      "not in state/queue.jsonl, not behind a dossier")] if f_other else []))}],
+         "files": ["raw/aiid/", "records/<source>.jsonl", "registry/frozen_pre2024.csv"],
+         "rule": "records of every source but manual: latest_records(). Looked at: "
+                 f"AIID dated {RECENT_FROM} or later, or on registry/frozen_pre2024.csv"},
         {"id": "manual", "n": len(manual_keys), "origin": True, "in": len(manual_keys),
          "out": [E("normalise", manual_keys, "added by hand")], "stop": [], "held": 0,
          "pop": manual_keys, "groups": [],
@@ -1557,9 +2133,10 @@ def map_flow(reg, records, queue, context, index_rows):
         {"id": "prefilter", "n": len(queued), "in": len(allkeys),
          "out": [E("dossiers", to_dossier, "already in a dossier"),
                  E("readrec", to_readrec, "candidates"),
-                 E("ready", bypass, "added by hand: on the curator's word"),
-                 E("notqueued", not_queued, "not queued")],
-         "stop": [], "held": 0, "pop": allkeys,
+                 E("ready", bypass, "added by hand: on the curator's word")],
+         "stop": [{"label": "not looked at: before 2024 and not on the frozen list (see Fetch)",
+                   "n": len(not_queued)}],
+         "held": 0, "pop": allkeys,
          "groups": [
              {"title": "Candidates per source", "rows": rows(
                  *[(sid, n, "state/queue.jsonl") for sid, n in by_source(queued).items()])},
@@ -1567,7 +2144,7 @@ def map_flow(reg, records, queue, context, index_rows):
                  ("Already in a dossier: a dossier lists it as a source", len(to_dossier),
                   "dossier_source_refs() and not in state/queue.jsonl"),
                  ("Queued as a candidate", len(queued), "row in state/queue.jsonl"),
-                 ("Not queued: no rule caught it", len(not_queued),
+                 ("Not looked at: before 2024 and not on the frozen list", len(not_queued),
                   "neither in the queue nor behind a dossier"))},
              {"title": "Why each candidate was queued",
               "note": "Each candidate has exactly one reason, so these add up to the candidates.",
@@ -1587,11 +2164,6 @@ def map_flow(reg, records, queue, context, index_rows):
                   ("Not flagged", len(queued) - flagged, ""))}],
          "files": ["state/queue.jsonl", "registry/frozen_pre2024.csv", "incidents/"],
          "rule": "stage_prefilter(): queued = recent AIID, frozen pre-2024 or manual; flagged = an outside label or a keyword; records behind a dossier are left out"},
-        {"id": "notqueued", "n": len(not_queued), "in": len(not_queued), "out": [],
-         "stop": [{"label": "no rule caught it", "n": len(not_queued)}], "held": 0,
-         "pop": not_queued, "groups": [],
-         "files": ["records/<source>.jsonl", "state/queue.jsonl"],
-         "rule": "records neither in state/queue.jsonl nor behind a dossier"},
         {"id": "readrec", "n": len(read_any), "in": len(to_readrec),
          "out": [E("outscope", oos_record, "out of scope: record text"),
                  E("readsrc", to_readsrc, "sent on to the source")],
@@ -1657,7 +2229,7 @@ def map_flow(reg, records, queue, context, index_rows):
          "files": ["proposals/extract_gate.<date>.jsonl"],
          "rule": "distinct ready records with an extract_gate proposal: proposal_rows('extract_gate')"},
         {"id": "gate1", "n": len(derived), "in": len(extracted),
-         "out": [E("review", derived, "labels derived"),
+         "out": [E("scope", derived, "labels derived"),
                  E("instances", by_rule, "in scope by the rules", True)],
          "stop": [], "held": len(extracted - derived), "held_label": "derive not run on it yet",
          "pop": extracted,
@@ -1667,17 +2239,46 @@ def map_flow(reg, records, queue, context, index_rows):
                  ("In scope by the attack presumption", presumed, "by_presumption true"))}],
          "files": ["state/verdicts.jsonl", "pipeline/derive.py"],
          "rule": f"state/verdicts.jsonl, rules {rules.RULES_VERSION}"},
-        {"id": "review", "n": len(derived), "in": len(derived),
-         "out": [E("dossiers", promoted, "promoted to a dossier")], "stop": [],
-         "held": len(waiting_person), "held_label": "waiting for a person",
+        {"id": "scope", "n": len(derived), "in": len(derived),
+         "out": [E("review", dec_in, "decided in"),
+                 E("dossiers", a_only, "already in a dossier"),
+                 E("instances", by_decision, "decided in by a person", True)],
+         "stop": [{"label": "decided out by a person", "n": len(dec_out)},
+                  {"label": "can't tell: unclear", "n": len(dec_unc)}],
+         "held": len(left), "held_label": "left to decide",
          "pop": derived,
-         "groups": [{"title": "By what the rules said", "rows": rows(
-             *[(STATUS_WORDS[s], split[s], f"status {s}") for s in rules.STATUSES])},
-             {"title": "Status", "rows": rows(
-                 ("A person has written a dossier", len(promoted), "listed in a dossier's sources"),
-                 ("Waiting for a person", len(waiting_person), "no dossier yet"))}],
-         "files": ["state/verdicts.jsonl", "incidents/"],
-         "rule": "records with a derived label; promoted = a dossier lists the record"},
+         "groups": [{"title": "What the rules said, and what a person decided",
+                     "note": "The rules never put a record in scope: only a person's "
+                             "decision does. `The rules said` is a suggestion.",
+                     "rows": rows(*cross_rows)},
+                    {"title": "What the rules said", "rows": rows(
+                        *[(STATUS_WORDS[s], split[s], f"status {s}") for s in rules.STATUSES])},
+                    {"title": "The sheet", "rows": rows(
+                        ("Rows left on the sheet", len(rs["scope"]),
+                         "review/1_decide_scope.xlsx"),
+                        ("Decisions in the log, newest per record", len(
+                            newest_by_key(read_log("scope"))), "review/scope_decisions.csv"))}],
+         "files": ["review/1_decide_scope.xlsx", "review/scope_decisions.csv",
+                   "state/verdicts.jsonl"],
+         "rule": "records with a derived label; decided = the newest row of "
+                 "review/scope_decisions.csv (a hand-added record counts as decided in); "
+                 "run.py review reads the sheet"},
+        {"id": "review", "n": len(dec_in), "in": len(dec_in),
+         "out": [E("dossiers", promoted, "promoted to a dossier")],
+         "stop": [{"label": "not promoted by a person", "n": len(promo_no)}],
+         "held": len(review_left), "held_label": "left to review",
+         "pop": dec_in,
+         "groups": [{"title": "Status", "rows": rows(
+             ("Decided in by a person", len(dec_in), "newest scope decision in"),
+             ("Promoted: a dossier lists the record", len(promoted),
+              "listed in a dossier's sources"),
+             ("Not promoted: a person said no", len(promo_no),
+              "newest promote decision no"),
+             ("Left to review: on the promote sheet", len(review_left),
+              "review/2_promote.xlsx"))}],
+         "files": ["review/2_promote.xlsx", "review/promote_decisions.csv", "incidents/"],
+         "rule": "records a person decided in; promoted = a dossier lists the record; "
+                 "run.py review reads the sheet and makes the dossier"},
         {"id": "dossiers", "n": len(in_dossiers), "in": len(in_dossiers),
          "out": [E("check", in_dossiers, "checked"),
                  E("instances", by_person, "in scope by a person", True)],
@@ -1708,8 +2309,11 @@ def map_flow(reg, records, queue, context, index_rows):
          "held": len(due), "held_label": "in scope, no pattern yet",
          "pop": in_scope,
          "groups": [{"title": "Records in scope", "rows": rows(
-             ("In scope by the rules, no dossier yet", len(by_rule), "verdict in_scope"),
-             ("In scope by a person", len(by_person), "dossier multi_agent true, ours"))},
+             ("In scope by the rules, not yet decided by a person", len(by_rule),
+              "verdict in_scope, no row in review/scope_decisions.csv"),
+             ("Decided in by a person, no dossier yet", len(by_decision),
+              "review/scope_decisions.csv decision in"),
+             ("In scope in a person's dossier", len(by_person), "dossier multi_agent true, ours"))},
              {"title": "Of which", "rows": rows(
                  ("A pattern was proposed", len(has_inst), "assign_instances proposal"),
                  ("The dossier already lists patterns", len(listed), "dossier instances"),
@@ -1750,6 +2354,11 @@ def map_flow(reg, records, queue, context, index_rows):
           len(read_any) + len(unread))
     check("derived = in scope + out of scope + needs a person", len(derived),
           sum(split.values()))
+    check("derived = decided in + decided out + unclear + already in a dossier + left to decide",
+          len(derived), len(dec_in) + len(dec_out) + len(dec_unc) + len(a_only) + len(left))
+    check("left to decide = rows on the decide-scope sheet", len(left), len(rs["scope"]))
+    check("decided in = promoted + not promoted + rows on the promote sheet", len(dec_in),
+          len(promoted) + len(promo_no) + len(rs["promote"]))
     check("in scope = proposed + already listed + waiting", len(in_scope),
           len(has_inst) + len(listed) + len(due))
     check("dossier verdicts add up", len(in_dossiers), sum(d_scope.values()))
@@ -1762,7 +2371,11 @@ def map_flow(reg, records, queue, context, index_rows):
               "out_of_scope": len(oos_record) + len(oos_source), "ready": len(ready),
               "extracted": len(extracted), "derived": len(derived),
               "dossier_records": len(in_dossiers), "in_scope": len(in_scope),
-              "instance_records": len(has_inst), "promoted_early": len(early)}
+              "instance_records": len(has_inst), "promoted_early": len(early),
+              "scope_decided_in": len(dec_in), "scope_decided_out": len(dec_out),
+              "scope_decided_unclear": len(dec_unc), "scope_left": len(left),
+              "review_left": len(review_left), "review_promoted": len(promoted),
+              "review_not_promoted": len(promo_no)}
     return nodes, checks, counts
 
 
@@ -2050,6 +2663,8 @@ def stage_check():
                             f"lower the verification")
         elif READY_LEVELS[best] == "provisional":
             warnings.append(f"{rel}: scope rests on a partial or secondary reading")
+    # --- the person's decision logs (mvp/review/) --------------------------
+    check_review_logs(records, problems, warnings)
     for wline in warnings:
         info(f"  warn  {wline}")
 
@@ -2166,7 +2781,7 @@ STEPS = [
     ("ready", "Readiness", ["ready"]),
     ("judge", "Judge", ["extract", "instances", "proposals"]),
     ("derive", "Derive", ["gate1", "gate2", "evtype"]),
-    ("review", "Review", ["review", "dossiers"]),
+    ("review", "Review", ["scope", "review", "dossiers"]),
     ("check", "Check", ["check"]),
     ("index", "Index", ["index"]),
 ]
@@ -2274,6 +2889,7 @@ class UpdateRun:
         self.on_change = on_change or (lambda run: None)
         self.lock = threading.RLock()
         self.cancelled = False
+        REVIEW_DECIDED.update(scope=0, promote=0)
         self.log_path = None             # the retained log, claimed on the first save
         self.ended = None                # when the run stopped, for the retained log
         self.data = {
@@ -2635,43 +3251,61 @@ class UpdateRun:
         self.count(step, "For a person to review", split["review"])
 
     def step_review(self, step, override):
+        # reads the filled sheets, logs the decisions, makes the dossiers a person said
+        # yes to, and writes both sheets again
+        res = stage_review()
         attested = dossier_source_refs()
-        proposals = [k for k in proposal_keys() if k not in attested]
+        on_sheets = set(review_state()["promote"])
         context = load_context()
         manual = sorted(k for k, c in context.items()
-                        if c.get("manual") is True and k not in attested)
+                        if c.get("manual") is True and k not in attested
+                        and record_key(*k) not in on_sheets)
         due = stage_instances_due()
-        self.count(step, "Proposals awaiting a person", len(proposals))
+        sheets = res["openpyxl"]
+        scope_left = res["scope"]["left"] if sheets else 0
+        promote_left = res["promote"]["left"] if sheets else 0
+        self.count(step, "Decided on sheet 1 this run", REVIEW_DECIDED["scope"])
+        self.count(step, "Left to decide scope", res["scope"]["left"])
+        self.count(step, "Decided on sheet 2 this run", REVIEW_DECIDED["promote"])
+        self.count(step, "Left to promote", res["promote"]["left"])
         self.count(step, "Hand-added incidents without a dossier", len(manual))
         self.count(step, "In scope, no instance proposal", len(due))
-        info(f"  ok    review: {len(proposals)} proposal(s) and {len(manual)} "
-             f"hand-added incident(s) await a person; {len(due)} record(s) in scope "
-             f"have no instance proposal")
+        info(f"  ok    review: {res['scope']['left']} record(s) left to decide scope, "
+             f"{res['promote']['left']} left to promote, {len(manual)} hand-added "
+             f"incident(s) without a dossier; {len(due)} record(s) in scope have no "
+             f"instance proposal")
         for sid, rid in manual:
             info(f"  todo  python mvp/pipeline/run.py promote {record_key(sid, rid)}")
-        for sid, rid in sorted(proposals)[:50]:
-            info(f"  todo  review the proposal for {record_key(sid, rid)}")
         for r in due[:50]:
             info(f"  todo  assign instances to {r['record_key']} (/classify-incidents, "
                  f"call 2)")
-        if (proposals or manual or due) and override != "recheck":
+        if (scope_left or promote_left or manual or due) and override != "recheck":
             parts = []
-            if proposals:
-                parts.append(f"{len(proposals)} proposal(s) in mvp/proposals/ await "
-                             f"review")
+            if scope_left:
+                parts.append(f"{scope_left} record(s) wait for a scope decision: fill "
+                             f"the `decision` column of mvp/review/"
+                             f"{SHEETS['scope']['file']} (in, out or unclear)")
+            if promote_left:
+                parts.append(f"{promote_left} record(s) you decided in wait for a "
+                             f"promote decision: fill the `promote` column of "
+                             f"mvp/review/{SHEETS['promote']['file']}; yes makes the "
+                             f"blank dossier, which you then fill in by hand")
             if manual:
-                parts.append(f"{len(manual)} hand-added incident(s) have no dossier")
-            text = "; ".join(parts) + ". " if parts else ""
-            if proposals or manual:
-                text += ("Promote what passes the inclusion test with `python "
-                         "mvp/pipeline/run.py promote <source_id>:<record_id>` (the log "
-                         "lists them), fill in the dossier by hand. ")
+                parts.append(f"{len(manual)} hand-added incident(s) have no dossier: "
+                             f"`python mvp/pipeline/run.py promote <source_id>:"
+                             f"<record_id>` makes it")
+            text = ("; ".join(parts) + ". ") if parts else ""
+            if scope_left or promote_left:
+                text += ("Save the sheets, then press Continue (on a command-line run, "
+                         "run `python mvp/pipeline/run.py review`, or this update again): "
+                         "the filled sheets are read and fresh ones written. ")
             if due:
                 text += (f"{len(due)} record(s) in scope have no instance proposal "
                          f"(`python mvp/pipeline/run.py instances-due` lists them): run "
                          f"/classify-incidents, which assigns their instances. ")
-            raise StepOutcome("waiting", text + "Then continue.",
-                              command="/classify-incidents" if due else "",
+            command = ("python mvp/pipeline/run.py review" if scope_left or promote_left
+                       else "/classify-incidents" if due else "")
+            raise StepOutcome("waiting", text.strip(), command=command,
                               actions=("continue", "skip"))
 
     def step_check(self, step, _o):
@@ -2849,6 +3483,9 @@ def main():
                                   "by rule, into state/verdicts.jsonl")
     sub.add_parser("instances-due", help="list the records in scope that have no "
                                          "instance proposal")
+    sub.add_parser("review", help="read the filled review sheets in mvp/review/, log the "
+                                  "decisions, make the dossiers a person said yes to, and "
+                                  "write both sheets again")
 
     sub.add_parser("index")
     sub.add_parser("viz")
@@ -2884,7 +3521,12 @@ def main():
     elif args.cmd == "readiness":
         stage_readiness()
     elif args.cmd == "derive":
+        # a fresh verdicts file gives fresh sheets. This is the whole review step, not
+        # only the writing: a sheet a person has filled in is read before it is replaced.
         stage_derive()
+        stage_review()
+    elif args.cmd == "review":
+        stage_review()
     elif args.cmd == "instances-due":
         stage_instances_due()
     elif args.cmd == "index":

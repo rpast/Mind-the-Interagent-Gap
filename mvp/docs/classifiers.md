@@ -152,7 +152,8 @@ has no meaning.
 a manual record), `review_why`, `by_presumption`, `rules_version`, and the labels. A settled
 record carries them under `labels`; a review item under `labels_if_confirmed`, the labels
 the rules give if a person confirms the facts, so nothing reads them as settled. It is
-never an authority: a person still promotes.
+never an authority: a person still decides scope, in `mvp/review/1_decide_scope.xlsx`, and
+promotes, in `mvp/review/2_promote.xlsx`.
 
 **Rules applied in code afterwards.** `mvp/pipeline/derive.py` is the single authority. It
 is a pure function, `derive(gate_row)`, with a self-test (`python mvp/pipeline/derive.py
@@ -188,7 +189,10 @@ records `run.py derive` settles `in_scope`, and records a person has put in scop
 second kind is listed by `python mvp/pipeline/run.py instances-due`, which writes
 `mvp/state/instances_due.jsonl`: every dossier with `multi_agent: true` and label source
 `ours` whose `instances` list is empty and none of whose sources has an instance proposal,
-plus every `in_scope` verdict with no instance proposal. Instances follow the human's
+every record a person decided `in` on the scope sheet (`mvp/review/`), promoted or not,
+plus every `in_scope` verdict that no person decided `out` or `unclear` — each with no
+instance proposal. Every record in scope once Gate 1 is complete, by the rules or by a
+person, gets one. Instances follow the human's
 scope decision, not only the model's. An instance proposal for a human-confirmed record is
 a proposal like any other: it never edits the dossier. The update run's Review step shows
 the count.
@@ -312,9 +316,12 @@ meaningful only after a source pass reads the cited reports for those facts.
 
 ## What the classifier may and may not write
 
-It writes to `mvp/proposals/` only. It never edits a dossier. Promotion is
-`python mvp/pipeline/run.py promote <source_id>:<record_id>`, which scaffolds a dossier with
-every narrative section marked pending, and a human fills it in against the primary source.
+It writes to `mvp/proposals/` only. It never edits a dossier, and it never decides scope:
+the rules' `in_scope` is a suggestion. A person decides scope on the first review sheet
+(`mvp/review/1_decide_scope.xlsx`), and promotion is a human step too: a `yes` on the second
+sheet (`mvp/review/2_promote.xlsx`), or `python mvp/pipeline/run.py promote
+<source_id>:<record_id>`, scaffolds a dossier with every narrative section marked pending,
+and a human fills it in against the primary source.
 
 `run.py check` enforces the boundary: a dossier with `multi_agent: true` whose
 `multi_agent_label_source` is anything other than `ours` fails the build.
