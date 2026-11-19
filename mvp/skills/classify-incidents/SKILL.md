@@ -77,7 +77,7 @@ type only, see above):
 1. Read the full record from `mvp/records/<source_id>.jsonl` **and its context row** from
    `mvp/context/<source_id>.jsonl`. Judge from both. A fact the context row marks `unread`
    may not be answered; a fact it marks `not_stated` is answered `unclear`.
-2. Apply `mvp/prompts/extract_gate.v3.md` to each record. Follow that prompt exactly — it
+2. Apply `mvp/prompts/extract_gate.v4.md` to each record. Follow that prompt exactly — it
    is the versioned artifact, not a summary of one.
 3. Append one JSON object per record to
    `mvp/proposals/extract_gate.<YYYY-MM-DD>.jsonl`, adding `record_key`, `prompt_id`,

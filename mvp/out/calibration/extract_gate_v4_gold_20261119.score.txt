@@ -1,0 +1,39 @@
+========================================================================
+GATE 1 ACCURACY
+========================================================================
+
+Gold rows: 58   scorable: 55   excluded as unclear: 3 (G-007, G-025, G-031)
+Truth: {'in': 22, 'out': 33, 'unclear': 3}
+
+1. CEILING - the index's own earlier hand-curation
+  Every row was added to the index as a multi-agent incident, then re-decided from the primary sources.
+  n= 23   TP= 19 FP=  4 FN=  0 TN=  0
+  precision  82.6%
+  recall, accuracy and F1 are omitted: this stratum holds only asserted
+  positives, so there is nothing to have missed and nothing to reject.
+
+2. AIID CSETv1 'Multiple AI Interaction' - independent human annotators
+  All were yes/maybe, so again a precision-only test on their positives.
+  n=  5   TP=  1 FP=  4 FN=  0 TN=  0
+  precision  20.0%
+  recall, accuracy and F1 are omitted: this stratum holds only asserted
+  positives, so there is nothing to have missed and nothing to reject.
+
+3. Keyword prefilter arm
+  DO NOT QUOTE THESE. Every queue_boundary row tripped this arm by definition, so the predictor is the sampling frame and its precision here is just that stratum's base rate. 23 scorable rows have no queue row at all.
+  n= 32   TP=  2 FP= 16 FN=  1 TN= 13
+  precision  11.1%   recall  66.7%   accuracy  46.9%   F1  19.0%
+
+4. CLASSIFIER - extract_gate.v3 on gold, labels by derive.py (rules 2026-11-16)
+  mvp/out/calibration/extract_gate_v4_gold_20261119.jsonl. All rows, review items scored on the labels the rules would give if a person confirmed the facts. Wrong: G-002 FP by presumption, G-011 FN, G-012 FN, G-014 FP.
+  n= 55   TP= 20 FP=  2 FN=  2 TN= 31
+  precision  90.9%   recall  90.9%   accuracy  92.7%   F1  90.9%
+
+4b. CLASSIFIER - only the rows the rules settle without review
+  40 of 55 rows are review items and are left out here.
+  n= 15   TP=  1 FP=  0 FN=  0 TN= 14
+  precision 100.0%   recall 100.0%   accuracy 100.0%   F1 100.0%
+
+========================================================================
+Read mvp/docs/gold_set.md before quoting any of these.
+wrote mvp/out/calibration/gate1_accuracy_v4_20261119.json

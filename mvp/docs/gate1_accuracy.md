@@ -5,6 +5,37 @@ Regenerate before citing. Methodology and how to read them: `mvp/docs/gold_set.m
 
 *Note, 2026-11-17: the prefilter's arms were replaced by `basis` and `flags`. "Keyword arm" and "any arm" in the sections below are the figures as measured on 2026-11-16; read them as the `keyword` flag and queue membership.*
 
+## 2026-11-19: extract_gate.v4 on Opus
+
+`extract_gate.v4` counts agents rather than AI systems: a generation tool used by people is
+0 agents, a volume of artefacts is not a count of agents, and an attack showing fewer than
+two agents takes `multiplicity_role: not_applicable`. Why: on queue batch 1 (20 records,
+2026-11-19) v3 left the count null and the counterfactual `unclear` on three floods of
+generated content made by people (aiid:635, 1125, 1189), and the attack presumption put
+them in scope. This is the gap the 2026-11-17 section below records on the gold set.
+
+Run on `claude-opus-5-5`, blind, over all 60 gold rows, each with its record and its newest
+context row (the source-pass row where one exists, as the queue will have). Files in
+`mvp/out/calibration/`: `extract_gate_v4_gold_20261119.jsonl`, `.score.txt`,
+`gate1_accuracy_v4_20261119.json`. Rules `2026-11-16`.
+
+| run | n | TP | FP | FN | TN | precision | recall | settled without review |
+|---|---|---|---|---|---|---|---|---|
+| v3 Opus, 2026-11-15 | 55 | 20 | 3 | 2 | 30 | 87.0% | 90.9% | 6 |
+| v3 Sonnet, with source-pass rows, 2026-11-17 | 55 | 20 | 6 | 2 | 27 | 76.9% | 90.9% | 4 |
+| **v4 Opus, newest context rows** | 55 | 20 | **2** | 2 | 31 | **90.9%** | 90.9% | **15** |
+
+**No true positive lost.** The errors left are G-002 (FP by presumption, agent count not
+stated), G-014 (FP, a counterfactual call) and the two low-confidence false negatives G-011
+and G-012, all as under v3.
+
+**The gap closes on the source-pass inputs.** G-035, G-036 and G-054, the three rows that
+went FP under v3 with source-pass rows, now give `n_ai_agents` 0 and `not_applicable`.
+G-056 moves from `unclear` to `could` and stops being an FP by presumption.
+
+**More rows settle.** v4 answers `high` on 16 rows to v3's 9, so 15 rows are settled without
+review against 6, all correct (1 TP, 14 TN). Still too few to quote as a rate.
+
 ## 2026-11-18: the record pass on Opus
 
 `enrich_context.v2`, record pass, run on `claude-opus-5-5` over all 58 gold rows from the
