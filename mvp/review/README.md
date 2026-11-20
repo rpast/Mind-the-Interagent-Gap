@@ -15,9 +15,17 @@ Do not edit them by hand, except to take back a decision: delete its row.
 
 ## Sheet 1: decide scope
 
-Open `1_decide_scope.xlsx`. One row is one record. Read the title and `key_quote`; open
-`url` when you need more. `rules_say` and `why_a_person` are the rules' suggestion and the
-reason it is not settled. Only you put a record in scope.
+Open `1_decide_scope.xlsx`. One row is one record. Every record with no scope decision is
+listed, but column `ask` says which ones need you:
+
+- `yes`: the rules would put the record in, or the model's confidence is `low`. These
+  rows come first. Decide them.
+- `check`: the rules leave the record out. It is listed so you can sample-check the
+  exclusions in case the model got one wrong. Deciding it is optional.
+
+Read the title and `key_quote`; open `url` when you need more. `rules_say` and
+`why_a_person` are the rules' suggestion and the reason it is not settled. Only you put a
+record in scope.
 
 Fill the yellow column `decision`, with the drop-down:
 

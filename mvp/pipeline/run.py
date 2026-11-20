@@ -1371,6 +1371,14 @@ def rules_say(verdict):
                                           "unclear")
 
 
+def asks_a_person(verdict, gate):
+    """Whether sheet 1 asks a person to judge this record. The sheet lists every record
+    with no scope decision, so the ones the rules leave out can be sample-checked, but it
+    asks only where a judgement matters: the rules would put the record in, or the
+    model's confidence is low."""
+    return rules_say(verdict) == "in" or (gate or {}).get("confidence") == "low"
+
+
 def review_state(records=None):
     """What each sheet lists, from the files on disk: the keys, and what they rest on."""
     verdicts = read_verdicts()
@@ -1384,8 +1392,11 @@ def review_state(records=None):
                          if scope.get(k, {}).get("decision") == "in"
                          and p not in attested
                          and promo.get(k, {}).get("decision") != "no"), key=natural)
+    gates = proposal_rows("extract_gate")
+    scope_ask = [k for k in on_scope if asks_a_person(verdicts[keys[k]], gates.get(keys[k]))]
     return {"verdicts": verdicts, "attested": attested, "scope_log": scope,
-            "promote_log": promo, "scope": on_scope, "promote": on_promote}
+            "promote_log": promo, "scope": on_scope, "scope_ask": scope_ask,
+            "promote": on_promote}
 
 
 def cut(text, n=300):
@@ -1395,6 +1406,7 @@ def cut(text, n=300):
 
 def scope_sheet_rows(state, records):
     gates = proposal_rows("extract_gate")
+    asked = set(state["scope_ask"])
     rows = []
     for key in state["scope"]:
         pair = split_key(key)
@@ -1402,7 +1414,8 @@ def scope_sheet_rows(state, records):
         say = rules_say(v)
         quotes = [q for q in (gate.get("quotes") or {}).values() if q][:2]
         rows.append({
-            "record_key": key, "title": rec.get("title", ""), "date": rec.get("date", ""),
+            "record_key": key, "ask": "yes" if key in asked else "check",
+            "title": rec.get("title", ""), "date": rec.get("date", ""),
             "url": rec.get("url", ""), "rules_say": say,
             "settled_by_rules": "no" if v.get("status") == "review" else "yes",
             "why_a_person": "; ".join(v.get("review_why") or []),
@@ -1410,7 +1423,8 @@ def scope_sheet_rows(state, records):
             "counterfactual": rules.labels_of(v).get("counterfactual_resolved") or "",
             "by_presumption": "yes" if v.get("by_presumption") else "no",
             "key_quote": cut(" | ".join(quotes)),
-            "_order": (0 if say == "in" else 1 if v.get("status") == "review" else 2,
+            "_order": (0 if key in asked else 1,
+                       0 if say == "in" else 1 if v.get("status") == "review" else 2,
                        natural(key))})
     rows.sort(key=lambda r: r["_order"])
     return rows
@@ -1428,12 +1442,12 @@ def promote_sheet_rows(state, records):
     return rows
 
 
-SCOPE_COLUMNS = ["record_key", "title", "date", "url", "rules_say", "settled_by_rules",
+SCOPE_COLUMNS = ["record_key", "ask", "title", "date", "url", "rules_say", "settled_by_rules",
                  "why_a_person", "confidence", "counterfactual", "by_presumption",
                  "key_quote", "decision", "reason"]
 PROMOTE_COLUMNS = ["record_key", "title", "date", "url", "decided_in_on", "scope_reason",
                    "promote", "note"]
-SHEET_WIDTHS = {"record_key": 16, "title": 48, "date": 12, "url": 30, "rules_say": 10,
+SHEET_WIDTHS = {"record_key": 16, "ask": 8, "title": 48, "date": 12, "url": 30, "rules_say": 10,
                 "settled_by_rules": 12, "why_a_person": 30, "confidence": 11,
                 "counterfactual": 15, "by_presumption": 12, "key_quote": 60,
                 "decision": 12, "reason": 40, "decided_in_on": 14, "scope_reason": 40,
@@ -1443,6 +1457,10 @@ SCOPE_HELP = [
     "Decide scope: is this record a multi-agent incident, yes or no?",
     "Read the title and the quote, and open the url when you need more. Only you can say "
     "'in': the rules and the model only suggest (columns rules_say and why_a_person).",
+    "Column `ask` says which rows need you. `yes`: the rules would put the record in, or "
+    "the model's confidence is low; these rows come first, and they are the ones to "
+    "decide. `check`: the rules leave the record out; it is listed so you can sample-check "
+    "the exclusions, and deciding it is optional. Filter on `ask` to see one kind.",
     "Fill the yellow column `decision` with the drop-down: in, out or unclear.",
     "in = two or more AI agents, and the harm came from them acting on each other. "
     "out = one agent, or many doing what one could have done. "
@@ -1660,9 +1678,13 @@ def stage_review():
         left = len(state[kind])
         result[kind] = {"decided": decided[kind], "left": left,
                         "path": str((REVIEW / cfg["file"]).relative_to(ROOT))}
+        asked = ""
+        if kind == "scope":
+            result[kind]["asked"] = len(state["scope_ask"])
+            asked = f" (asking you {len(state['scope_ask'])})"
         where = result[kind]["path"] if openpyxl is not None else "no sheet: openpyxl missing"
         info(f"  ok    {label:13s} decided this run {decided[kind]:4d}   "
-             f"left {left:4d}   {where}")
+             f"left {left:4d}{asked}   {where}")
     return result
 
 
@@ -2284,6 +2306,8 @@ def map_flow(reg, records, queue, context, index_rows):
                     {"title": "The sheet", "rows": rows(
                         ("Rows left on the sheet", len(rs["scope"]),
                          "review/1_decide_scope.xlsx"),
+                        ("Of those, asking for your judgement", len(rs["scope_ask"]),
+                         "ask = yes: the rules would put it in, or confidence is low"),
                         ("Decisions in the log, newest per record", len(
                             newest_by_key(read_log("scope"))), "review/scope_decisions.csv"))}],
          "files": ["review/1_decide_scope.xlsx", "review/scope_decisions.csv",
@@ -3294,6 +3318,7 @@ class UpdateRun:
         promote_left = res["promote"]["left"] if sheets else 0
         self.count(step, "Decided on sheet 1 this run", REVIEW_DECIDED["scope"])
         self.count(step, "Left to decide scope", res["scope"]["left"])
+        self.count(step, "Of those, asking for your judgement", res["scope"].get("asked", 0))
         self.count(step, "Decided on sheet 2 this run", REVIEW_DECIDED["promote"])
         self.count(step, "Left to promote", res["promote"]["left"])
         self.count(step, "Hand-added incidents without a dossier", len(manual))

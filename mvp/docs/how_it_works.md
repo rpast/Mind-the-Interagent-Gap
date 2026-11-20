@@ -213,7 +213,10 @@ characters), and the facts the gates need are usually missing from them.
 - **What:** a person reads the verdict, the proposals and the source, and decides, in two
   spreadsheets in `mvp/review/`. **Sheet 1**, `1_decide_scope.xlsx`, lists every derived
   record that has no scope decision yet, the rule-settled ones too: the rules never put
-  anything in scope, a person does. Each row carries the title, the link, what the rules
+  anything in scope, a person does. It asks for a judgement only where one matters: the
+  column `ask` is `yes` when the rules would put the record in or the model's confidence
+  is `low`, and those rows come first; `check` marks the rest, listed so a person can
+  sample-check the exclusions (decided 2026-11-19). Each row carries the title, the link, what the rules
   would say (`rules_say`), why a person is needed, and a quote. The person fills the
   `decision` column (a drop-down: `in`, `out`, `unclear`) and, if they like, a `reason`.
   `in` sends the record on to sheet 2; `out` and `unclear` end it there. The answers go
