@@ -143,7 +143,7 @@ derived from it.
 frozen list and every manual record, and flags the queued records an outside label or a
 keyword calls multi-agent.
 
-**Promote.** `run.py promote <record_key>`: scaffolds a dossier from a record for a person to
+**Promote.** `run.py promote <mig_key or record_key>`: scaffolds a dossier from a record for a person to
 fill in. Refuses a `not_ready` record unless given `--force`. The review step does the same
 for each `yes` on the promote sheet.
 
@@ -173,7 +173,16 @@ to classify: `ready`, `provisional`, `not_ready` or `not_needed`.
 text; the source pass fetches the AIID page and the primary source.
 
 **record_key.** A record's one-string identity, `"<source_id>:<source_record_id>"`, such as
-`aiid:1668`. Every file row carries it, and `promote` takes it.
+`aiid:1668`. Every machine-written row carries it; it is the pipeline's internal join key
+and is never shown to a person. See mig_key and source_key.
+
+**mig_key.** Our key, `MIG-nnnn`: given once, in `mvp/registry/mig_keys.csv`, to every
+record that reaches the decide-scope sheet, and kept by its dossier, which is named after
+it. Unique, never changed, never reused. A record a dossier also cites shows under the
+dossier's key.
+
+**source_key.** The key the source itself uses for a record (AIID's `1668`, AI Village's
+`AIV-02`); blank when the source has none, as for a hand-added record.
 
 **Review item.** A record whose derived verdict has `status: review`: low confidence, or a
 deciding fact unclear. Its labels sit under `labels_if_confirmed` for a person to confirm.
@@ -185,12 +194,17 @@ likely, RF1 to RF7, such as RF7 Multi-Agent Security.
 `derive.py` made it. Currently `2026-11-16`.
 
 **Scope decision log.** `mvp/review/scope_decisions.csv`: a person's scope decisions, one row
-per decision (`record_key, decision, reason, decided_on, sheet_generated_on`), append-only,
+per decision (`mig_key, source_id, source_key, decision, reason, decided_on,
+sheet_generated_on`), append-only,
 the newest row per record winning. Written only when `run.py review` reads a filled sheet.
 `check` validates it.
 
 **Security record.** A record about an attack, intrusion or abuse campaign: call 1 set
 `multiplicity_role` to anything but `not_applicable`.
+
+**set_by_person.** A dossier key: the list of fields a person set on sheet 3
+(`mvp/review/3_edit_dossiers.xlsx`), each also logged in `mvp/review/dossier_edits.csv`.
+Absent when nobody has edited the dossier there. The index report shows those cells green.
 
 **Skill.** `/classify-incidents`, run in Claude Code. It does the reading and both model
 calls, and writes only to `context/` and `proposals/`.

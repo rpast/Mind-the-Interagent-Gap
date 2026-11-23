@@ -230,15 +230,15 @@ characters), and the facts the gates need are usually missing from them.
   `failure_mode: FM3`, `instances: I35; I26; I28`, `verification: partially_verified`. So
   1668 is **not promoted**: it should be added to MIG-0016's `sources` (`OPEN.md` items 25
   and 63). On 2026-11-16 that link has not been made yet. **Made 2026-11-23:** 1668 and
-  1800 are now sources of that dossier, AIID is canonical, and it is renamed
-  **AIID-1668**.
+  1800 are now sources of that dossier and AIID is canonical. The dossier is
+  **MIG-0016** again, with `source_key: '1668'` (it was briefly named AIID-1668).
 
 ### 11. Promote and write the dossier
 
 - **What:** **sheet 2**, `mvp/review/2_promote.xlsx`, lists the records a person decided
   `in` that have no dossier yet (the map's **Human review** box). The person fills the
   `promote` column: `yes` or `no`. On the next run a `yes` scaffolds
-  `mvp/incidents/AIID-NNNN.md` (or `MIG-nnnn.md` for a non-AIID source) with every narrative
+  `mvp/incidents/<mig_key>.md`, named by the record's MIG key, with every narrative
   section marked `_pending_` and `multi_agent: false`; a `no` is logged and the record does
   not come back. The person fills the seven sections against the primary source and sets
   `multi_agent`, `multi_agent_label_source: ours`, `failure_mode`, `instances`,
@@ -253,7 +253,9 @@ characters), and the facts the gates need are usually missing from them.
   the primary source (the rule is in `CLAUDE.md`). First done 2026-11-23, for 26 dossiers.
 - **Duplicates.** A record decided `in` that is already an incident is linked, not
   promoted: it is added to the existing dossier's `sources`. On 2026-11-23 six records were
-  linked into five dossiers, which were renamed from `MIG-` to `AIID-` ids.
+  linked into five dossiers, which were renamed from `MIG-` to `AIID-` ids. Later that day
+  every dossier was keyed by its MIG key instead, and those five got their MIG keys back;
+  the source's own key is in `source_key`.
 - **Who:** person, helped by the script. The sheets need openpyxl; without it the step says
   how to install it, skips the sheets, and the run goes on.
 
@@ -328,7 +330,7 @@ Blue: script. Amber: model. Green: fixed rule. Pink: person.
 | derive | fixed rule, `derive.py` | newest `extract_gate` proposals | `state/verdicts.jsonl` | `run.py derive` |
 | instances-due | script | dossiers, verdicts, instance proposals | `state/instances_due.jsonl` | `run.py instances-due` |
 | call 2 | model, `assign_instances.v2` | record, context, `taxonomy/instances.csv` | `proposals/assign_instances.<date>.jsonl` | `/classify-incidents` |
-| decide scope, promote | person, helped by script | verdicts, proposals, sources | `review/*.csv` logs, then `incidents/<ID>.md` | `run.py review`; `run.py promote <record_key>` by hand |
+| decide scope, promote | person, helped by script | verdicts, proposals, sources | `review/*.csv` logs, then `incidents/<ID>.md` | `run.py review`; `run.py promote <mig_key>` by hand |
 | check | script | everything | exit code only | `run.py check` |
 | index, viz | script | `incidents/` | `out/incident_index.csv`, `out/*.html`, `state/pipeline.json` | `run.py index`, `run.py viz` |
 | report | script | dossiers, records, queue, context, verdicts, logs, taxonomy | `out/index_report.xlsx` | `index_report.py` |

@@ -40,6 +40,7 @@
 24. **Write the ForumMagnum adapter.** LessWrong, the Alignment Forum and the EA Forum all expose a GraphQL endpoint and are registered as `discovery` sources, but `run.py discover` currently emits a work order for them. This is the main route to incidents AIID does not carry, and 18 of our 27 are in that category.
 25. **Link the 27 migrated dossiers to AIID records where they exist.** The migration deliberately does not auto-merge: it looked for close title matches and found none above threshold. OPEN item 23 says 9 of our 27 are in AIID, so the links exist and have to be made by hand. Once a dossier cites AIID, `check` requires AIID to be its canonical source, which renames it from `MIG-nnnn` to `AIID-nnnn`.
     **Partly done 2026-11-23:** five dossiers linked and renamed, from records a person decided `in` on sheet 1: MIG-0003 → AIID-1054, MIG-0016 → AIID-1668 (also cites aiid:1800), MIG-0017 → AIID-1797, MIG-0019 → AIID-1646, MIG-0020 → AIID-1604. `mvp/gold/multiagent_gold.csv` carries the new ids; the archived review rounds keep the old ones. Still to link: 1556 → MIG-0015 (item 63), and the rest of the nine AIID matches item 23 counts.
+    **Changed later on 2026-11-23 (item 51):** linking no longer renames. A dossier keeps its `mig_key`; linking AIID changes `canonical_source` and `source_key` only. The five got their MIG keys back.
 26. **Rename four truncated dossier titles.** The migration derived titles from long summary sentences; the dossiers for AIR-2026-0101, AIR-2026-0219, AIR-2026-0194 and AIR-2026-0183 want real names.
 27. **Fill `actor_count` and `interaction_kind`** on the 27 migrated dossiers. Both are `unclear` because the PoC never captured them, and the second feeds Gate 2.
 28. **Review the gold set before any calibration. Blocking.** Every PoC label came from AI-assisted sessions — all 8 commits carry a Claude co-author trailer — and none was independently checked, so calibrating against it would measure agreement with an earlier model pass rather than accuracy. The PoC's own verification rule was also not met: of 27 incidents, 6 are explicitly *Verified*, 6 *Partially verified*, 8 have notes with no verdict and **7 have no verification record at all**; 14 rest on a single source. Separately and structurally, the set had **no negatives**, so precision could not be measured at all.
@@ -291,6 +292,16 @@
     `mvp/out/`, and `check` ties a dossier's id to its canonical source, so a row citing AIID
     is meant to become `AIID-nnnn` (item 25). Do the renaming as one migration, together with
     item 25, rather than piecemeal.
+    **Settled 2026-11-23, the other way round.** The curator ruled that two keys name every
+    incident: `mig_key`, MIG-nnnn, ours and unique, and `source_key`, the source's own key,
+    blank when it has none. MIG no longer stands for the migration: it is the project's key.
+    Every record gets one when it first reaches the decide-scope sheet
+    (`mvp/registry/mig_keys.csv`, 442 keys), and its dossier keeps it.
+    `mvp/pipeline/migrate_mig_keys_20261123.py` renamed the 31 `AIID-nnnn` dossiers: the five
+    renamed from MIG earlier that day got their old keys back (MIG-0003, 0016, 0017, 0019,
+    0020), the other 26 got MIG-0028 to MIG-0053 in AIID order. Each renamed dossier says so
+    in its Verification notes. The decision logs and the gold set were rekeyed. The archived
+    review rounds and `poc/` keep the old ids.
 
 52. **Seven dossiers no longer assert `multi_agent: true`.** Set on 2026-11-13 from the review:
     `false` on MIG-0002, MIG-0005, MIG-0013, MIG-0014 (reviewed out) and `unclear` on

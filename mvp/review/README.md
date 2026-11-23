@@ -1,17 +1,25 @@
 # review
 
-Where a person decides. Two spreadsheets, two logs.
+Where a person decides. Three spreadsheets, three logs.
 
 | file | what | who writes it |
 |---|---|---|
 | `1_decide_scope.xlsx` | sheet 1: records the rules labelled, with no scope decision yet. One row each | `run.py review`; a person fills it |
 | `2_promote.xlsx` | sheet 2: records you decided `in` that have no dossier yet | `run.py review`; a person fills it |
-| `scope_decisions.csv` | the log of scope decisions: `record_key, decision, reason, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
-| `promote_decisions.csv` | the log of promote decisions: `record_key, decision, note, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
+| `3_edit_dossiers.xlsx` | sheet 3: every dossier, one row each, with the fields you can set | `run.py review`; a person edits it |
+| `scope_decisions.csv` | the log of scope decisions: `mig_key, source_id, source_key, decision, reason, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
+| `promote_decisions.csv` | the log of promote decisions: `mig_key, source_id, source_key, decision, note, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
+| `dossier_edits.csv` | the log of dossier fields set on sheet 3: `mig_key, field, old_value, new_value, decided_on, sheet_generated_on` | `run.py review`, when it reads an edited sheet 3 |
 
-The sheets are generated, so they are not committed: they are in `.gitignore`. The two logs
-are data and are committed. They are append-only, and the newest row per `record_key` wins.
-Do not edit them by hand, except to take back a decision: delete its row.
+Every row of every sheet and log names its record by two keys: `mig_key`, MIG-nnnn, ours,
+given in `mvp/registry/mig_keys.csv` when the record first reached sheet 1 and kept by its
+dossier; and `source_key`, the key the source uses (with `source_id`), blank when the
+source has none. A record a dossier also cites shows under the dossier's `mig_key`.
+
+The sheets are generated, so they are not committed: they are in `.gitignore`. The logs
+are data and are committed. They are append-only, and for the two decision logs the newest
+row per record wins. Do not edit them by hand, except to take back a decision: delete
+its row.
 
 ## Sheet 1: decide scope
 
@@ -58,6 +66,46 @@ dossiers and `OPEN.md`. A duplicate is added to the existing dossier's `sources`
 of being promoted. Once the dossier cites it, the record drops off the sheet; a `yes`
 already typed for it is reported as "not listed" and not logged, which is expected.
 
+## Sheet 3: edit dossiers
+
+Open `3_edit_dossiers.xlsx`. One row is one dossier, filled in with what the dossier says
+now. The yellow columns are yours. Change a cell, and the next run writes that field to the
+dossier. A cell left as it was is not an edit, so you only touch what you mean to change.
+
+| column | what you can enter | what else the run sets |
+|---|---|---|
+| `title` | text | |
+| `multi_agent` | `true`, `false`, `unclear` | `multi_agent_label_source: ours`; `multi_agent_basis` says you set it, with `scope_reason` |
+| `scope_reason` | free text, always blank on a new sheet | added to `multi_agent_basis` |
+| `failure_mode` | `FM1`, `FM2`, `FM3`, or empty for none | `failure_mode_source: ours` |
+| `instances`, `instances_presumed` | instance ids separated by `;`; presumed is empty or `I28; I29` | |
+| `evidence_type` | `real_world`, `synthetic`, `lab`, `theoretical` | |
+| `verification`, `last_verified` | `verified`, `partially_verified`, `unverified`; an ISO date | raising verification sets `last_verified` to today, unless you set it |
+| `verification_note` | free text, always blank on a new sheet | added to `## Verification notes` as "Curator, <date>: …" |
+| `actor_count`, `interaction_kind`, `occurrence_date`, `systems` | a number or `unclear`; the drop-down; an ISO date; names separated by `;` | `occurrence_date_precision` |
+
+**What is recorded.** Every field you change is:
+
+- added to the dossier's `set_by_person` list (a dossier nobody edited here has no such
+  key);
+- logged in `dossier_edits.csv` with its old and new value and the date;
+- shown green in `mvp/out/index_report.xlsx`, which also has a `set_by_person` column.
+
+A field you change by editing the dossier's YAML yourself is not tracked; add its name to
+`set_by_person` if you want it marked.
+
+**What is refused.** The row is reported by dossier and nothing in it is written when:
+
+- a value is not allowed (not in the drop-down, not an ISO date);
+- the edit would break a dossier rule (the same rules as `run.py check`). For example, a
+  failure mode on an attack that still carries the presumed `I28; I29`: empty
+  `instances_presumed` in the same row;
+- the dossier changed after the sheet was written. Your edit is not written over that
+  change; enter it again on the new sheet.
+
+The new sheet always shows the dossiers as they are, so a refused edit has to be entered
+again.
+
 ## What happens on the next run
 
 Save the file and close it. Then either run `python mvp/pipeline/run.py review`, or press
@@ -65,11 +113,13 @@ Continue on the page that `run.py serve` puts up (the Review step), or run `upda
 The run:
 
 1. reads each sheet and checks every filled row; a bad row (a value that is not in the
-   drop-down, a record that is not on the sheet) is reported by `record_key`, left out of
+   drop-down, a record that is not on the sheet) is reported by `mig_key`, left out of
    the log, and comes back on the new sheet;
 2. appends the good rows to the logs, dated today;
 3. makes the dossier for every promote `yes`;
-4. writes both sheets again from what is left, and says how many rows each has.
+4. writes the fields changed on sheet 3 into the dossiers and logs them in
+   `dossier_edits.csv`;
+5. writes all three sheets again from what is left, and says how many rows each has.
 
 The map's Decide scope and Human review boxes count what is left on the two sheets.
 `run.py derive` does the same, so a fresh verdicts file gives fresh sheets.

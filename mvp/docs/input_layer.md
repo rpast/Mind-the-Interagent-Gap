@@ -260,11 +260,16 @@ identical to the one before it.
 YAML frontmatter plus seven fixed sections, so dossiers diff cleanly and `rg` finds them by
 narrative content.
 
-Id comes from the canonical source: `AIID-0007.md` where AIID attests the incident,
-`MIG-nnnn.md` where no indexed database does. When AIID is among the sources it is the
-canonical one, and `check` enforces that.
+Two keys name a dossier. `mig_key`, MIG-nnnn, is ours and names the file
+(`MIG-0034.md`): the key its record was given in `mvp/registry/mig_keys.csv` when it first
+reached the decide-scope sheet, unique and never changed. `source_key` is the key the
+canonical source uses (`794` for AIID incident 794), blank when the source has none. When
+AIID is among the sources it is the canonical one, and `check` enforces that; linking AIID
+later changes `canonical_source` and `source_key`, never `mig_key`. Until 2026-11-23
+dossiers were named after AIID (`AIID-0794.md`);
+`mvp/pipeline/migrate_mig_keys_20261123.py` renamed them.
 
-Required frontmatter: `id`, `title`, `canonical_source`, `sources`, `occurrence_date`,
+Required frontmatter: `mig_key`, `source_key`, `title`, `canonical_source`, `sources`, `occurrence_date`,
 `occurrence_date_precision`, `first_seen`, `last_verified`, `systems`, `actor_count`,
 `interaction_kind`, `evidence_type`, `multi_agent`, `multi_agent_basis`,
 `multi_agent_label_source`, `external_labels`, `failure_mode`, `failure_mode_source`,

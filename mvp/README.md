@@ -104,8 +104,11 @@ by hand. See `review/README.md`. The sheets need openpyxl (`pip install -r requi
 | `out/` | the flat index and the pipeline pages | `index`, `viz` |
 
 Every row in `records/`, `context/`, `proposals/` and the `state/` row files carries
-`record_key`, `"<source_id>:<source_record_id>"`, e.g. `aiid:1604`: the string `promote`
-takes. See `docs/input_layer.md` § The record key.
+`record_key`, `"<source_id>:<source_record_id>"`, e.g. `aiid:1604`: the pipeline's
+internal join key. See `docs/input_layer.md` § The record key. A person never sees it:
+sheets, logs, dossiers and reports name a record by `mig_key` (MIG-nnnn, ours, from
+`registry/mig_keys.csv`) and `source_key` (the source's own key). `promote` takes either
+a MIG key or a record_key.
 
 ## Documentation
 

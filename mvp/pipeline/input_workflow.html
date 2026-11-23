@@ -261,9 +261,10 @@ function renderPanel() {
     document.getElementById("fcount").textContent =
       `${rows.length} of ${D.incidents.length} dossiers`;
     if (!rows.length) { host.appendChild(el("p", "empty", "Nothing matches.")); return; }
-    host.appendChild(table(["id", "date", "title", "label"], rows, r => {
+    host.appendChild(table(["mig_key", "source_key", "date", "title", "label"], rows, r => {
       const tr = el("tr");
-      tr.appendChild(el("td", "mono", r.id));
+      tr.appendChild(el("td", "mono", r.mig_key));
+      tr.appendChild(el("td", "mono", r.source_key || ""));
       tr.appendChild(el("td", "mono", r.occurrence_date));
       const td = el("td");
       td.appendChild(document.createTextNode(r.title));

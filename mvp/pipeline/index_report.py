@@ -62,23 +62,47 @@ def origin_of(meta, sections):
     notes = sections.get("Verification notes", "")
     if "Written by Claude" in notes:
         return f"promoted {meta.get('first_seen')}; dossier written by Claude from the readings"
-    if str(meta.get("id", "")).startswith("MIG-"):
+    if meta.get("canonical_source") != "aiid":
         return "carried over from the PoC"
     return "carried over from the PoC; AIID record linked 2026-11-23"
 
 
+# Report column -> the dossier fields it shows. A cell is marked as a person's when one
+# of its fields is in the dossier's set_by_person.
+FROM_FIELDS = {
+    "title": ["title"], "date": ["occurrence_date"], "evidence_type": ["evidence_type"],
+    "failure_mode": ["failure_mode"], "failure_mode_name": ["failure_mode"],
+    "failure_mode_source": ["failure_mode"],
+    "instances": ["instances", "instances_presumed"],
+    "instance_names": ["instances", "instances_presumed"],
+    "instances_discussed_under": ["instances", "instances_presumed"],
+    "instances_presumed": ["instances_presumed"], "verification": ["verification"],
+    "last_verified": ["last_verified"], "scope_basis": ["multi_agent", "multi_agent_basis"],
+    "actor_count": ["actor_count"], "interaction_kind": ["interaction_kind"],
+    "systems": ["systems"],
+}
+MINE = PatternFill("solid", start_color="C6EFCE")
+
+
 def index_rows(risks, insts):
+    """One row per dossier in scope (multi_agent true). The others go to
+    out_of_scope_dossiers."""
     rows = []
     for path in run.all_dossiers():
         meta, body = run.read_dossier(path)
+        if meta.get("multi_agent") is not True:
+            continue
         sec = split_body(body)
+        mine = set(meta.get(run.SET_BY_PERSON) or [])
         fm = meta.get("failure_mode") or ""
         ids = meta.get("instances") or []
         presumed = meta.get("instances_presumed") or []
         ids = ids + [i for i in presumed if i not in ids]
         srcs = meta.get("sources") or []
         rows.append({
-            "id": meta.get("id"),
+            "mig_key": meta.get("mig_key"),
+            "source_id": meta.get("canonical_source"),
+            "source_key": meta.get("source_key") or "",
             "title": meta.get("title"),
             "date": meta.get("occurrence_date"),
             "evidence_type": meta.get("evidence_type"),
@@ -91,6 +115,9 @@ def index_rows(risks, insts):
                                                        for i in ids} - {""})),
             "instances_presumed": joined(presumed),
             "verification": meta.get("verification"),
+            "last_verified": meta.get("last_verified") or "",
+            "set_by_person": joined(meta.get(run.SET_BY_PERSON)),
+            "_mine": {c for c, fs in FROM_FIELDS.items() if mine & set(fs)},
             "origin": origin_of(meta, sec),
             "scope_basis": meta.get("multi_agent_basis"),
             "actor_count": meta.get("actor_count"),
@@ -105,7 +132,9 @@ def index_rows(risks, insts):
 
 
 INDEX_COLS = [
-    ("id", 12, "Dossier id. AIID-nnnn when the AI Incident Database attests it; MIG-nnnn for incidents carried over from the PoC that AIID does not hold."),
+    ("mig_key", 11, "Our key, MIG-nnnn: unique, given when the record first reached the decide-scope sheet, never changed. The dossier is mvp/incidents/<mig_key>.md."),
+    ("source_id", 11, "The canonical source: the one whose key is source_key."),
+    ("source_key", 14, "The key the source itself uses (AIID's incident number, AI Village's AIV-nn); blank when the source has none."),
     ("title", 45, "Title of the incident."),
     ("date", 11, "Event date, or publication date for studies; partial dates allowed."),
     ("evidence_type", 13, "real_world / synthetic / lab / theoretical (mvp/taxonomy/evidence_types.csv)."),
@@ -117,6 +146,8 @@ INDEX_COLS = [
     ("instances_discussed_under", 14, "The failure mode or risk factor under which Hammond et al. discuss those instances. A reading aid only: never a label of this incident."),
     ("instances_presumed", 12, "I28; I29 presumed for an attack whose source does not say what the number or mix of agents contributed. Not quoted. Also listed in instances."),
     ("verification", 15, "verified / partially_verified / unverified against the primary source by a person."),
+    ("last_verified", 12, "When a person last checked the dossier against the primary source."),
+    ("set_by_person", 20, "The dossier fields a person set on sheet 3 (mvp/review/3_edit_dossiers.xlsx), each logged in mvp/review/dossier_edits.csv. The cells showing those fields are green."),
     ("origin", 30, "How the dossier came to be."),
     ("scope_basis", 50, "Why the incident is in scope: always a person's verdict."),
     ("actor_count", 10, "Number of AI agents when the source states it; unclear otherwise."),
@@ -140,8 +171,41 @@ STAGES = [
     "4 Person: decided unclear",
     "5 Person: decided in, not promoted",
     "5 Person: decided in, awaiting promotion",
+    "6 Dossier: out of scope",
+    "6 Dossier: scope unclear",
     "Other",
 ]
+
+
+def out_of_scope_dossiers():
+    """Dossiers whose multi_agent is not true: a dossier exists, but the incident is not
+    in the index."""
+    rows = []
+    for path in run.all_dossiers():
+        meta, _ = run.read_dossier(path)
+        if meta.get("multi_agent") is True:
+            continue
+        out = meta.get("multi_agent") is False
+        srcs = meta.get("sources") or []
+        by_person = "multi_agent" in (meta.get(run.SET_BY_PERSON) or [])
+        rows.append({
+            "mig_key": meta.get("mig_key") or path.stem,
+            "source_id": meta.get("canonical_source") or "",
+            "source_key": meta.get("source_key") or "",
+            "title": meta.get("title", ""), "date": meta.get("occurrence_date", ""),
+            "url": srcs[0].get("url", "") if srcs else "",
+            "stage": "6 Dossier: out of scope" if out else "6 Dossier: scope unclear",
+            "decided_by": ("person (sheet 3)" if by_person
+                           else "person (dossier)"
+                           if meta.get("multi_agent_label_source") == "ours"
+                           else "dossier"),
+            "reason": ("The dossier says multi_agent false: not a multi-agent incident."
+                       if out else "The dossier says multi_agent unclear: the sources do "
+                       "not settle whether AI agents acted on each other."),
+            "detail": meta.get("multi_agent_basis") or "",
+            "flags": "",
+        })
+    return rows
 
 
 def rules_reason(v, g):
@@ -178,13 +242,15 @@ def not_in_index_rows():
     scope = run.scope_newest(records)
     promo = run.newest_by_key(run.read_log("promote"))
     frozen = run.read_frozen()
+    index = run.mig_index()
     rows = []
     for (sid, rid), rec in sorted(records.items(), key=lambda kv: run.natural(
             run.record_key(*kv[0]))):
         if (sid, rid) in attested:
             continue
         key = run.record_key(sid, rid)
-        row = {"record_key": key, "title": rec.get("title", ""), "date": rec.get("date", ""),
+        row = {**run.key_fields((sid, rid), index),
+               "title": rec.get("title", ""), "date": rec.get("date", ""),
                "url": rec.get("url", ""), "stage": "Other", "decided_by": "", "reason": "",
                "detail": "", "flags": ""}
         q = queue.get((sid, rid))
@@ -267,10 +333,12 @@ def not_in_index_rows():
 
 
 NOT_COLS = [
-    ("record_key", 14, "Source record: source_id:record_id."),
+    ("mig_key", 11, "Our key, MIG-nnnn. Blank for a record that never reached the decide-scope sheet (stages 1 and 2): those have only their source key."),
+    ("source_id", 11, "The source the record comes from."),
+    ("source_key", 14, "The key the source itself uses; blank when it has none."),
     ("title", 50, "Title of the record."),
     ("date", 11, "Record date."),
-    ("stage", 34, "Where the record stopped. 1 prefilter, 2 reading, 3 rules, 4 scope decision, 5 promotion."),
+    ("stage", 34, "Where the record stopped. 1 prefilter, 2 reading, 3 rules, 4 scope decision, 5 promotion, 6 a dossier that does not put the incident in scope."),
     ("decided_by", 26, "Who or what stopped it. Only `person` rows are human decisions; `rules` rows are suggestions nobody has confirmed."),
     ("reason", 60, "Why it is not in the index."),
     ("detail", 60, "The evidence behind the reason: the person's note, the reading's quote, or the model's uncertainty."),
@@ -295,9 +363,11 @@ def add_table(ws, cols, rows):
     for r in rows:
         ws.append([run.clean(r.get(c, "")) for c, _, _ in cols])
     wrap = {c for c, w, _ in cols if w >= 30}
-    for row in ws.iter_rows(min_row=2):
+    for row, r in zip(ws.iter_rows(min_row=2), rows):
         for cell, (name, _, _) in zip(row, cols):
             cell.alignment = Alignment(vertical="top", wrap_text=name in wrap)
+            if name in r.get("_mine", ()):
+                cell.fill = MINE
             if name == "url" and str(cell.value).startswith(("http://", "https://")):
                 cell.hyperlink = str(cell.value)
                 cell.style = "Hyperlink"
@@ -309,7 +379,7 @@ def main():
     risks, _ = taxonomy("risks.csv", "risk_id", "risk")
     insts, _ = taxonomy("instances.csv", "instance_id", "instance")
     inn = index_rows(risks, insts)
-    out = not_in_index_rows()
+    out = out_of_scope_dossiers() + not_in_index_rows()
 
     wb = openpyxl.Workbook()
     summ = wb.active

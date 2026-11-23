@@ -20,6 +20,13 @@ Project-level files stay at the root: `resources/` (source documents),
 
 - `resources/` holds the source documents (papers, reports), starting with Hammond et al.
   2025. Ground every classification and incident claim in these files and cite file and page.
+- **Two keys name every incident and every record a person reviews.** `mig_key`, MIG-nnnn,
+  is ours: unique, given once in `mvp/registry/mig_keys.csv` when a record first reaches the
+  decide-scope sheet, kept by its dossier (`mvp/incidents/<mig_key>.md`), never changed or
+  reused. `source_key` is the key the source itself uses (AIID's `794`), blank when it has
+  none. Never name an incident by its source (no `AIID-nnnn` ids). `record_key`
+  (`aiid:794`) is only the pipeline's internal join key on its own files; no sheet, log,
+  dossier or report shows it.
 - `mvp/registry/sources.csv` is the source registry: the machine-readable spine the pipeline
   reads. `RESOURCES.md` is the human lead list. `docs/sources.txt` is the per-row audit
   trail. A source may appear in all three, but each note belongs to exactly one.
@@ -31,10 +38,10 @@ Project-level files stay at the root: `resources/` (source documents),
   `mvp/records/manual.jsonl` holds the incidents added by hand.
 - `mvp/context/<source>.jsonl` is what each source says about the facts the gates need: a
   reading, with quotes and the depth read. Machine-written. See `mvp/docs/context_layer.md`.
-- `mvp/review/` holds the two sheets a person fills in (`1_decide_scope.xlsx`,
-  `2_promote.xlsx`; generated, gitignored) and the two decision logs
-  (`scope_decisions.csv`, `promote_decisions.csv`; data, committed, written only by
-  `run.py review` when it reads a filled sheet). See `mvp/review/README.md`.
+- `mvp/review/` holds the three sheets a person fills in (`1_decide_scope.xlsx`,
+  `2_promote.xlsx`, `3_edit_dossiers.xlsx`; generated, gitignored) and their logs
+  (`scope_decisions.csv`, `promote_decisions.csv`, `dossier_edits.csv`; data, committed,
+  written only by `run.py review` when it reads a filled sheet). See `mvp/review/README.md`.
 - `mvp/incidents/<ID>.md` is the curated record: one dossier per incident a person
   promotes. Scope decisions that are not promoted live in `mvp/review/scope_decisions.csv`.
   Hand-edited, or filled by Claude when the curator asks (see Rules).
@@ -63,9 +70,14 @@ with `.venv/bin/python` instead of `python`.
    `mvp/proposals/` and `mvp/state/verdicts.jsonl`; promote what passes the
    inclusion test. Before promoting, check each record against the existing dossiers and
    `OPEN.md` for duplicates: a record that is already an incident is added to that
-   dossier's `sources`, not promoted (AIID then becomes canonical and the dossier is
-   renamed `AIID-nnnn`).
+   dossier's `sources`, not promoted. The dossier keeps its `mig_key`; if AIID becomes
+   the canonical source, `source_key` changes to AIID's key.
 4. Fill each new dossier by hand, or ask Claude to fill it from the readings (see Rules).
+   To set or correct a dossier's labels, scope, verification or facts, change the cells
+   of `3_edit_dossiers.xlsx` and run `review`: each field changed there is named in the
+   dossier's `set_by_person` and logged in `mvp/review/dossier_edits.csv`. Never remove
+   a field from `set_by_person`, and never overwrite a field it names without the
+   curator's say.
 5. `python mvp/pipeline/run.py check` — must exit 0.
 6. `python mvp/pipeline/run.py index`, `viz`, then `python mvp/pipeline/index_report.py`
    for `mvp/out/index_report.xlsx`.

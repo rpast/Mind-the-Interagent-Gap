@@ -1,0 +1,443 @@
+mig_key,source_id,source_record_id,assigned_on,basis
+MIG-0001,aivillage,AIV-02,2026-10-26,dossier
+MIG-0002,air_enkrypt,AIR-2025-0019,2026-10-25,dossier
+MIG-0003,aiid,1054,2026-10-25,dossier
+MIG-0004,aivillage,AIV-01,2026-10-26,dossier
+MIG-0005,air_enkrypt,AIR-2025-0068,2026-10-25,dossier
+MIG-0006,air_enkrypt,AIR-2025-0070,2026-10-25,dossier
+MIG-0007,aivillage,AIV-03,2026-10-26,dossier
+MIG-0008,air_enkrypt,AIR-2025-0136,2026-10-25,dossier
+MIG-0009,air_enkrypt,AIR-2025-0149,2026-10-25,dossier
+MIG-0010,air_enkrypt,AIR-2025-0177,2026-10-25,dossier
+MIG-0011,aivillage,AIV-04,2026-10-26,dossier
+MIG-0012,lesswrong,LW-05,2026-10-25,dossier
+MIG-0013,air_enkrypt,AIR-2026-0029,2026-10-25,dossier
+MIG-0014,aivillage,AIV-05,2026-10-26,dossier
+MIG-0015,air_enkrypt,AIR-2026-0101,2026-10-25,dossier
+MIG-0016,aiid,1668,2026-10-25,dossier
+MIG-0017,aiid,1797,2026-10-25,dossier
+MIG-0019,aiid,1646,2026-10-25,dossier
+MIG-0020,aiid,1604,2026-10-25,dossier
+MIG-0021,aivillage,AIV-06,2026-10-26,dossier
+MIG-0022,lesswrong,LW-04,2026-10-25,dossier
+MIG-0023,air_enkrypt,AIR-2026-0180,2026-10-25,dossier
+MIG-0024,air_enkrypt,AIR-2026-0183,2026-10-25,dossier
+MIG-0025,air_enkrypt,AIR-2026-0189,2026-10-25,dossier
+MIG-0026,air_enkrypt,AIR-2026-0193,2026-10-25,dossier
+MIG-0027,aivillage,AIV-07,2026-10-26,dossier
+MIG-0028,aiid,7,2026-11-23,dossier
+MIG-0029,aiid,28,2026-11-23,dossier
+MIG-0030,aiid,243,2026-11-23,dossier
+MIG-0031,aiid,528,2026-11-23,dossier
+MIG-0032,aiid,602,2026-11-23,dossier
+MIG-0033,aiid,779,2026-11-23,dossier
+MIG-0034,aiid,794,2026-11-23,dossier
+MIG-0035,aiid,866,2026-11-23,dossier
+MIG-0036,aiid,954,2026-11-23,dossier
+MIG-0037,aiid,1037,2026-11-23,dossier
+MIG-0038,aiid,1060,2026-11-23,dossier
+MIG-0039,aiid,1326,2026-11-23,dossier
+MIG-0040,aiid,1633,2026-11-23,dossier
+MIG-0041,aiid,1731,2026-11-23,dossier
+MIG-0042,aiid,1734,2026-11-23,dossier
+MIG-0043,aiid,1766,2026-11-23,dossier
+MIG-0044,aiid,1774,2026-11-23,dossier
+MIG-0045,aiid,1779,2026-11-23,dossier
+MIG-0046,aiid,1781,2026-11-23,dossier
+MIG-0047,aiid,1782,2026-11-23,dossier
+MIG-0048,aiid,1789,2026-11-23,dossier
+MIG-0049,aiid,1790,2026-11-23,dossier
+MIG-0050,aiid,1794,2026-11-23,dossier
+MIG-0051,aiid,1796,2026-11-23,dossier
+MIG-0052,aiid,1799,2026-11-23,dossier
+MIG-0053,aiid,1828,2026-11-23,dossier
+MIG-0054,aiid,25,2026-11-23,decide scope
+MIG-0055,aiid,44,2026-11-23,decide scope
+MIG-0056,aiid,49,2026-11-23,decide scope
+MIG-0057,aiid,125,2026-11-23,decide scope
+MIG-0058,aiid,126,2026-11-23,decide scope
+MIG-0059,aiid,148,2026-11-23,decide scope
+MIG-0060,aiid,366,2026-11-23,decide scope
+MIG-0061,aiid,376,2026-11-23,decide scope
+MIG-0062,aiid,553,2026-11-23,decide scope
+MIG-0063,aiid,625,2026-11-23,decide scope
+MIG-0064,aiid,635,2026-11-23,decide scope
+MIG-0065,aiid,636,2026-11-23,decide scope
+MIG-0066,aiid,644,2026-11-23,decide scope
+MIG-0067,aiid,650,2026-11-23,decide scope
+MIG-0068,aiid,655,2026-11-23,decide scope
+MIG-0069,aiid,660,2026-11-23,decide scope
+MIG-0070,aiid,663,2026-11-23,decide scope
+MIG-0071,aiid,670,2026-11-23,decide scope
+MIG-0072,aiid,671,2026-11-23,decide scope
+MIG-0073,aiid,672,2026-11-23,decide scope
+MIG-0074,aiid,673,2026-11-23,decide scope
+MIG-0075,aiid,674,2026-11-23,decide scope
+MIG-0076,aiid,680,2026-11-23,decide scope
+MIG-0077,aiid,682,2026-11-23,decide scope
+MIG-0078,aiid,683,2026-11-23,decide scope
+MIG-0079,aiid,684,2026-11-23,decide scope
+MIG-0080,aiid,690,2026-11-23,decide scope
+MIG-0081,aiid,693,2026-11-23,decide scope
+MIG-0082,aiid,696,2026-11-23,decide scope
+MIG-0083,aiid,700,2026-11-23,decide scope
+MIG-0084,aiid,701,2026-11-23,decide scope
+MIG-0085,aiid,704,2026-11-23,decide scope
+MIG-0086,aiid,706,2026-11-23,decide scope
+MIG-0087,aiid,711,2026-11-23,decide scope
+MIG-0088,aiid,715,2026-11-23,decide scope
+MIG-0089,aiid,717,2026-11-23,decide scope
+MIG-0090,aiid,721,2026-11-23,decide scope
+MIG-0091,aiid,724,2026-11-23,decide scope
+MIG-0092,aiid,725,2026-11-23,decide scope
+MIG-0093,aiid,728,2026-11-23,decide scope
+MIG-0094,aiid,730,2026-11-23,decide scope
+MIG-0095,aiid,733,2026-11-23,decide scope
+MIG-0096,aiid,734,2026-11-23,decide scope
+MIG-0097,aiid,735,2026-11-23,decide scope
+MIG-0098,aiid,740,2026-11-23,decide scope
+MIG-0099,aiid,744,2026-11-23,decide scope
+MIG-0100,aiid,746,2026-11-23,decide scope
+MIG-0101,aiid,749,2026-11-23,decide scope
+MIG-0102,aiid,750,2026-11-23,decide scope
+MIG-0103,aiid,752,2026-11-23,decide scope
+MIG-0104,aiid,753,2026-11-23,decide scope
+MIG-0105,aiid,754,2026-11-23,decide scope
+MIG-0106,aiid,761,2026-11-23,decide scope
+MIG-0107,aiid,774,2026-11-23,decide scope
+MIG-0108,aiid,777,2026-11-23,decide scope
+MIG-0109,aiid,782,2026-11-23,decide scope
+MIG-0110,aiid,784,2026-11-23,decide scope
+MIG-0111,aiid,787,2026-11-23,decide scope
+MIG-0112,aiid,793,2026-11-23,decide scope
+MIG-0113,aiid,795,2026-11-23,decide scope
+MIG-0114,aiid,798,2026-11-23,decide scope
+MIG-0115,aiid,800,2026-11-23,decide scope
+MIG-0116,aiid,803,2026-11-23,decide scope
+MIG-0117,aiid,806,2026-11-23,decide scope
+MIG-0118,aiid,809,2026-11-23,decide scope
+MIG-0119,aiid,810,2026-11-23,decide scope
+MIG-0120,aiid,811,2026-11-23,decide scope
+MIG-0121,aiid,817,2026-11-23,decide scope
+MIG-0122,aiid,819,2026-11-23,decide scope
+MIG-0123,aiid,823,2026-11-23,decide scope
+MIG-0124,aiid,824,2026-11-23,decide scope
+MIG-0125,aiid,825,2026-11-23,decide scope
+MIG-0126,aiid,830,2026-11-23,decide scope
+MIG-0127,aiid,833,2026-11-23,decide scope
+MIG-0128,aiid,834,2026-11-23,decide scope
+MIG-0129,aiid,835,2026-11-23,decide scope
+MIG-0130,aiid,836,2026-11-23,decide scope
+MIG-0131,aiid,840,2026-11-23,decide scope
+MIG-0132,aiid,841,2026-11-23,decide scope
+MIG-0133,aiid,846,2026-11-23,decide scope
+MIG-0134,aiid,850,2026-11-23,decide scope
+MIG-0135,aiid,859,2026-11-23,decide scope
+MIG-0136,aiid,861,2026-11-23,decide scope
+MIG-0137,aiid,863,2026-11-23,decide scope
+MIG-0138,aiid,867,2026-11-23,decide scope
+MIG-0139,aiid,870,2026-11-23,decide scope
+MIG-0140,aiid,874,2026-11-23,decide scope
+MIG-0141,aiid,875,2026-11-23,decide scope
+MIG-0142,aiid,877,2026-11-23,decide scope
+MIG-0143,aiid,878,2026-11-23,decide scope
+MIG-0144,aiid,880,2026-11-23,decide scope
+MIG-0145,aiid,881,2026-11-23,decide scope
+MIG-0146,aiid,884,2026-11-23,decide scope
+MIG-0147,aiid,885,2026-11-23,decide scope
+MIG-0148,aiid,887,2026-11-23,decide scope
+MIG-0149,aiid,888,2026-11-23,decide scope
+MIG-0150,aiid,892,2026-11-23,decide scope
+MIG-0151,aiid,894,2026-11-23,decide scope
+MIG-0152,aiid,897,2026-11-23,decide scope
+MIG-0153,aiid,899,2026-11-23,decide scope
+MIG-0154,aiid,900,2026-11-23,decide scope
+MIG-0155,aiid,905,2026-11-23,decide scope
+MIG-0156,aiid,906,2026-11-23,decide scope
+MIG-0157,aiid,909,2026-11-23,decide scope
+MIG-0158,aiid,912,2026-11-23,decide scope
+MIG-0159,aiid,913,2026-11-23,decide scope
+MIG-0160,aiid,916,2026-11-23,decide scope
+MIG-0161,aiid,917,2026-11-23,decide scope
+MIG-0162,aiid,918,2026-11-23,decide scope
+MIG-0163,aiid,920,2026-11-23,decide scope
+MIG-0164,aiid,921,2026-11-23,decide scope
+MIG-0165,aiid,924,2026-11-23,decide scope
+MIG-0166,aiid,927,2026-11-23,decide scope
+MIG-0167,aiid,928,2026-11-23,decide scope
+MIG-0168,aiid,929,2026-11-23,decide scope
+MIG-0169,aiid,931,2026-11-23,decide scope
+MIG-0170,aiid,937,2026-11-23,decide scope
+MIG-0171,aiid,939,2026-11-23,decide scope
+MIG-0172,aiid,941,2026-11-23,decide scope
+MIG-0173,aiid,943,2026-11-23,decide scope
+MIG-0174,aiid,945,2026-11-23,decide scope
+MIG-0175,aiid,947,2026-11-23,decide scope
+MIG-0176,aiid,948,2026-11-23,decide scope
+MIG-0177,aiid,950,2026-11-23,decide scope
+MIG-0178,aiid,951,2026-11-23,decide scope
+MIG-0179,aiid,953,2026-11-23,decide scope
+MIG-0180,aiid,955,2026-11-23,decide scope
+MIG-0181,aiid,958,2026-11-23,decide scope
+MIG-0182,aiid,959,2026-11-23,decide scope
+MIG-0183,aiid,961,2026-11-23,decide scope
+MIG-0184,aiid,962,2026-11-23,decide scope
+MIG-0185,aiid,963,2026-11-23,decide scope
+MIG-0186,aiid,964,2026-11-23,decide scope
+MIG-0187,aiid,967,2026-11-23,decide scope
+MIG-0188,aiid,972,2026-11-23,decide scope
+MIG-0189,aiid,973,2026-11-23,decide scope
+MIG-0190,aiid,975,2026-11-23,decide scope
+MIG-0191,aiid,976,2026-11-23,decide scope
+MIG-0192,aiid,977,2026-11-23,decide scope
+MIG-0193,aiid,978,2026-11-23,decide scope
+MIG-0194,aiid,982,2026-11-23,decide scope
+MIG-0195,aiid,990,2026-11-23,decide scope
+MIG-0196,aiid,991,2026-11-23,decide scope
+MIG-0197,aiid,994,2026-11-23,decide scope
+MIG-0198,aiid,999,2026-11-23,decide scope
+MIG-0199,aiid,1001,2026-11-23,decide scope
+MIG-0200,aiid,1004,2026-11-23,decide scope
+MIG-0201,aiid,1006,2026-11-23,decide scope
+MIG-0202,aiid,1010,2026-11-23,decide scope
+MIG-0203,aiid,1013,2026-11-23,decide scope
+MIG-0204,aiid,1014,2026-11-23,decide scope
+MIG-0205,aiid,1015,2026-11-23,decide scope
+MIG-0206,aiid,1016,2026-11-23,decide scope
+MIG-0207,aiid,1017,2026-11-23,decide scope
+MIG-0208,aiid,1018,2026-11-23,decide scope
+MIG-0209,aiid,1019,2026-11-23,decide scope
+MIG-0210,aiid,1020,2026-11-23,decide scope
+MIG-0211,aiid,1021,2026-11-23,decide scope
+MIG-0212,aiid,1026,2026-11-23,decide scope
+MIG-0213,aiid,1028,2026-11-23,decide scope
+MIG-0214,aiid,1038,2026-11-23,decide scope
+MIG-0215,aiid,1040,2026-11-23,decide scope
+MIG-0216,aiid,1041,2026-11-23,decide scope
+MIG-0217,aiid,1043,2026-11-23,decide scope
+MIG-0218,aiid,1044,2026-11-23,decide scope
+MIG-0219,aiid,1046,2026-11-23,decide scope
+MIG-0220,aiid,1047,2026-11-23,decide scope
+MIG-0221,aiid,1055,2026-11-23,decide scope
+MIG-0222,aiid,1056,2026-11-23,decide scope
+MIG-0223,aiid,1058,2026-11-23,decide scope
+MIG-0224,aiid,1059,2026-11-23,decide scope
+MIG-0225,aiid,1062,2026-11-23,decide scope
+MIG-0226,aiid,1063,2026-11-23,decide scope
+MIG-0227,aiid,1064,2026-11-23,decide scope
+MIG-0228,aiid,1065,2026-11-23,decide scope
+MIG-0229,aiid,1066,2026-11-23,decide scope
+MIG-0230,aiid,1067,2026-11-23,decide scope
+MIG-0231,aiid,1068,2026-11-23,decide scope
+MIG-0232,aiid,1070,2026-11-23,decide scope
+MIG-0233,aiid,1071,2026-11-23,decide scope
+MIG-0234,aiid,1073,2026-11-23,decide scope
+MIG-0235,aiid,1075,2026-11-23,decide scope
+MIG-0236,aiid,1077,2026-11-23,decide scope
+MIG-0237,aiid,1078,2026-11-23,decide scope
+MIG-0238,aiid,1079,2026-11-23,decide scope
+MIG-0239,aiid,1083,2026-11-23,decide scope
+MIG-0240,aiid,1085,2026-11-23,decide scope
+MIG-0241,aiid,1089,2026-11-23,decide scope
+MIG-0242,aiid,1090,2026-11-23,decide scope
+MIG-0243,aiid,1094,2026-11-23,decide scope
+MIG-0244,aiid,1095,2026-11-23,decide scope
+MIG-0245,aiid,1096,2026-11-23,decide scope
+MIG-0246,aiid,1099,2026-11-23,decide scope
+MIG-0247,aiid,1105,2026-11-23,decide scope
+MIG-0248,aiid,1106,2026-11-23,decide scope
+MIG-0249,aiid,1108,2026-11-23,decide scope
+MIG-0250,aiid,1113,2026-11-23,decide scope
+MIG-0251,aiid,1115,2026-11-23,decide scope
+MIG-0252,aiid,1117,2026-11-23,decide scope
+MIG-0253,aiid,1121,2026-11-23,decide scope
+MIG-0254,aiid,1122,2026-11-23,decide scope
+MIG-0255,aiid,1123,2026-11-23,decide scope
+MIG-0256,aiid,1124,2026-11-23,decide scope
+MIG-0257,aiid,1125,2026-11-23,decide scope
+MIG-0258,aiid,1129,2026-11-23,decide scope
+MIG-0259,aiid,1130,2026-11-23,decide scope
+MIG-0260,aiid,1131,2026-11-23,decide scope
+MIG-0261,aiid,1134,2026-11-23,decide scope
+MIG-0262,aiid,1135,2026-11-23,decide scope
+MIG-0263,aiid,1136,2026-11-23,decide scope
+MIG-0264,aiid,1141,2026-11-23,decide scope
+MIG-0265,aiid,1142,2026-11-23,decide scope
+MIG-0266,aiid,1143,2026-11-23,decide scope
+MIG-0267,aiid,1147,2026-11-23,decide scope
+MIG-0268,aiid,1148,2026-11-23,decide scope
+MIG-0269,aiid,1152,2026-11-23,decide scope
+MIG-0270,aiid,1153,2026-11-23,decide scope
+MIG-0271,aiid,1154,2026-11-23,decide scope
+MIG-0272,aiid,1158,2026-11-23,decide scope
+MIG-0273,aiid,1160,2026-11-23,decide scope
+MIG-0274,aiid,1163,2026-11-23,decide scope
+MIG-0275,aiid,1174,2026-11-23,decide scope
+MIG-0276,aiid,1178,2026-11-23,decide scope
+MIG-0277,aiid,1185,2026-11-23,decide scope
+MIG-0278,aiid,1187,2026-11-23,decide scope
+MIG-0279,aiid,1188,2026-11-23,decide scope
+MIG-0280,aiid,1189,2026-11-23,decide scope
+MIG-0281,aiid,1194,2026-11-23,decide scope
+MIG-0282,aiid,1195,2026-11-23,decide scope
+MIG-0283,aiid,1201,2026-11-23,decide scope
+MIG-0284,aiid,1202,2026-11-23,decide scope
+MIG-0285,aiid,1205,2026-11-23,decide scope
+MIG-0286,aiid,1207,2026-11-23,decide scope
+MIG-0287,aiid,1210,2026-11-23,decide scope
+MIG-0288,aiid,1211,2026-11-23,decide scope
+MIG-0289,aiid,1213,2026-11-23,decide scope
+MIG-0290,aiid,1215,2026-11-23,decide scope
+MIG-0291,aiid,1218,2026-11-23,decide scope
+MIG-0292,aiid,1219,2026-11-23,decide scope
+MIG-0293,aiid,1220,2026-11-23,decide scope
+MIG-0294,aiid,1223,2026-11-23,decide scope
+MIG-0295,aiid,1224,2026-11-23,decide scope
+MIG-0296,aiid,1225,2026-11-23,decide scope
+MIG-0297,aiid,1226,2026-11-23,decide scope
+MIG-0298,aiid,1227,2026-11-23,decide scope
+MIG-0299,aiid,1229,2026-11-23,decide scope
+MIG-0300,aiid,1234,2026-11-23,decide scope
+MIG-0301,aiid,1235,2026-11-23,decide scope
+MIG-0302,aiid,1237,2026-11-23,decide scope
+MIG-0303,aiid,1240,2026-11-23,decide scope
+MIG-0304,aiid,1242,2026-11-23,decide scope
+MIG-0305,aiid,1243,2026-11-23,decide scope
+MIG-0306,aiid,1245,2026-11-23,decide scope
+MIG-0307,aiid,1246,2026-11-23,decide scope
+MIG-0308,aiid,1248,2026-11-23,decide scope
+MIG-0309,aiid,1251,2026-11-23,decide scope
+MIG-0310,aiid,1252,2026-11-23,decide scope
+MIG-0311,aiid,1256,2026-11-23,decide scope
+MIG-0312,aiid,1263,2026-11-23,decide scope
+MIG-0313,aiid,1268,2026-11-23,decide scope
+MIG-0314,aiid,1270,2026-11-23,decide scope
+MIG-0315,aiid,1272,2026-11-23,decide scope
+MIG-0316,aiid,1273,2026-11-23,decide scope
+MIG-0317,aiid,1275,2026-11-23,decide scope
+MIG-0318,aiid,1277,2026-11-23,decide scope
+MIG-0319,aiid,1279,2026-11-23,decide scope
+MIG-0320,aiid,1283,2026-11-23,decide scope
+MIG-0321,aiid,1285,2026-11-23,decide scope
+MIG-0322,aiid,1286,2026-11-23,decide scope
+MIG-0323,aiid,1288,2026-11-23,decide scope
+MIG-0324,aiid,1290,2026-11-23,decide scope
+MIG-0325,aiid,1291,2026-11-23,decide scope
+MIG-0326,aiid,1294,2026-11-23,decide scope
+MIG-0327,aiid,1298,2026-11-23,decide scope
+MIG-0328,aiid,1299,2026-11-23,decide scope
+MIG-0329,aiid,1300,2026-11-23,decide scope
+MIG-0330,aiid,1301,2026-11-23,decide scope
+MIG-0331,aiid,1306,2026-11-23,decide scope
+MIG-0332,aiid,1313,2026-11-23,decide scope
+MIG-0333,aiid,1321,2026-11-23,decide scope
+MIG-0334,aiid,1323,2026-11-23,decide scope
+MIG-0335,aiid,1324,2026-11-23,decide scope
+MIG-0336,aiid,1325,2026-11-23,decide scope
+MIG-0337,aiid,1327,2026-11-23,decide scope
+MIG-0338,aiid,1329,2026-11-23,decide scope
+MIG-0339,aiid,1330,2026-11-23,decide scope
+MIG-0340,aiid,1338,2026-11-23,decide scope
+MIG-0341,aiid,1342,2026-11-23,decide scope
+MIG-0342,aiid,1346,2026-11-23,decide scope
+MIG-0343,aiid,1348,2026-11-23,decide scope
+MIG-0344,aiid,1350,2026-11-23,decide scope
+MIG-0345,aiid,1351,2026-11-23,decide scope
+MIG-0346,aiid,1352,2026-11-23,decide scope
+MIG-0347,aiid,1355,2026-11-23,decide scope
+MIG-0348,aiid,1358,2026-11-23,decide scope
+MIG-0349,aiid,1359,2026-11-23,decide scope
+MIG-0350,aiid,1364,2026-11-23,decide scope
+MIG-0351,aiid,1365,2026-11-23,decide scope
+MIG-0352,aiid,1366,2026-11-23,decide scope
+MIG-0353,aiid,1368,2026-11-23,decide scope
+MIG-0354,aiid,1380,2026-11-23,decide scope
+MIG-0355,aiid,1381,2026-11-23,decide scope
+MIG-0356,aiid,1384,2026-11-23,decide scope
+MIG-0357,aiid,1386,2026-11-23,decide scope
+MIG-0358,aiid,1391,2026-11-23,decide scope
+MIG-0359,aiid,1394,2026-11-23,decide scope
+MIG-0360,aiid,1395,2026-11-23,decide scope
+MIG-0361,aiid,1397,2026-11-23,decide scope
+MIG-0362,aiid,1398,2026-11-23,decide scope
+MIG-0363,aiid,1403,2026-11-23,decide scope
+MIG-0364,aiid,1405,2026-11-23,decide scope
+MIG-0365,aiid,1406,2026-11-23,decide scope
+MIG-0366,aiid,1407,2026-11-23,decide scope
+MIG-0367,aiid,1412,2026-11-23,decide scope
+MIG-0368,aiid,1414,2026-11-23,decide scope
+MIG-0369,aiid,1418,2026-11-23,decide scope
+MIG-0370,aiid,1419,2026-11-23,decide scope
+MIG-0371,aiid,1422,2026-11-23,decide scope
+MIG-0372,aiid,1425,2026-11-23,decide scope
+MIG-0373,aiid,1427,2026-11-23,decide scope
+MIG-0374,aiid,1430,2026-11-23,decide scope
+MIG-0375,aiid,1432,2026-11-23,decide scope
+MIG-0376,aiid,1447,2026-11-23,decide scope
+MIG-0377,aiid,1448,2026-11-23,decide scope
+MIG-0378,aiid,1455,2026-11-23,decide scope
+MIG-0379,aiid,1460,2026-11-23,decide scope
+MIG-0380,aiid,1466,2026-11-23,decide scope
+MIG-0381,aiid,1468,2026-11-23,decide scope
+MIG-0382,aiid,1470,2026-11-23,decide scope
+MIG-0383,aiid,1472,2026-11-23,decide scope
+MIG-0384,aiid,1474,2026-11-23,decide scope
+MIG-0385,aiid,1481,2026-11-23,decide scope
+MIG-0386,aiid,1485,2026-11-23,decide scope
+MIG-0387,aiid,1486,2026-11-23,decide scope
+MIG-0388,aiid,1492,2026-11-23,decide scope
+MIG-0389,aiid,1493,2026-11-23,decide scope
+MIG-0390,aiid,1497,2026-11-23,decide scope
+MIG-0391,aiid,1498,2026-11-23,decide scope
+MIG-0392,aiid,1500,2026-11-23,decide scope
+MIG-0393,aiid,1504,2026-11-23,decide scope
+MIG-0394,aiid,1507,2026-11-23,decide scope
+MIG-0395,aiid,1533,2026-11-23,decide scope
+MIG-0396,aiid,1534,2026-11-23,decide scope
+MIG-0397,aiid,1537,2026-11-23,decide scope
+MIG-0398,aiid,1547,2026-11-23,decide scope
+MIG-0399,aiid,1556,2026-11-23,decide scope
+MIG-0400,aiid,1559,2026-11-23,decide scope
+MIG-0401,aiid,1561,2026-11-23,decide scope
+MIG-0402,aiid,1563,2026-11-23,decide scope
+MIG-0403,aiid,1578,2026-11-23,decide scope
+MIG-0404,aiid,1580,2026-11-23,decide scope
+MIG-0405,aiid,1581,2026-11-23,decide scope
+MIG-0406,aiid,1584,2026-11-23,decide scope
+MIG-0407,aiid,1585,2026-11-23,decide scope
+MIG-0408,aiid,1586,2026-11-23,decide scope
+MIG-0409,aiid,1587,2026-11-23,decide scope
+MIG-0410,aiid,1588,2026-11-23,decide scope
+MIG-0411,aiid,1589,2026-11-23,decide scope
+MIG-0412,aiid,1590,2026-11-23,decide scope
+MIG-0413,aiid,1593,2026-11-23,decide scope
+MIG-0414,aiid,1594,2026-11-23,decide scope
+MIG-0415,aiid,1618,2026-11-23,decide scope
+MIG-0416,aiid,1622,2026-11-23,decide scope
+MIG-0417,aiid,1627,2026-11-23,decide scope
+MIG-0418,aiid,1630,2026-11-23,decide scope
+MIG-0419,aiid,1640,2026-11-23,decide scope
+MIG-0420,aiid,1649,2026-11-23,decide scope
+MIG-0421,aiid,1659,2026-11-23,decide scope
+MIG-0422,aiid,1661,2026-11-23,decide scope
+MIG-0423,aiid,1662,2026-11-23,decide scope
+MIG-0424,aiid,1663,2026-11-23,decide scope
+MIG-0425,aiid,1671,2026-11-23,decide scope
+MIG-0426,aiid,1676,2026-11-23,decide scope
+MIG-0427,aiid,1687,2026-11-23,decide scope
+MIG-0428,aiid,1692,2026-11-23,decide scope
+MIG-0429,aiid,1693,2026-11-23,decide scope
+MIG-0430,aiid,1702,2026-11-23,decide scope
+MIG-0431,aiid,1707,2026-11-23,decide scope
+MIG-0432,aiid,1710,2026-11-23,decide scope
+MIG-0433,aiid,1714,2026-11-23,decide scope
+MIG-0434,aiid,1715,2026-11-23,decide scope
+MIG-0435,aiid,1719,2026-11-23,decide scope
+MIG-0436,aiid,1728,2026-11-23,decide scope
+MIG-0437,aiid,1745,2026-11-23,decide scope
+MIG-0438,aiid,1791,2026-11-23,decide scope
+MIG-0439,aiid,1795,2026-11-23,decide scope
+MIG-0440,aiid,1805,2026-11-23,decide scope
+MIG-0441,aiid,1815,2026-11-23,decide scope
+MIG-0442,aiid,1817,2026-11-23,decide scope
+MIG-0443,aiid,1823,2026-11-23,decide scope

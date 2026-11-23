@@ -44,6 +44,7 @@ carry, or a write-up the curator adds by hand with --manual.
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import hashlib
 import inspect
@@ -77,16 +78,18 @@ import derive as rules  # noqa: E402
 # Every path the stages read or write. They live in module globals, set in one place.
 # The test run (testenv.py) loads a second instance of this module and points that
 # one at a scratch workspace; this instance is set once, here, and never re-pointed.
-PATH_NAMES = ("MVP", "ROOT", "REGISTRY", "TAXONOMY", "RAW", "RECORDS", "INCIDENTS",
-              "PROPOSALS", "CONTEXT", "STATE", "OUT", "RUN_FILE", "RUNS", "REVIEW")
+PATH_NAMES = ("MVP", "ROOT", "REGISTRY", "MIG_KEYS", "TAXONOMY", "RAW", "RECORDS",
+              "INCIDENTS", "PROPOSALS", "CONTEXT", "STATE", "OUT", "RUN_FILE", "RUNS",
+              "REVIEW")
 
 
 def set_paths(mvp_dir):
-    global MVP, ROOT, REGISTRY, TAXONOMY, RAW, RECORDS, INCIDENTS, PROPOSALS, \
+    global MVP, ROOT, REGISTRY, MIG_KEYS, TAXONOMY, RAW, RECORDS, INCIDENTS, PROPOSALS, \
         CONTEXT, STATE, OUT, RUN_FILE, RUNS, REVIEW
     MVP = Path(mvp_dir).resolve()
     ROOT = MVP.parent
     REGISTRY = MVP / "registry" / "sources.csv"
+    MIG_KEYS = MVP / "registry" / "mig_keys.csv"   # our key, MIG-nnnn, per record
     TAXONOMY = MVP / "taxonomy"
     RAW = MVP / "raw"
     RECORDS = MVP / "records"
@@ -114,7 +117,7 @@ SECTIONS = ["Context", "What happened", "Mechanism", "Agents and interaction",
             "Response", "Verification notes", "Sources"]
 
 REQUIRED_KEYS = [
-    "id", "title", "canonical_source", "sources", "occurrence_date",
+    "mig_key", "source_key", "title", "canonical_source", "sources", "occurrence_date",
     "occurrence_date_precision", "first_seen", "last_verified", "systems",
     "actor_count", "interaction_kind", "evidence_type", "multi_agent",
     "multi_agent_basis", "multi_agent_label_source", "external_labels",
@@ -327,6 +330,158 @@ def parse_iso(value):
     return False, None
 
 
+# ----------------------------------------------------------------- MIG keys
+#
+# Two keys name an incident. `source_key` is the key its source uses (AIID's incident
+# number, AI Village's AIV-02), blank when the source has none (a hand-added record).
+# `mig_key`, MIG-nnnn, is ours: given once to every record that reaches the decide-scope
+# sheet, never changed and never given again. mvp/registry/mig_keys.csv holds one row per
+# key: the record it was given to. A dossier carries the key of its canonical record. A
+# record a dossier also cites is shown under the dossier's key; a key it had before is
+# retired, kept in the registry so old log rows still resolve, and never reused.
+# Internally the pipeline still joins its own files on record_key, the source pair.
+
+MIG_COLS = ["mig_key", "source_id", "source_record_id", "assigned_on", "basis"]
+MIG_PATTERN = r"MIG-\d{4}"
+
+
+def source_key(source_id, source_record_id):
+    """The key the source itself uses for the record; blank for a hand-added record,
+    whose id is our own slug."""
+    return "" if source_id == MANUAL else str(source_record_id)
+
+
+def read_mig_registry():
+    return read_csv(MIG_KEYS) if MIG_KEYS.exists() else []
+
+
+def canonical_pair(meta):
+    """The source pair a dossier's mig_key belongs to: its first source of the canonical
+    source."""
+    refs = [(s.get("source_id"), str(s.get("record_id"))) for s in meta.get("sources") or []]
+    return next((r for r in refs if r[0] == meta.get("canonical_source")),
+                refs[0] if refs else None)
+
+
+def mig_index():
+    """{pair: mig_key} for every record that has a key, and {mig_key: pair} for every key
+    ever given (a dossier's key -> its canonical pair). A record a dossier cites shows
+    under the dossier's key."""
+    by_pair, by_key = {}, {}
+    for r in read_mig_registry():
+        pair = (r["source_id"], str(r["source_record_id"]))
+        by_pair.setdefault(pair, r["mig_key"])
+        by_key[r["mig_key"]] = pair
+    for path in all_dossiers():
+        meta, _ = read_dossier(path)
+        key = meta.get("mig_key") or path.stem
+        for s in meta.get("sources") or []:
+            by_pair[(s.get("source_id"), str(s.get("record_id")))] = key
+        pair = canonical_pair(meta)
+        if pair and key not in by_key:
+            by_key[key] = pair
+    return by_pair, by_key
+
+
+def mig_key_of(pair, index=None):
+    by_pair, _ = index or mig_index()
+    return by_pair.get(tuple(pair), "")
+
+
+def next_mig_number(index=None):
+    by_pair, by_key = index or mig_index()
+    used = [int(k[4:]) for k in list(by_key) + list(by_pair.values())
+            if re.fullmatch(MIG_PATTERN, k or "")]
+    return max(used, default=0) + 1
+
+
+def assign_mig_keys(pairs, basis="decide scope"):
+    """Give a MIG key to each pair that has none, in record order, and append them to the
+    registry. Returns {pair: new key}."""
+    index = mig_index()
+    by_pair, _ = index
+    todo = sorted({tuple(p) for p in pairs if tuple(p) not in by_pair},
+                  key=lambda p: natural(record_key(*p)))
+    if not todo:
+        return {}
+    n = next_mig_number(index)
+    new = {}
+    MIG_KEYS.parent.mkdir(parents=True, exist_ok=True)
+    fresh = not MIG_KEYS.exists()
+    with open(MIG_KEYS, "a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=MIG_COLS, lineterminator="\n")
+        if fresh:
+            w.writeheader()
+        for pair in todo:
+            key = f"MIG-{n:04d}"
+            n += 1
+            new[pair] = key
+            w.writerow({"mig_key": key, "source_id": pair[0], "source_record_id": pair[1],
+                        "assigned_on": TODAY, "basis": basis})
+    return new
+
+
+def keyed_pair(fields, by_key):
+    """The record a row names by mig_key, source_id and source_key: by the source's own
+    key when there is one (a record a dossier also cites shows under the dossier's key,
+    so the key alone would name the dossier's canonical record), else by the MIG key
+    (a hand-added record has no source key). None when neither resolves."""
+    sid, skey = fields.get("source_id", ""), fields.get("source_key", "")
+    if sid and skey:
+        return (sid, str(skey))
+    return by_key.get(fields.get("mig_key", ""))
+
+
+def key_fields(pair, index=None):
+    """The three columns a person sees for a record: mig_key, source_id, source_key."""
+    return {"mig_key": mig_key_of(pair, index), "source_id": pair[0],
+            "source_key": source_key(*pair)}
+
+
+def check_mig_registry(problems):
+    """Every key once, of the MIG pattern, given to one record that exists; every record
+    one key at most; every dossier's key in the registry, given to one of the records the
+    dossier cites (its canonical record when it was made; a source linked later may
+    become canonical without changing the key)."""
+    rel = MIG_KEYS.relative_to(ROOT) if MIG_KEYS.is_relative_to(ROOT) else MIG_KEYS
+    if not MIG_KEYS.exists():
+        if all_dossiers():
+            problems.append(f"{rel}: missing; every dossier's mig_key must be in it")
+        return
+    with open(MIG_KEYS, newline="", encoding="utf-8") as f:
+        header = next(csv.reader(f), [])
+    if header != MIG_COLS:
+        problems.append(f"{rel}: the header is {header}, it must be {MIG_COLS}")
+        return
+    records = latest_records()
+    keys, pairs = {}, {}
+    for n, r in enumerate(read_csv(MIG_KEYS), 2):
+        pair = (r["source_id"], str(r["source_record_id"]))
+        if not re.fullmatch(MIG_PATTERN, r["mig_key"]):
+            problems.append(f"{rel}:{n}: {r['mig_key']!r} is not MIG-nnnn")
+        if r["mig_key"] in keys:
+            problems.append(f"{rel}:{n}: {r['mig_key']} is given twice")
+        if pair in pairs:
+            problems.append(f"{rel}:{n}: {record_key(*pair)} already has "
+                            f"{pairs[pair]}; a record has one key")
+        if pair not in records:
+            problems.append(f"{rel}:{n}: {record_key(*pair)} is no record")
+        if not parse_iso(r["assigned_on"])[0]:
+            problems.append(f"{rel}:{n}: assigned_on {r['assigned_on']!r} is not a date")
+        keys[r["mig_key"]] = pair
+        pairs.setdefault(pair, r["mig_key"])
+    for path in all_dossiers():
+        meta, _ = read_dossier(path)
+        key = meta.get("mig_key")
+        cited = {(s.get("source_id"), str(s.get("record_id")))
+                 for s in meta.get("sources") or []}
+        if key not in keys:
+            problems.append(f"{path.relative_to(ROOT)}: mig_key {key!r} is not in {rel}")
+        elif keys[key] not in cited:
+            problems.append(f"{path.relative_to(ROOT)}: mig_key {key} was given to "
+                            f"{record_key(*keys[key])}, which the dossier does not cite")
+
+
 # ----------------------------------------------------------------- dossiers
 
 def dossier_path(doc_id):
@@ -345,16 +500,25 @@ def read_dossier(path):
     return meta, body
 
 
-def write_dossier(path, meta, sections):
+def frontmatter_text(meta):
     ordered = {k: meta[k] for k in REQUIRED_KEYS if k in meta}
     ordered.update({k: v for k, v in meta.items() if k not in ordered})
     fm = yaml.safe_dump(ordered, sort_keys=False, allow_unicode=True,
                         default_flow_style=False, width=88)
-    parts = [f"---\n{fm}---\n"]
+    return f"---\n{fm}---\n"
+
+
+def write_dossier(path, meta, sections):
+    parts = [frontmatter_text(meta)]
     for name in SECTIONS:
         parts.append(f"\n## {name}\n\n{sections.get(name, '').rstrip()}\n")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(parts), encoding="utf-8")
+
+
+def write_dossier_body(path, meta, body):
+    """Write the frontmatter again and keep the body exactly as it is."""
+    path.write_text(frontmatter_text(meta) + body, encoding="utf-8")
 
 
 def all_dossiers():
@@ -1166,7 +1330,7 @@ def instances_due():
         seen.update(refs)
         out.append({"record_key": record_key(*key), "source_id": key[0],
                     "source_record_id": key[1], "why": "dossier",
-                    "dossier": meta.get("id", path.stem)})
+                    "dossier": meta.get("mig_key", path.stem)})
     for key, v in sorted(read_verdicts().items()):
         said = person.get(record_key(*key))
         if said == "in":
@@ -1223,9 +1387,14 @@ def promote_one(ref, records, context, made, force=False):
     already exists. Raises PromoteRefused for a record it will not scaffold: the CLI
     turns that into die(); the review step reports it and goes on. `made` holds the
     ids made earlier in the same call, so two hand-added records do not share an id."""
+    if re.fullmatch(MIG_PATTERN, ref):
+        pair = mig_index()[1].get(ref)
+        if pair is None:
+            raise PromoteRefused(f"no record has the key {ref}")
+        ref = record_key(*pair)
     if ":" not in ref:
         raise PromoteRefused(
-            f"promote takes a record_key, <source_id>:<record_id>, got {ref!r}")
+            f"promote takes a MIG key or <source_id>:<record_id>, got {ref!r}")
     sid, rid = split_key(ref)
     rec = records.get((sid, rid))
     if rec is None:
@@ -1236,14 +1405,17 @@ def promote_one(ref, records, context, made, force=False):
         raise PromoteRefused(
             f"{ref} is not ready to classify ({scope['why']}). Enrich it first - "
             f"see mvp/docs/context_layer.md - or pass --force to scaffold anyway.")
-    doc_id = f"AIID-{int(rid):04d}" if sid == "aiid" else next_mig_id(made)
+    # The record's own MIG key, given when it reached the decide-scope sheet; a record
+    # promoted by hand without a verdict (a hand-added one) gets its key now.
+    doc_id = mig_key_of((sid, rid)) or assign_mig_keys([(sid, rid)], "promote")[(sid, rid)]
     path = dossier_path(doc_id)
     if path.exists():
         info(f"  skip  {doc_id}: already exists")
         return None
     ok, precision = parse_iso(rec.get("date") or "")
     meta = {
-        "id": doc_id,
+        "mig_key": doc_id,
+        "source_key": source_key(sid, rid),
         "title": rec.get("title") or "",
         "canonical_source": sid,
         "sources": [{"source_id": sid, "record_id": rid,
@@ -1275,14 +1447,6 @@ def promote_one(ref, records, context, made, force=False):
     return doc_id
 
 
-def next_mig_id(pending):
-    used = {p.stem for p in all_dossiers()} | set(pending)
-    n = 1
-    while f"MIG-{n:04d}" in used:
-        n += 1
-    return f"MIG-{n:04d}"
-
-
 # ------------------------------------------------------------ review sheets
 #
 # Two spreadsheets in mvp/review/, filled in by a person: sheet 1 decides scope, sheet 2
@@ -1294,12 +1458,14 @@ def next_mig_id(pending):
 SHEETS = {
     "scope": {
         "file": "1_decide_scope.xlsx", "log": "scope_decisions.csv", "title": "Decide scope",
-        "cols": ["record_key", "decision", "reason", "decided_on", "sheet_generated_on"],
+        "cols": ["mig_key", "source_id", "source_key", "decision", "reason", "decided_on",
+                 "sheet_generated_on"],
         "allowed": ("in", "out", "unclear"), "field": "decision", "text": "reason",
     },
     "promote": {
         "file": "2_promote.xlsx", "log": "promote_decisions.csv", "title": "Promote",
-        "cols": ["record_key", "decision", "note", "decided_on", "sheet_generated_on"],
+        "cols": ["mig_key", "source_id", "source_key", "decision", "note", "decided_on",
+                 "sheet_generated_on"],
         "allowed": ("yes", "no"), "field": "promote", "text": "note",
     },
 }
@@ -1310,7 +1476,7 @@ OPENPYXL_HINT = "install openpyxl: pip install -r requirements.txt"
 NOTHING_LEFT = "(nothing is left on this sheet)"
 # Decisions logged since the current update run began (an update run resets it): the
 # review step can run more than once in a run, and says the total.
-REVIEW_DECIDED = {"scope": 0, "promote": 0}
+REVIEW_DECIDED = {"scope": 0, "promote": 0, "edit": 0}
 HAND_ADDED_REASON = "added by hand: in scope on the curator's word"
 
 
@@ -1320,8 +1486,17 @@ def natural(key):
 
 
 def read_log(kind):
+    """The rows of a decision log, each with its record_key added: the log names a
+    record by its MIG key, the pipeline joins its files on the source pair."""
     path = REVIEW / SHEETS[kind]["log"]
-    return read_csv(path) if path.exists() else []
+    if not path.exists():
+        return []
+    _, by_key = mig_index()
+    rows = read_csv(path)
+    for r in rows:
+        pair = keyed_pair(r, by_key)
+        r["record_key"] = record_key(*pair) if pair else ""
+    return rows
 
 
 def newest_by_key(rows):
@@ -1344,9 +1519,12 @@ def append_log(kind, rows):
     cfg = SHEETS[kind]
     if not rows:
         return
+    index = mig_index()
     with open(REVIEW / cfg["log"], "a", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=cfg["cols"], lineterminator="\n")
-        w.writerows({c: r.get(c, "") for c in cfg["cols"]} for r in rows)
+        for r in rows:
+            r = {**r, **key_fields(split_key(r["record_key"]), index)}
+            w.writerow({c: r.get(c, "") for c in cfg["cols"]})
 
 
 def scope_newest(records=None):
@@ -1419,6 +1597,7 @@ def sheet_value(value):
 def scope_sheet_rows(state, records):
     gates = proposal_rows("extract_gate")
     asked = set(state["scope_ask"])
+    index = mig_index()
     rows = []
     for key in state["scope"]:
         pair = split_key(key)
@@ -1441,7 +1620,7 @@ def scope_sheet_rows(state, records):
             "evidence_type": labels.get("evidence_type") or "",
             "failure_mode": labels.get("failure_mode") or "",
             "instances_presumed": "; ".join(labels.get("instances_presumed") or []),
-            "record_key": key, "ask": "yes" if key in asked else "check",
+            **key_fields(pair, index), "ask": "yes" if key in asked else "check",
             "title": rec.get("title", ""), "date": rec.get("date", ""),
             "url": rec.get("url", ""), "rules_say": say,
             "settled_by_rules": "no" if v.get("status") == "review" else "yes",
@@ -1459,10 +1638,11 @@ def scope_sheet_rows(state, records):
 
 def promote_sheet_rows(state, records):
     rows = []
+    index = mig_index()
     for key in state["promote"]:
         rec = records.get(split_key(key), {})
         log = state["scope_log"][key]
-        rows.append({"record_key": key, "title": rec.get("title", ""),
+        rows.append({**key_fields(split_key(key), index), "title": rec.get("title", ""),
                      "date": rec.get("date", ""), "url": rec.get("url", ""),
                      "decided_in_on": log.get("decided_on") or "added by hand",
                      "scope_reason": log.get("reason", "")})
@@ -1480,7 +1660,7 @@ QUOTED_FIELDS = ["n_ai_agents", "agent_names", "interaction_present", "interacti
                  "setting", "stakes", "environment_controlled_by",
                  "single_agent_counterfactual", "multiplicity_role", "cooperation_occurred",
                  "cooperation_expected", "objective_relation"]
-SCOPE_COLUMNS = (["record_key", "ask", "title", "date", "url", "rules_say", "settled_by_rules",
+SCOPE_COLUMNS = (["mig_key", "source_id", "source_key", "ask", "title", "date", "url", "rules_say", "settled_by_rules",
                   "why_a_person", "confidence", "counterfactual", "by_presumption",
                   "key_quote", "decision", "reason",
                   "is_attack", "presumption_fires", "gate1", "status", "evidence_type",
@@ -1509,7 +1689,12 @@ SCOPE_FIELDS_CHAIN = [
     "",
 ]
 SCOPE_FIELDS = [
-    ("record_key", "record", "source and its record id", "mvp/records/", ""),
+    ("mig_key", "registry", "our key for the record, MIG-nnnn: given when it first "
+     "reached this sheet, never changed, kept by its dossier",
+     "mvp/registry/mig_keys.csv", ""),
+    ("source_id", "record", "the source the record comes from", "mvp/records/", ""),
+    ("source_key", "record", "the key the source itself uses; blank when it has none "
+     "(a hand-added record)", "mvp/records/", ""),
     ("ask", "rules", "does this row need you", "rules_say, confidence",
      "yes if rules_say = in or confidence = low; else check"),
     ("title / date / url", "record", "the record as the source gives it", "mvp/records/", ""),
@@ -1584,9 +1769,9 @@ SCOPE_FIELDS = [
     ("uncertainty_reason", "model", "why the model was unsure, in a sentence", "", ""),
     ("<field>_quote", "model", "the verbatim span the model gave for that answer", "", ""),
 ]
-PROMOTE_COLUMNS = ["record_key", "title", "date", "url", "decided_in_on", "scope_reason",
-                   "promote", "note"]
-SHEET_WIDTHS = {"record_key": 16, "ask": 8, "title": 48, "date": 12, "url": 30, "rules_say": 10,
+PROMOTE_COLUMNS = ["mig_key", "source_id", "source_key", "title", "date", "url",
+                   "decided_in_on", "scope_reason", "promote", "note"]
+SHEET_WIDTHS = {"mig_key": 11, "source_id": 11, "source_key": 14, "ask": 8, "title": 48, "date": 12, "url": 30, "rules_say": 10,
                 "settled_by_rules": 12, "why_a_person": 30, "confidence": 11,
                 "counterfactual": 15, "by_presumption": 12, "key_quote": 60,
                 "decision": 12, "reason": 40, "decided_in_on": 14, "scope_reason": 40,
@@ -1736,12 +1921,13 @@ def read_sheet(kind):
     except Exception as e:  # noqa: BLE001 - a corrupt or half-written file
         raise ValueError(f"{type(e).__name__}: {e}") from None
     head = {str(c.value).strip(): i for i, c in enumerate(ws[1]) if c.value is not None}
-    for need in ("record_key", cfg["field"], cfg["text"]):
+    for need in ("mig_key", cfg["field"], cfg["text"]):
         if need not in head:
             raise ValueError(f"the column {need!r} is gone from the header row")
     generated = ""
     if META_SHEET in wb.sheetnames:
         generated = str(wb[META_SHEET].cell(1, 2).value or "")
+    _, by_key = mig_index()
     out = []
     for n, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
         def cell(name):
@@ -1749,8 +1935,11 @@ def read_sheet(kind):
             return "" if v is None else str(v).strip()
         value = cell(cfg["field"]).lower()
         if value:
-            out.append({"row": n, "record_key": cell("record_key"), "value": value,
-                        "text": cell(cfg["text"])})
+            pair = keyed_pair({c: cell(c) for c in ("mig_key", "source_id", "source_key")
+                               if c in head}, by_key)
+            out.append({"row": n, "mig_key": cell("mig_key"),
+                        "record_key": record_key(*pair) if pair else "",
+                        "value": value, "text": cell(cfg["text"])})
     return generated, out
 
 
@@ -1766,16 +1955,17 @@ def ingest_sheet(kind, listed):
     for r in filled:
         key = r["record_key"]
         if r["value"] not in cfg["allowed"]:
-            bad.append((r["row"], key, f"{r['value']!r} is not one of "
+            bad.append((r["row"], r["mig_key"], f"{r['value']!r} is not one of "
                         + ", ".join(cfg["allowed"])))
         elif key not in listed:
-            bad.append((r["row"], key, "this record is not listed for this sheet "
+            bad.append((r["row"], r["mig_key"], "this record is not listed for this sheet "
                         "(unknown, already decided, or already in a dossier)"))
         elif key in seen:
-            bad.append((r["row"], key, "the record is on the sheet twice"))
+            bad.append((r["row"], r["mig_key"], "the record is on the sheet twice"))
         else:
             seen.add(key)
-            good.append({"record_key": key, "decision": r["value"], cfg["text"]: r["text"],
+            good.append({"record_key": key, "mig_key": r["mig_key"],
+                         "decision": r["value"], cfg["text"]: r["text"],
                          "decided_on": TODAY, "sheet_generated_on": generated})
     return good, bad
 
@@ -1787,6 +1977,13 @@ def stage_review():
     sheets."""
     ensure_logs()
     records = latest_records()
+    # Every record that reaches the decide-scope sheet has a MIG key from then on; a
+    # hand-added record, in scope on the curator's word, has one from the start.
+    new_keys = assign_mig_keys(set(read_verdicts()) | {p for p in records if p[0] == MANUAL})
+    if new_keys:
+        info(f"  ok    gave {len(new_keys)} record(s) a MIG key "
+             f"({min(new_keys.values())} to {max(new_keys.values())}) in "
+             f"{MIG_KEYS.relative_to(ROOT)}")
     state = review_state(records)
     listed = {"scope": set(state["scope"]), "promote": set(state["promote"])}
     decided = {"scope": 0, "promote": 0}
@@ -1809,7 +2006,7 @@ def stage_review():
                 continue
             good, bad = got
             for row, key, why in bad:
-                info(f"  warn  {cfg['file']} row {row} {key or '(no record_key)'}: {why}. "
+                info(f"  warn  {cfg['file']} row {row} {key or '(no mig_key)'}: {why}. "
                      f"Not logged; the record comes back on the new sheet.")
             if kind == "promote":
                 good = promote_yes(good, records)
@@ -1824,7 +2021,21 @@ def stage_review():
                      f"({detail[kind]}) in mvp/review/{cfg['log']}")
             elif not bad:
                 info(f"  note  {cfg['file']}: nothing filled in")
-    # 3. write both sheets again from the state now
+        # 2. sheet 3: the fields a person changed, written into the dossiers
+        try:
+            edits = apply_dossier_edits()
+        except ValueError as e:
+            unreadable.add("edit")
+            info(f"  FAIL  {EDIT['file']} cannot be read ({e}). It is left as it is and "
+                 f"not rewritten; fix or delete it.")
+        else:
+            if edits:
+                decided["edit"] = len(edits)
+                info(f"  ok    {EDIT['file']}: logged {len(edits)} field(s) in "
+                     f"mvp/review/{EDIT['log']}")
+            elif edits is not None:
+                info(f"  note  {EDIT['file']}: nothing edited")
+    # 3. write the sheets again from the state now
     state = review_state(records)
     if openpyxl is not None:
         for kind, columns, rows, lines, fields in (
@@ -1834,10 +2045,19 @@ def stage_review():
                  PROMOTE_HELP, None)):
             if kind not in unreadable:
                 write_sheet(kind, columns, rows, lines, fields)
+        if "edit" not in unreadable:
+            write_edit_sheet(edit_sheet_rows())
     # 4. the numbers
+    edited = decided.pop("edit", 0)
+    REVIEW_DECIDED["edit"] += edited
     for kind, n in decided.items():
         REVIEW_DECIDED[kind] += n
-    result = {"openpyxl": openpyxl is not None}
+    result = {"openpyxl": openpyxl is not None,
+              "edit": {"decided": edited, "left": len(all_dossiers()),
+                       "path": str((REVIEW / EDIT["file"]).relative_to(ROOT))}}
+    info(f"  ok    edit dossiers fields set this run {edited:4d}   "
+         f"dossiers {len(all_dossiers()):4d}   "
+         + (result["edit"]["path"] if openpyxl is not None else "no sheet: openpyxl missing"))
     for kind, label in (("scope", "decide scope"), ("promote", "promote")):
         cfg = SHEETS[kind]
         left = len(state[kind])
@@ -1866,11 +2086,11 @@ def promote_yes(rows, records):
         try:
             doc_id = promote_one(row["record_key"], records, context, made)
         except PromoteRefused as e:
-            info(f"  warn  promote {row['record_key']}: {e} Its yes is not logged; it "
+            info(f"  warn  promote {row['mig_key']}: {e} Its yes is not logged; it "
                  f"stays on the sheet.")
             continue
         if doc_id is None:
-            info(f"  warn  promote {row['record_key']}: a dossier of that name already "
+            info(f"  warn  promote {row['mig_key']}: a dossier of that name already "
                  f"exists. Its yes is not logged; it stays on the sheet.")
             continue
         made.append(doc_id)
@@ -1884,7 +2104,9 @@ def promote_yes(rows, records):
 def check_review_logs(records, problems, warnings):
     """Both decision logs: header, values, keys, dates; a promote yes rests on a scope
     decision `in`; a scope decision against a dossier."""
-    keys = {record_key(*p) for p in records}
+    by_pair, by_key = mig_index()
+    mine = {(r["source_id"], str(r["source_record_id"])): r["mig_key"]
+            for r in read_mig_registry()}
     rel = lambda cfg: (REVIEW / cfg["log"]).relative_to(ROOT)
     bad_header = False
     for kind, cfg in SHEETS.items():
@@ -1902,8 +2124,17 @@ def check_review_logs(records, problems, warnings):
             if row["decision"] not in cfg["allowed"]:
                 problems.append(f"{where}: decision {row['decision']!r} is not one of "
                                 f"{list(cfg['allowed'])}")
-            if row["record_key"] not in keys:
-                problems.append(f"{where}: {row['record_key']!r} is no record")
+            pair = keyed_pair(row, by_key)
+            if pair is None:
+                problems.append(f"{where}: {row['mig_key']!r} is no MIG key and the row "
+                                f"has no source key")
+            elif pair not in records:
+                problems.append(f"{where}: {row['source_id']} {row['source_key']!r} "
+                                f"({row['mig_key']}) is no record")
+            elif row["mig_key"] not in (by_pair.get(pair), mine.get(pair)):
+                problems.append(f"{where}: {row['mig_key']} is neither the key of "
+                                f"{row['source_id']} {row['source_key']!r} "
+                                f"({by_pair.get(pair)}) nor one it was given")
             for col in ("decided_on", "sheet_generated_on"):
                 if not parse_iso(row[col])[0]:
                     problems.append(f"{where}: {col} {row[col]!r} is not an ISO date")
@@ -1913,7 +2144,8 @@ def check_review_logs(records, problems, warnings):
     promo = newest_by_key(read_log("promote"))
     for key, row in sorted(promo.items()):
         if row["decision"] == "yes" and scope.get(key, {}).get("decision") != "in":
-            problems.append(f"mvp/review/promote_decisions.csv: {key} has a promote yes "
+            problems.append(f"mvp/review/promote_decisions.csv: {row['mig_key']} has a "
+                            f"promote yes "
                             f"but no newest scope decision `in`")
     real = newest_by_key(read_log("scope"))
     for path in all_dossiers():
@@ -1922,14 +2154,435 @@ def check_review_logs(records, problems, warnings):
             key = record_key(s.get("source_id"), str(s.get("record_id")))
             decision = real.get(key, {}).get("decision")
             rel_d = path.relative_to(ROOT)
+            said = f"{s.get('source_id')} {source_key(s.get('source_id'), s.get('record_id'))}"
             if decision == "out" and meta.get("multi_agent") is True:
                 problems.append(f"{rel_d}: multi_agent is true, but the newest scope "
-                                f"decision for {key} is `out`. Decide again on sheet 1, or "
-                                f"fix the dossier.")
+                                f"decision for its source {said} is `out`. Decide again "
+                                f"on sheet 1, or fix the dossier.")
             elif decision == "in" and meta.get("multi_agent") is False:
                 warnings.append(f"{rel_d}: multi_agent is false; the scope decision for "
-                                f"{key} was `in`. The dossier is the later, fuller "
-                                f"judgement.")
+                                f"its source {said} was `in`. The dossier is the later, "
+                                f"fuller judgement.")
+    check_edit_log(problems, warnings)
+
+
+# ------------------------------------------------------- sheet 3: edit dossiers
+#
+# One row per dossier, prefilled with what the dossier says now. A person changes a
+# cell; the next review run writes that field to the dossier, adds its name to the
+# dossier's `set_by_person`, and logs it, one row per field, in dossier_edits.csv. A cell
+# left as it was is not an edit. The values the sheet was written with are kept in a
+# hidden tab, so an edit to a field the dossier has changed since is refused, never
+# written over it.
+
+EDIT = {"file": "3_edit_dossiers.xlsx", "log": "dossier_edits.csv", "title": "Edit dossiers"}
+EDIT_LOG_COLS = ["mig_key", "field", "old_value", "new_value", "decided_on",
+                 "sheet_generated_on"]
+SNAPSHOT_SHEET = "_snapshot"
+SET_BY_PERSON = "set_by_person"
+# The dossier fields sheet 3 sets, and what kind of value each holds.
+EDIT_FIELDS = {
+    "title": "text", "multi_agent": "scope", "failure_mode": "choice",
+    "instances": "list", "instances_presumed": "list", "evidence_type": "choice",
+    "verification": "choice", "last_verified": "date", "actor_count": "text",
+    "interaction_kind": "choice", "occurrence_date": "date", "systems": "list",
+}
+# Free text, blank on every new sheet. scope_reason goes into multi_agent_basis; a
+# verification_note is added to the dossier's ## Verification notes.
+EDIT_NOTES = ["scope_reason", "verification_note"]
+PERSON_SETTABLE = list(EDIT_FIELDS) + ["multi_agent_basis"]
+EDIT_COLUMNS = ["mig_key", "source_id", "source_key", "title", "url", SET_BY_PERSON, "multi_agent", "scope_reason",
+                "failure_mode", "failure_mode_source", "instances", "instances_presumed",
+                "evidence_type", "verification", "last_verified", "verification_note",
+                "actor_count", "interaction_kind", "occurrence_date", "systems"]
+EDIT_WIDTHS = {"mig_key": 11, "source_id": 11, "source_key": 14, "title": 44, "url": 26, SET_BY_PERSON: 18, "multi_agent": 11,
+               "scope_reason": 34, "failure_mode": 10, "failure_mode_source": 20,
+               "instances": 14, "instances_presumed": 12, "evidence_type": 13,
+               "verification": 16, "last_verified": 12, "verification_note": 40,
+               "actor_count": 10, "interaction_kind": 20, "occurrence_date": 12,
+               "systems": 30}
+EDIT_HELP = [
+    "Edit dossiers: change what a dossier says, and have it recorded as yours.",
+    "One row per dossier, filled in with what the dossier says now. The yellow columns "
+    "are yours to change. Change a cell and the next run writes it to the dossier; leave "
+    "it as it is and nothing happens.",
+    "Every field you change is named in the dossier's `set_by_person` list, and logged "
+    "with its old and new value in mvp/review/dossier_edits.csv. Column set_by_person "
+    "shows what you have already set.",
+    "multi_agent: true, false or unclear. This is your scope verdict; it also sets "
+    "multi_agent_label_source to ours. Write why in scope_reason; it goes into "
+    "multi_agent_basis.",
+    "failure_mode: FM1, FM2, FM3, or empty for none. Setting it (or emptying it) makes "
+    "failure_mode_source ours. On an attack admitted by the presumption, empty "
+    "instances_presumed when you set a failure mode.",
+    "instances and instances_presumed: instance ids separated by ';' "
+    "(mvp/taxonomy/instances.csv). instances_presumed is empty or 'I28; I29'.",
+    "verification: verified, partially_verified or unverified. Raising it sets "
+    "last_verified to today unless you fill last_verified yourself. Write what you "
+    "checked in verification_note; it is added to ## Verification notes with the date.",
+    "Dates are ISO: 2026, 2026-06 or 2026-06-18. Lists are separated by ';'.",
+    "A row that breaks a dossier rule (the same rules as run.py check) is not written: "
+    "the run says why, and the new sheet shows the dossier as it is, so enter it again.",
+    "If the dossier was changed by someone else since this sheet was written, your edit "
+    "to that field is refused, not written over it. Run review again for a fresh sheet.",
+    "Save the file, then run `python mvp/pipeline/run.py review` or press Continue on "
+    "the page.",
+]
+
+
+def edit_choices():
+    fms = [r["risk_id"] for r in read_csv(TAXONOMY / "risks.csv")
+           if r["risk_id"].startswith("FM")]
+    return {"multi_agent": ["true", "false", "unclear"], "failure_mode": fms,
+            "evidence_type": EVIDENCE_TYPES, "verification": VERIFICATION,
+            "interaction_kind": INTERACTION_KINDS}
+
+
+def edit_text(field, value):
+    """A dossier value as sheet text: the same value always gives the same text."""
+    if field == "multi_agent":
+        if value is True:
+            return "true"
+        if value is False:
+            return "false"
+        return str(value or "unclear")
+    if EDIT_FIELDS.get(field) == "list":
+        return "; ".join(str(v) for v in value or [])
+    return "" if value is None else str(value)
+
+
+def cell_text(value):
+    """What a cell holds, as text. Excel turns a typed date into a date and a typed year
+    into a number; both come back as the text they were typed as."""
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def parse_edit(field, text, choices):
+    """Sheet text -> (dossier value, its sheet text). Raises ValueError."""
+    kind = EDIT_FIELDS[field]
+    if kind == "scope":
+        if text.lower() not in choices[field]:
+            raise ValueError(f"multi_agent {text!r} is not one of true, false, unclear")
+        value = {"true": True, "false": False}.get(text.lower(), "unclear")
+    elif kind == "choice":
+        if not text and field == "failure_mode":
+            value = None
+        elif text not in choices[field]:
+            raise ValueError(f"{field} {text!r} is not one of {', '.join(choices[field])}")
+        else:
+            value = text
+    elif kind == "list":
+        value = [p.strip() for p in text.split(";") if p.strip()]
+        if field.startswith("instances"):
+            value = [v.upper() for v in value]
+    elif kind == "date":
+        if not text and field == "last_verified":
+            value = ""
+        elif not parse_iso(text)[0]:
+            raise ValueError(f"{field} {text!r} is not an ISO date (2026, 2026-06 or "
+                             f"2026-06-18)")
+        else:
+            value = text
+    else:
+        if not text and field == "title":
+            raise ValueError("title is empty")
+        value = int(text) if field == "actor_count" and text.isdigit() else text
+    return value, edit_text(field, value)
+
+
+def edit_sheet_rows():
+    rows = []
+    for path in all_dossiers():
+        meta, _ = read_dossier(path)
+        srcs = meta.get("sources") or []
+        row = {"mig_key": path.stem, "source_id": meta.get("canonical_source") or "",
+               "source_key": meta.get("source_key") or "",
+               "url": srcs[0].get("url", "") if srcs else "",
+               SET_BY_PERSON: "; ".join(meta.get(SET_BY_PERSON) or []),
+               "failure_mode_source": meta.get("failure_mode_source") or ""}
+        for field in EDIT_FIELDS:
+            row[field] = edit_text(field, meta.get(field))
+        rows.append(row)
+    return rows
+
+
+def write_edit_sheet(rows, path=None):
+    """Write sheet 3 to mvp/review/ (or to `path`), with the values it was written with
+    in a hidden tab."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    editable = set(EDIT_FIELDS) | set(EDIT_NOTES)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = EDIT["title"]
+    ws.append(EDIT_COLUMNS)
+    head = PatternFill("solid", start_color="D9E1F2")
+    ask = PatternFill("solid", start_color="FFF2CC")
+    ask_head = PatternFill("solid", start_color="FFD966")
+    for i, name in enumerate(EDIT_COLUMNS, 1):
+        c = ws.cell(1, i)
+        c.font = Font(bold=True)
+        c.fill = ask_head if name in editable else head
+        c.alignment = Alignment(vertical="top", wrap_text=True)
+        ws.column_dimensions[get_column_letter(i)].width = EDIT_WIDTHS.get(name, 14)
+    for row in rows:
+        ws.append([clean(row.get(c, "")) for c in EDIT_COLUMNS])
+    if not rows:
+        ws.append([NOTHING_LEFT] + [""] * (len(EDIT_COLUMNS) - 1))
+    last = max(len(rows) + 1, 2)
+    for r in range(2, last + 1):
+        for i, name in enumerate(EDIT_COLUMNS, 1):
+            c = ws.cell(r, i)
+            c.alignment = Alignment(vertical="top", wrap_text=name in (
+                "title", "scope_reason", "verification_note", "systems"))
+            if name in editable:
+                c.fill = ask
+                c.number_format = "@"   # text: a typed date stays the text typed
+            if name == "url" and str(c.value).startswith(("http://", "https://")):
+                c.hyperlink = str(c.value)
+                c.style = "Hyperlink"
+    ws.freeze_panes = "B2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(EDIT_COLUMNS))}{last}"
+    for field, allowed in edit_choices().items():
+        listed = ",".join(allowed)
+        dv = DataValidation(type="list", formula1=f'"{listed}"', allow_blank=True,
+                            showErrorMessage=True, errorTitle="Not a choice",
+                            error=f"Pick one of: {listed}.")
+        ws.add_data_validation(dv)
+        col = get_column_letter(EDIT_COLUMNS.index(field) + 1)
+        dv.add(f"{col}2:{col}{last}")
+    hs = wb.create_sheet(HELP_SHEET)
+    hs.column_dimensions["A"].width = 110
+    for i, line in enumerate(EDIT_HELP, 1):
+        hs.cell(i, 1, line).alignment = Alignment(wrap_text=True, vertical="top")
+    hs.cell(1, 1).font = Font(bold=True)
+    snap = wb.create_sheet(SNAPSHOT_SHEET)
+    snap.append(["mig_key"] + list(EDIT_FIELDS))
+    for row in rows:
+        snap.append([row["mig_key"]] + [clean(row.get(f, "")) for f in EDIT_FIELDS])
+    snap.sheet_state = "hidden"
+    meta = wb.create_sheet(META_SHEET)
+    meta.append(["generated_on", TODAY])
+    meta.append(["sheet", "edit"])
+    meta.sheet_state = "hidden"
+    wb.properties.title = f"{EDIT['title']} (generated {TODAY})"
+    REVIEW.mkdir(parents=True, exist_ok=True)
+    path = Path(path) if path else REVIEW / EDIT["file"]
+    tmp = path.with_name(path.name + ".tmp")
+    wb.save(tmp)
+    os.replace(tmp, path)
+    return path
+
+
+def read_edit_sheet():
+    """(generated_on, rows, snapshot), or None when there is no sheet. A row is
+    {row, id, cells: {column: text}}; the snapshot is {id: {field: text}}, the values
+    the sheet was written with. Raises ValueError for a file that cannot be read."""
+    path = REVIEW / EDIT["file"]
+    if not path.exists():
+        return None
+    try:
+        wb = openpyxl.load_workbook(path, data_only=True)
+        ws, sw = wb[EDIT["title"]], wb[SNAPSHOT_SHEET]
+    except Exception as e:  # noqa: BLE001 - a corrupt or half-written file
+        raise ValueError(f"{type(e).__name__}: {e}") from None
+    head = {str(c.value).strip(): i for i, c in enumerate(ws[1]) if c.value is not None}
+    for need in ["mig_key"] + list(EDIT_FIELDS) + EDIT_NOTES:
+        if need not in head:
+            raise ValueError(f"the column {need!r} is gone from the header row")
+    generated = ""
+    if META_SHEET in wb.sheetnames:
+        generated = str(wb[META_SHEET].cell(1, 2).value or "")
+    srows = list(sw.iter_rows(values_only=True))
+    snapshot = {}
+    if srows:
+        shead = [str(h) for h in srows[0]]
+        for r in srows[1:]:
+            if r and r[0]:
+                snapshot[str(r[0])] = {h: cell_text(v) for h, v in zip(shead[1:], r[1:])}
+    rows = []
+    for n, r in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
+        cells = {name: cell_text(r[i] if i < len(r) else None) for name, i in head.items()}
+        if cells.get("mig_key") and cells["mig_key"] != NOTHING_LEFT:
+            rows.append({"row": n, "id": cells["mig_key"], "cells": cells})
+    return generated, rows, snapshot
+
+
+def add_to_section(body, name, text):
+    """The body with `text` added as a paragraph at the end of section `name`. A section
+    holding only the _pending_ placeholder is replaced."""
+    m = re.search(rf"^## {re.escape(name)}[ \t]*\n", body, re.M)
+    if not m:
+        return None
+    nxt = re.search(r"^## ", body[m.end():], re.M)
+    end = m.end() + nxt.start() if nxt else len(body)
+    sec = body[m.end():end].strip()
+    if sec == "_pending_":
+        sec = ""
+    new = "\n" + (sec + "\n\n" if sec else "") + text + "\n" + ("\n" if nxt else "")
+    return body[:m.end()] + new + body[end:]
+
+
+def edit_one(cells, snap, choices):
+    """What one sheet row changes: ({field: (value, text)}, {note: text}, [problems])."""
+    changed, bad = {}, []
+    for field in EDIT_FIELDS:
+        text = cells.get(field, "")
+        was = snap.get(field, "")
+        try:
+            value, canon = parse_edit(field, text, choices)
+        except ValueError as e:
+            # A cell left as the dossier had it is not the person's doing, even when
+            # the dossier's own value would not parse (a scaffold's empty evidence_type).
+            if text != was:
+                bad.append(str(e))
+            continue
+        if canon != was:
+            changed[field] = (value, canon)
+    notes = {k: cells.get(k, "") for k in EDIT_NOTES if cells.get(k, "")}
+    return changed, notes, bad
+
+
+def apply_dossier_edits():
+    """Read sheet 3 and write what a person changed into the dossiers. Returns the log
+    rows written, or None when there is no sheet. Raises ValueError for a sheet that
+    cannot be read."""
+    got = read_edit_sheet()
+    if got is None:
+        return None
+    generated, rows, snapshot = got
+    choices = edit_choices()
+    env, seen, logged = None, set(), []
+    for r in rows:
+        doc_id, cells = r["id"], r["cells"]
+        where = f"{EDIT['file']} row {r['row']} {doc_id}"
+        if doc_id in seen:
+            info(f"  warn  {where}: the dossier is on the sheet twice; only the first "
+                 f"row is read")
+            continue
+        seen.add(doc_id)
+        snap = snapshot.get(doc_id)
+        if snap is None:
+            info(f"  warn  {where}: not a row the sheet was written with; not read")
+            continue
+        changed, notes, bad = edit_one(cells, snap, choices)
+        if bad:
+            info(f"  warn  {where}: {'; '.join(bad)}. Nothing in this row is written; "
+                 f"the new sheet shows the dossier as it is.")
+            continue
+        if not changed and not notes:
+            continue
+        path = dossier_path(doc_id)
+        if not path.exists():
+            info(f"  warn  {where}: there is no such dossier any more (renamed?); not "
+                 f"written")
+            continue
+        meta, body = read_dossier(path)
+        moved = [f for f in changed
+                 if cell_text(clean(edit_text(f, meta.get(f)))) != snap.get(f, "")]
+        if moved:
+            info(f"  warn  {where}: the dossier's {', '.join(moved)} changed after the "
+                 f"sheet was written; nothing in this row is written over it. Enter it "
+                 f"again on the new sheet.")
+            continue
+        new, new_body = copy.deepcopy(meta), body
+        entries = [(f, snap.get(f, ""), canon) for f, (_, canon) in changed.items()]
+        for f, (value, _) in changed.items():
+            new[f] = value
+        # what the dossier rules need beside the field a person set
+        if "failure_mode" in changed:
+            new["failure_mode_source"] = "ours"
+        if "occurrence_date" in changed:
+            new["occurrence_date_precision"] = parse_iso(new["occurrence_date"])[1]
+        if ("verification" in changed and "last_verified" not in changed
+                and new["verification"] != "unverified"):
+            new["last_verified"] = TODAY
+        reason = notes.get("scope_reason", "")
+        if "multi_agent" in changed:
+            new["multi_agent_label_source"] = "ours"
+            new["multi_agent_basis"] = (
+                f"Set to `{changed['multi_agent'][1]}` by a person on sheet 3 on {TODAY}"
+                + (f": {reason}" if reason else "; no reason given") + ".")
+        elif reason:
+            new["multi_agent_basis"] = (f"{(meta.get('multi_agent_basis') or '').strip()} "
+                                        f"Reason added by a person on sheet 3 on {TODAY}: "
+                                        f"{reason}").strip()
+        if reason:
+            entries.append(("multi_agent_basis", meta.get("multi_agent_basis") or "",
+                            new["multi_agent_basis"]))
+        note = notes.get("verification_note", "")
+        if note:
+            new_body = add_to_section(body, "Verification notes",
+                                      f"Curator, {TODAY}: {note}")
+            if new_body is None:
+                info(f"  warn  {where}: the dossier has no ## Verification notes section "
+                     f"for the note; nothing in this row is written")
+                continue
+            entries.append(("verification_note", "", note))
+        named = [f for f, _, _ in entries if f in PERSON_SETTABLE]
+        if named:
+            mine = list(meta.get(SET_BY_PERSON) or [])
+            new[SET_BY_PERSON] = mine + [f for f in named if f not in mine]
+        env = env or check_env()
+        before, _ = check_dossier(path, meta, body, env)
+        after, _ = check_dossier(path, new, new_body, env)
+        fresh = [p for p in after if p not in before]
+        if fresh:
+            info(f"  warn  {where}: not written, it would break a dossier rule: "
+                 + " | ".join(p.split(": ", 1)[-1] for p in fresh))
+            continue
+        write_dossier_body(path, new, new_body)
+        for field, old, value in entries:
+            logged.append({"mig_key": doc_id, "field": field, "old_value": old,
+                           "new_value": value, "decided_on": TODAY,
+                           "sheet_generated_on": generated})
+        info(f"  ok    {doc_id}: set {', '.join(f for f, _, _ in entries)}")
+    append_edit_log(logged)
+    return logged
+
+
+def append_edit_log(rows):
+    path = REVIEW / EDIT["log"]
+    REVIEW.mkdir(parents=True, exist_ok=True)
+    new = not path.exists()
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=EDIT_LOG_COLS, lineterminator="\n")
+        if new:
+            w.writeheader()
+        w.writerows({c: r.get(c, "") for c in EDIT_LOG_COLS} for r in rows)
+
+
+def check_edit_log(problems, warnings):
+    """dossier_edits.csv: header, fields, dates; a dossier it names that is gone (it may
+    have been renamed) is a warning."""
+    path = REVIEW / EDIT["log"]
+    if not path.exists():
+        return
+    rel = path.relative_to(ROOT)
+    with open(path, newline="", encoding="utf-8") as f:
+        header = next(csv.reader(f), [])
+    if header != EDIT_LOG_COLS:
+        problems.append(f"{rel}: the header is {header}, it must be {EDIT_LOG_COLS}")
+        return
+    ids = {p.stem for p in all_dossiers()}
+    for n, row in enumerate(read_csv(path), 2):
+        if row["field"] not in PERSON_SETTABLE + ["verification_note"]:
+            problems.append(f"{rel}:{n}: field {row['field']!r} is not one sheet 3 sets")
+        for col in ("decided_on", "sheet_generated_on"):
+            if not parse_iso(row[col])[0]:
+                problems.append(f"{rel}:{n}: {col} {row[col]!r} is not an ISO date")
+        if row["mig_key"] not in ids:
+            warnings.append(f"{rel}:{n}: {row['mig_key']} is no dossier now")
 
 
 # -------------------------------------------------------------------- index
@@ -1939,7 +2592,7 @@ def stage_index():
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / "incident_index.csv"
     with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()) if rows else ["id"])
+        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()) if rows else ["mig_key"])
         w.writeheader()
         w.writerows(rows)
     state = pipeline_state(rows)
@@ -1958,7 +2611,8 @@ def index_rows():
         meta, _ = read_dossier(path)
         sources = meta.get("sources") or []
         rows.append({
-            "id": meta.get("id", ""),
+            "mig_key": meta.get("mig_key", ""),
+            "source_key": meta.get("source_key") or "",
             "title": meta.get("title", ""),
             "occurrence_date": meta.get("occurrence_date", ""),
             "date_precision": meta.get("occurrence_date_precision", ""),
@@ -1977,7 +2631,7 @@ def index_rows():
             "last_verified": meta.get("last_verified") or "",
             "path": str(path.relative_to(ROOT)),
         })
-    rows.sort(key=lambda r: (r["occurrence_date"], r["id"]))
+    rows.sort(key=lambda r: (r["occurrence_date"], r["mig_key"]))
     return rows
 
 
@@ -2225,9 +2879,10 @@ def map_flow(reg, records, queue, context, index_rows):
     dossier_of, dmeta = {}, {}
     for path in all_dossiers():
         meta, _ = read_dossier(path)
-        dmeta[meta.get("id", path.stem)] = meta
+        dmeta[meta.get("mig_key", path.stem)] = meta
         for s in meta.get("sources") or []:
-            dossier_of[(s.get("source_id"), str(s.get("record_id")))] = meta.get("id", path.stem)
+            dossier_of[(s.get("source_id"), str(s.get("record_id")))] = \
+                meta.get("mig_key", path.stem)
     in_dossiers = to_dossier | derived_att
     scope_word = {True: "in", False: "out"}
     d_scope = {"in": 0, "out": 0, "unclear": 0}
@@ -2686,8 +3341,6 @@ def aiid_snapshot():
 
 def stage_check():
     problems = []
-    taxonomy_instances = {r["instance_id"] for r in read_csv(TAXONOMY / "instances.csv")}
-    risks = {r["risk_id"] for r in read_csv(TAXONOMY / "risks.csv")}
     reg = registry()
     records = latest_records()
     seen_ids = set()
@@ -2709,115 +3362,25 @@ def stage_check():
             problems.append(f"{frozen_rel}: {key} is dated {RECENT_FROM} or later, so it "
                             f"is queued as recent and does not belong on the frozen list")
 
+    # --- every dossier, one at a time (check_dossier) -----------------------
+    context = load_context()
+    env = check_env(records, reg, context)
+    warnings = []
     for path in all_dossiers():
-        rel = path.relative_to(ROOT)
         meta, body = read_dossier(path)
-
-        for key in REQUIRED_KEYS:
-            if key not in meta:
-                problems.append(f"{rel}: missing frontmatter key {key!r}")
-
-        doc_id = meta.get("id", "")
-        if doc_id != path.stem:
-            problems.append(f"{rel}: id {doc_id!r} does not match the filename")
+        doc_id = meta.get("mig_key", "")
         if doc_id in seen_ids:
-            problems.append(f"{rel}: duplicate id {doc_id!r}")
+            problems.append(f"{path.relative_to(ROOT)}: duplicate mig_key {doc_id!r}")
         seen_ids.add(doc_id)
-        if not re.fullmatch(r"(AIID-\d{4}|MIG-\d{4})", doc_id or ""):
-            problems.append(f"{rel}: id {doc_id!r} matches no canonical-source pattern")
-
-        ok, precision = parse_iso(meta.get("occurrence_date") or "")
-        if not ok:
-            problems.append(f"{rel}: occurrence_date {meta.get('occurrence_date')!r} "
-                            f"is not ISO or partial-ISO")
-        elif meta.get("occurrence_date_precision") != precision:
-            problems.append(f"{rel}: occurrence_date_precision says "
-                            f"{meta.get('occurrence_date_precision')!r} but the date is "
-                            f"{precision!r}")
-        for key in ("first_seen", "last_verified"):
-            if meta.get(key) and not parse_iso(meta[key])[0]:
-                problems.append(f"{rel}: {key} {meta[key]!r} is not a date")
-
-        for s in meta.get("sources") or []:
-            sid, rid = s.get("source_id"), str(s.get("record_id", ""))
-            if sid not in reg:
-                problems.append(f"{rel}: source_id {sid!r} is not in the registry")
-            elif (sid, rid) not in records:
-                problems.append(f"{rel}: sources entry {sid}:{rid} resolves to no record")
-        if not meta.get("sources"):
-            problems.append(f"{rel}: sources is empty")
-        canonical = meta.get("canonical_source")
-        source_ids = [s.get("source_id") for s in meta.get("sources") or []]
-        if canonical not in source_ids:
-            problems.append(f"{rel}: canonical_source {canonical!r} is not among sources")
-        if "aiid" in source_ids and canonical != "aiid":
-            problems.append(f"{rel}: AIID attests this incident, so it is the canonical "
-                            f"source, but canonical_source is {canonical!r}")
-
-        et = meta.get("evidence_type")
-        if et not in EVIDENCE_TYPES:
-            problems.append(f"{rel}: evidence_type {et!r} not in {EVIDENCE_TYPES}")
-        if meta.get("interaction_kind") not in INTERACTION_KINDS:
-            problems.append(f"{rel}: interaction_kind "
-                            f"{meta.get('interaction_kind')!r} not in {INTERACTION_KINDS}")
-        if meta.get("verification") not in VERIFICATION:
-            problems.append(f"{rel}: verification {meta.get('verification')!r} "
-                            f"not in {VERIFICATION}")
-
-        label_source = meta.get("multi_agent_label_source") or ""
-        if meta.get("multi_agent") is True and label_source != "ours":
-            problems.append(f"{rel}: multi_agent is true but multi_agent_label_source is "
-                            f"{label_source!r}. An external or machine label may mark a "
-                            f"candidate; only a human verdict puts an incident in scope.")
-        if label_source and not (label_source == "ours"
-                                 or label_source.startswith(("external:", "classifier:"))):
-            problems.append(f"{rel}: multi_agent_label_source {label_source!r} is not "
-                            f"'ours', 'external:<source_id>' or 'classifier:<prompt>@<ver>'")
-        if meta.get("multi_agent") is True and not (meta.get("multi_agent_basis") or "").strip():
-            problems.append(f"{rel}: multi_agent is true with no multi_agent_basis")
-
-        fm = meta.get("failure_mode")
-        if fm and fm not in risks:
-            problems.append(f"{rel}: failure_mode {fm!r} is not a risk id")
-        for iid in meta.get("instances") or []:
-            if iid not in taxonomy_instances:
-                problems.append(f"{rel}: instance {iid!r} is not in taxonomy/instances.csv")
-
-        presumed = meta.get("instances_presumed") or []
-        if not isinstance(presumed, list):
-            problems.append(f"{rel}: instances_presumed must be a list")
-            presumed = []
-        if presumed:
-            if set(presumed) != PRESUMABLE_INSTANCES or len(presumed) != 2:
-                problems.append(f"{rel}: instances_presumed is {presumed!r}; it is either "
-                                f"empty or exactly I28 and I29, the pair an attack with "
-                                f"unreported multiplicity is presumed to show")
-            if meta.get("multi_agent") is not True:
-                problems.append(f"{rel}: instances_presumed is set but multi_agent is not "
-                                f"true; the presumption applies only to in-scope attacks")
-            if meta.get("failure_mode"):
-                problems.append(f"{rel}: instances_presumed is set alongside failure_mode "
-                                f"{meta.get('failure_mode')!r}; an attack admitted by the "
-                                f"presumption carries no failure mode")
-            overlap = sorted(set(presumed) & set(meta.get("instances") or []))
-            if overlap:
-                problems.append(f"{rel}: {overlap} is both quoted and presumed; a quoted "
-                                f"I28 or I29 replaces the presumed pair")
-
-        for key in meta:
-            if re.fullmatch(r"e[1-5](_.*)?", str(key)):
-                problems.append(f"{rel}: {key!r} is an evidence score; "
-                                f"scoring is parked and no score belongs in a dossier")
-
-        for name in SECTIONS:
-            if not re.search(rf"^## {re.escape(name)}\s*$", body, re.M):
-                problems.append(f"{rel}: missing section '## {name}'")
+        p, w = check_dossier(path, meta, body, env)
+        problems.extend(p)
+        warnings.extend(w)
+    check_mig_registry(problems)
 
     # --- keys, hashes and provenance on every file row ---------------------
     problems.extend(check_rows())
 
     # --- the context layer -------------------------------------------------
-    context = load_context()
     for (sid, rid), ctx in sorted(context.items()):
         where = f"mvp/context/{sid}.jsonl {rid}"
         if (sid, rid) not in records:
@@ -2852,18 +3415,164 @@ def stage_check():
                   and not method.startswith("seeded:") and method != "manual"):
                 problems.append(f"{where}: fact {name!r} is stated with no quote")
 
+    # --- the person's decision logs (mvp/review/) --------------------------
+    check_review_logs(records, problems, warnings)
+    for wline in warnings:
+        info(f"  warn  {wline}")
+
+    if problems:
+        for p in problems:
+            info(f"  FAIL  {p}")
+        info(f"check failed: {len(problems)} problem(s) over "
+             f"{len(all_dossiers())} dossier(s)")
+        return 1
+    info(f"  ok    check: {len(all_dossiers())} dossiers, no problems")
+    return 0
+
+
+def check_env(records=None, reg=None, context=None):
+    """What check_dossier needs to know besides the dossier itself."""
+    return {
+        "instances": {r["instance_id"] for r in read_csv(TAXONOMY / "instances.csv")},
+        "risks": {r["risk_id"] for r in read_csv(TAXONOMY / "risks.csv")},
+        "reg": registry() if reg is None else reg,
+        "records": latest_records() if records is None else records,
+        "context": load_context() if context is None else context,
+    }
+
+
+def check_dossier(path, meta, body, env):
+    """The rules one dossier must meet on its own (`stage_check` adds the rules that
+    span dossiers). Returns (problems, warnings). Sheet 3 runs it on an edited dossier
+    before writing it."""
+    problems, warnings = [], []
+    rel = path.relative_to(ROOT)
+    taxonomy_instances, risks = env["instances"], env["risks"]
+    reg, records, context = env["reg"], env["records"], env["context"]
+
+    for key in REQUIRED_KEYS:
+        if key not in meta:
+            problems.append(f"{rel}: missing frontmatter key {key!r}")
+
+    doc_id = meta.get("mig_key", "")
+    if doc_id != path.stem:
+        problems.append(f"{rel}: mig_key {doc_id!r} does not match the filename")
+    if not re.fullmatch(MIG_PATTERN, doc_id or ""):
+        problems.append(f"{rel}: mig_key {doc_id!r} is not MIG-nnnn")
+    if "id" in meta:
+        problems.append(f"{rel}: the key `id` is retired; the dossier's key is mig_key")
+    pair = canonical_pair(meta)
+    if pair and str(meta.get("source_key") if meta.get("source_key") is not None else "") \
+            != source_key(*pair):
+        problems.append(f"{rel}: source_key {meta.get('source_key')!r} is not the canonical "
+                        f"record's key {source_key(*pair)!r}")
+
+    ok, precision = parse_iso(meta.get("occurrence_date") or "")
+    if not ok:
+        problems.append(f"{rel}: occurrence_date {meta.get('occurrence_date')!r} "
+                        f"is not ISO or partial-ISO")
+    elif meta.get("occurrence_date_precision") != precision:
+        problems.append(f"{rel}: occurrence_date_precision says "
+                        f"{meta.get('occurrence_date_precision')!r} but the date is "
+                        f"{precision!r}")
+    for key in ("first_seen", "last_verified"):
+        if meta.get(key) and not parse_iso(meta[key])[0]:
+            problems.append(f"{rel}: {key} {meta[key]!r} is not a date")
+
+    for s in meta.get("sources") or []:
+        sid, rid = s.get("source_id"), str(s.get("record_id", ""))
+        if sid not in reg:
+            problems.append(f"{rel}: source_id {sid!r} is not in the registry")
+        elif (sid, rid) not in records:
+            problems.append(f"{rel}: sources entry {sid}:{rid} resolves to no record")
+    if not meta.get("sources"):
+        problems.append(f"{rel}: sources is empty")
+    canonical = meta.get("canonical_source")
+    source_ids = [s.get("source_id") for s in meta.get("sources") or []]
+    if canonical not in source_ids:
+        problems.append(f"{rel}: canonical_source {canonical!r} is not among sources")
+    if "aiid" in source_ids and canonical != "aiid":
+        problems.append(f"{rel}: AIID attests this incident, so it is the canonical "
+                        f"source, but canonical_source is {canonical!r}")
+
+    et = meta.get("evidence_type")
+    if et not in EVIDENCE_TYPES:
+        problems.append(f"{rel}: evidence_type {et!r} not in {EVIDENCE_TYPES}")
+    if meta.get("interaction_kind") not in INTERACTION_KINDS:
+        problems.append(f"{rel}: interaction_kind "
+                        f"{meta.get('interaction_kind')!r} not in {INTERACTION_KINDS}")
+    if meta.get("verification") not in VERIFICATION:
+        problems.append(f"{rel}: verification {meta.get('verification')!r} "
+                        f"not in {VERIFICATION}")
+
+    label_source = meta.get("multi_agent_label_source") or ""
+    if meta.get("multi_agent") is True and label_source != "ours":
+        problems.append(f"{rel}: multi_agent is true but multi_agent_label_source is "
+                        f"{label_source!r}. An external or machine label may mark a "
+                        f"candidate; only a human verdict puts an incident in scope.")
+    if label_source and not (label_source == "ours"
+                             or label_source.startswith(("external:", "classifier:"))):
+        problems.append(f"{rel}: multi_agent_label_source {label_source!r} is not "
+                        f"'ours', 'external:<source_id>' or 'classifier:<prompt>@<ver>'")
+    if meta.get("multi_agent") is True and not (meta.get("multi_agent_basis") or "").strip():
+        problems.append(f"{rel}: multi_agent is true with no multi_agent_basis")
+
+    fm = meta.get("failure_mode")
+    if fm and fm not in risks:
+        problems.append(f"{rel}: failure_mode {fm!r} is not a risk id")
+    for iid in meta.get("instances") or []:
+        if iid not in taxonomy_instances:
+            problems.append(f"{rel}: instance {iid!r} is not in taxonomy/instances.csv")
+
+    presumed = meta.get("instances_presumed") or []
+    if not isinstance(presumed, list):
+        problems.append(f"{rel}: instances_presumed must be a list")
+        presumed = []
+    if presumed:
+        if set(presumed) != PRESUMABLE_INSTANCES or len(presumed) != 2:
+            problems.append(f"{rel}: instances_presumed is {presumed!r}; it is either "
+                            f"empty or exactly I28 and I29, the pair an attack with "
+                            f"unreported multiplicity is presumed to show")
+        if meta.get("multi_agent") is not True:
+            problems.append(f"{rel}: instances_presumed is set but multi_agent is not "
+                            f"true; the presumption applies only to in-scope attacks")
+        if meta.get("failure_mode"):
+            problems.append(f"{rel}: instances_presumed is set alongside failure_mode "
+                            f"{meta.get('failure_mode')!r}; an attack admitted by the "
+                            f"presumption carries no failure mode")
+        overlap = sorted(set(presumed) & set(meta.get("instances") or []))
+        if overlap:
+            problems.append(f"{rel}: {overlap} is both quoted and presumed; a quoted "
+                            f"I28 or I29 replaces the presumed pair")
+
+    # The fields a person set on sheet 3. Optional: a dossier nobody edited there has none.
+    by_person = meta.get(SET_BY_PERSON, [])
+    if not isinstance(by_person, list):
+        problems.append(f"{rel}: {SET_BY_PERSON} must be a list of field names")
+    else:
+        for name in by_person:
+            if name not in PERSON_SETTABLE:
+                problems.append(f"{rel}: {SET_BY_PERSON} names {name!r}, which is not a "
+                                f"field sheet 3 sets ({', '.join(PERSON_SETTABLE)})")
+        if len(set(by_person)) != len(by_person):
+            problems.append(f"{rel}: {SET_BY_PERSON} names a field twice")
+
+    for key in meta:
+        if re.fullmatch(r"e[1-5](_.*)?", str(key)):
+            problems.append(f"{rel}: {key!r} is an evidence score; "
+                            f"scoring is parked and no score belongs in a dossier")
+
+    for name in SECTIONS:
+        if not re.search(rf"^## {re.escape(name)}\s*$", body, re.M):
+            problems.append(f"{rel}: missing section '## {name}'")
+
     # A verdict needs a reading behind it. A dossier that asserts scope either way
     # must rest on a source read for the gate facts.
-    warnings = []
-    for path in all_dossiers():
-        meta, _ = read_dossier(path)
-        if meta.get("multi_agent") not in (True, False):
-            continue
+    if meta.get("multi_agent") in (True, False):
         ctxs = [context.get((s.get("source_id"), str(s.get("record_id"))))
                 for s in meta.get("sources") or []]
         levels = [readiness(c, flagged=True)["scope"] for c in ctxs]
         best = min((READY_LEVELS.index(v["level"]) for v in levels), default=2)
-        rel = path.relative_to(ROOT)
         deepest = max((best_depth(c) for c in ctxs if c),
                       key=READ_DEPTH.index, default="unreadable")
         if deepest == "curator" and meta.get("verification") == "verified":
@@ -2880,19 +3589,7 @@ def stage_check():
                             f"lower the verification")
         elif READY_LEVELS[best] == "provisional":
             warnings.append(f"{rel}: scope rests on a partial or secondary reading")
-    # --- the person's decision logs (mvp/review/) --------------------------
-    check_review_logs(records, problems, warnings)
-    for wline in warnings:
-        info(f"  warn  {wline}")
-
-    if problems:
-        for p in problems:
-            info(f"  FAIL  {p}")
-        info(f"check failed: {len(problems)} problem(s) over "
-             f"{len(all_dossiers())} dossier(s)")
-        return 1
-    info(f"  ok    check: {len(all_dossiers())} dossiers, no problems")
-    return 0
+    return problems, warnings
 
 
 RAW_REF_KEYS = ("path", "id_field", "id", "fetched_at")
@@ -3106,7 +3803,7 @@ class UpdateRun:
         self.on_change = on_change or (lambda run: None)
         self.lock = threading.RLock()
         self.cancelled = False
-        REVIEW_DECIDED.update(scope=0, promote=0)
+        REVIEW_DECIDED.update(scope=0, promote=0, edit=0)
         self.log_path = None             # the retained log, claimed on the first save
         self.ended = None                # when the run stopped, for the retained log
         self.data = {
@@ -3486,6 +4183,7 @@ class UpdateRun:
         self.count(step, "Of those, asking for your judgement", res["scope"].get("asked", 0))
         self.count(step, "Decided on sheet 2 this run", REVIEW_DECIDED["promote"])
         self.count(step, "Left to promote", res["promote"]["left"])
+        self.count(step, "Fields set on sheet 3 this run", REVIEW_DECIDED["edit"])
         self.count(step, "Hand-added incidents without a dossier", len(manual))
         self.count(step, "In scope, no instance proposal", len(due))
         info(f"  ok    review: {res['scope']['left']} record(s) left to decide scope, "
@@ -3493,7 +4191,8 @@ class UpdateRun:
              f"incident(s) without a dossier; {len(due)} record(s) in scope have no "
              f"instance proposal")
         for sid, rid in manual:
-            info(f"  todo  python mvp/pipeline/run.py promote {record_key(sid, rid)}")
+            info(f"  todo  python mvp/pipeline/run.py promote "
+                 f"{mig_key_of((sid, rid)) or record_key(sid, rid)}")
         for r in due[:50]:
             info(f"  todo  assign instances to {r['record_key']} (/classify-incidents, "
                  f"call 2)")
@@ -3510,8 +4209,7 @@ class UpdateRun:
                              f"blank dossier, which you then fill in by hand")
             if manual:
                 parts.append(f"{len(manual)} hand-added incident(s) have no dossier: "
-                             f"`python mvp/pipeline/run.py promote <source_id>:"
-                             f"<record_id>` makes it")
+                             f"`python mvp/pipeline/run.py promote <mig_key>` makes it")
             text = ("; ".join(parts) + ". ") if parts else ""
             if scope_left or promote_left:
                 text += ("Save the sheets, then press Continue (on a command-line run, "
@@ -3690,9 +4388,8 @@ def main():
 
     p = sub.add_parser("promote")
     p.add_argument("ref", nargs="+",
-                   help="<source_id>:<record_id>, e.g. aiid:1604: the same string as "
-                        "the record_key field every record, queue, readiness, context "
-                        "and proposal row carries")
+                   help="the record's MIG key, e.g. MIG-0058, as the review sheets show "
+                        "it; or its internal record_key, <source_id>:<record_id>")
     p.add_argument("--force", action="store_true",
                    help="scaffold even if the record is not ready to classify")
 

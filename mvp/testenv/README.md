@@ -48,10 +48,17 @@ Then the real steps run. Three things differ from a real run:
   in the workspace. On Continue the stand-in opens it with openpyxl and types the decisions
   of `standins/review/decisions.json` into it (9901 `in`, 9906 `out`, 9904 a wrong value),
   and the real `stage_review` reads it: it logs two decisions, reports the wrong one by
-  `record_key` and writes sheet 2. The stand-in fills that too (9901 `yes`, and the manual
+  its MIG key and writes sheet 2. The stand-in finds each record's row by its MIG key: the
+  run gives aiid:9901 MIG-0001 and aiid:9904 MIG-0002, and with `--manual` the hand-added
+  record MIG-0003. The stand-in fills that too (9901 `yes`, and the manual
   record `yes` with `--manual`), the real step reads it and makes the blank dossiers, and the
   stand-in puts the filled-in sample dossiers over them. 9906 is stopped by its `out`: it has
-  no dossier. Without openpyxl the stand-in says so and decides nothing.
+  no dossier. Then it edits sheet 3 in two rounds, each read by the real step: round 1 types
+  an evidence type that does not exist on MIG-0001, which is reported and not written;
+  round 2 changes its instances and verification and adds a verification note, which are
+  written, named in `set_by_person` and logged in `mvp/review/dossier_edits.csv`. The check
+  stand-in later puts the corrected MIG-0001 over it, so those edits do not survive to
+  the index. Without openpyxl the stand-in says so and decides nothing.
 
 Each waiting or failed prompt in a test run carries `test_note`, a sentence saying what the
 answer does in the test run.
@@ -72,8 +79,8 @@ path; delete the workspace when done.
 | `standins/read/context/` | the readings `/classify-incidents` step 0 would write |
 | `standins/judge/proposals/` | its two classifier calls' proposals, named by run date when put in place |
 | `standins/review/decisions.json` | what a person would type into the two review sheets |
-| `standins/review/incidents/` | the dossiers a person would write over the blank ones the promote step makes; `AIID-9901.md` has a deliberate fault |
-| `standins/check/incidents/` | the corrected `AIID-9901.md`, put in place on Try again |
+| `standins/review/incidents/` | the dossiers a person would write over the blank ones the promote step makes, put over the one of the same record only; `MIG-0001.md` (aiid:9901) has a deliberate fault; `MIG-0003.md` is the hand-added record |
+| `standins/check/incidents/` | the corrected `MIG-0001.md`, put in place on Try again |
 
 ## The cases
 

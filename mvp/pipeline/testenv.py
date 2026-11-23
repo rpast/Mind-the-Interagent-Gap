@@ -185,15 +185,17 @@ def fill_sheet(rm, kind, answers):
     wb = rm.openpyxl.load_workbook(path)
     ws = wb[cfg["title"]]
     head = {c.value: i for i, c in enumerate(ws[1], 1)}
-    by_key = {a["record_key"]: a for a in answers}
+    # The answers name records by record_key; the sheet shows each by its MIG key.
+    by_pair, _ = rm.mig_index()
+    by_key = {by_pair.get(rm.split_key(a["record_key"])): a for a in answers}
     done = []
     for r in range(2, ws.max_row + 1):
-        a = by_key.get(str(ws.cell(r, head["record_key"]).value))
+        a = by_key.get(str(ws.cell(r, head["mig_key"]).value))
         if a is None:
             continue
         ws.cell(r, head[cfg["field"]]).value = a["decision"]
         ws.cell(r, head[cfg["text"]]).value = a.get("reason") or a.get("note") or ""
-        done.append(a["record_key"])
+        done.append(f"{a['record_key']} ({ws.cell(r, head['mig_key']).value})")
     wb.save(path)
     return done
 
@@ -214,14 +216,14 @@ def standin_review(rm, run):
                 f"as a person would have: {', '.join(done) or 'none listed'}")
         rm.info(f"  test  now the run reads it ({after})")
         rm.stage_review()
-    attested = rm.dossier_source_refs()
     put = left = 0
     for src in sorted((STANDINS / "review" / "incidents").glob("*.md")):
         dest = rm.INCIDENTS / src.name
         meta, _ = rm.read_dossier(src)
-        refs = {(s.get("source_id"), str(s.get("record_id")))
-                for s in meta.get("sources") or []}
-        if not dest.exists() or not refs or not refs <= attested:
+        # only over the blank dossier of the same record: the MIG key a record gets
+        # depends on which records the run reached, so a name alone is not enough
+        if not dest.exists() or rm.canonical_pair(meta) is None \
+                or rm.canonical_pair(rm.read_dossier(dest)[0]) != rm.canonical_pair(meta):
             left += 1
             continue
         shutil.copyfile(src, dest)
@@ -232,6 +234,40 @@ def standin_review(rm, run):
         rm.info("  test  no blank dossier was made, so none was filled in")
     if left:
         rm.info(f"  test  left out {left} sample dossier(s): no promote decision made them")
+    if put and answers.get("edit"):
+        rm.info("  test  now the run writes sheet 3 again, from the filled-in dossiers")
+        rm.stage_review()
+        # one round per run of the review step: a person edits, the run reads it
+        for n, round_ in enumerate(answers["edit"], 1):
+            done = fill_edit_sheet(rm, round_)
+            rm.info(f"  test  edit round {n}: changed {rm.EDIT['file']} for "
+                    f"{len(done)} dossier(s), as a person would have: "
+                    f"{', '.join(done) or 'none listed'}")
+            rm.info("  test  now the run reads it (edit dossiers: write the changed "
+                    "fields)")
+            rm.stage_review()
+
+
+def fill_edit_sheet(rm, answers):
+    """Change cells of sheet 3 the way a person would. `answers` is a list of
+    {"id", "set": {column: text}}. Returns the dossier ids changed."""
+    path = rm.REVIEW / rm.EDIT["file"]
+    if not path.exists():
+        return []
+    wb = rm.openpyxl.load_workbook(path)
+    ws = wb[rm.EDIT["title"]]
+    head = {c.value: i for i, c in enumerate(ws[1], 1)}
+    by_id = {a["mig_key"]: a["set"] for a in answers}
+    done = []
+    for r in range(2, ws.max_row + 1):
+        cells = by_id.get(str(ws.cell(r, head["mig_key"]).value))
+        if cells is None:
+            continue
+        for col, text in cells.items():
+            ws.cell(r, head[col]).value = text
+        done.append(str(ws.cell(r, head["mig_key"]).value))
+    wb.save(path)
+    return done
 
 
 def standin_check(rm, run):
