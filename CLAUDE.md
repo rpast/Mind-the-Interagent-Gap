@@ -37,14 +37,18 @@ Project-level files stay at the root: `resources/` (source documents),
   `run.py review` when it reads a filled sheet). See `mvp/review/README.md`.
 - `mvp/incidents/<ID>.md` is the curated record: one dossier per incident a person
   promotes. Scope decisions that are not promoted live in `mvp/review/scope_decisions.csv`.
-  Hand-edited.
+  Hand-edited, or filled by Claude when the curator asks (see Rules).
 - `mvp/proposals/` holds classifier output. It is never authoritative; a human promotes.
-- `mvp/out/` is generated. Never edit it by hand.
+- `mvp/out/` is generated. Never edit it by hand. `mvp/out/index_report.xlsx` is the index
+  report: every incident in the index, and every record that is not, with the reason.
 - `mvp/testenv/` holds the test run's fixtures: made-up incidents and the stand-ins for
   skill and human work. `run.py testrun` runs the real steps on them in a temp folder. Never
   put real incidents there. See `mvp/testenv/README.md`.
 
 ## Workflow
+
+Where system Python lacks openpyxl (as on the Raspberry Pi host), run every command below
+with `.venv/bin/python` instead of `python`.
 
 1. `python mvp/pipeline/run.py update [--refetch] [--manual DIR] [--discover]`, or start the
    same run from the page `python mvp/pipeline/run.py serve` puts on 127.0.0.1. Default: the
@@ -57,9 +61,15 @@ Project-level files stay at the root: `resources/` (source documents),
    them): fill `decision` in `1_decide_scope.xlsx` (in, out, unclear), run `review`, then
    fill `promote` in `2_promote.xlsx` (yes makes the blank dossier). Check against
    `mvp/proposals/` and `mvp/state/verdicts.jsonl`; promote what passes the
-   inclusion test.
-4. `python mvp/pipeline/run.py check` — must exit 0.
-5. Commit the records, the dossiers and the rebuilt `mvp/out/` together.
+   inclusion test. Before promoting, check each record against the existing dossiers and
+   `OPEN.md` for duplicates: a record that is already an incident is added to that
+   dossier's `sources`, not promoted (AIID then becomes canonical and the dossier is
+   renamed `AIID-nnnn`).
+4. Fill each new dossier by hand, or ask Claude to fill it from the readings (see Rules).
+5. `python mvp/pipeline/run.py check` — must exit 0.
+6. `python mvp/pipeline/run.py index`, `viz`, then `python mvp/pipeline/index_report.py`
+   for `mvp/out/index_report.xlsx`.
+7. Commit the records, the dossiers and the rebuilt `mvp/out/` together.
 
 ## Rules
 
@@ -83,6 +93,15 @@ Project-level files stay at the root: `resources/` (source documents),
 - **Manual incidents**, added with `update --manual DIR`, are in scope on the curator's word, which is a
   human verdict. Their failure mode, evidence type and instances are still judged, and a
   dossier resting only on the write-up is never `verified`.
+- **Claude-written dossiers.** Claude fills a promoted dossier only when the curator asks,
+  and only from what the pipeline holds: the scope and promote decisions, the verdict, the
+  `extract_gate` facts, the context reading and the `assign_instances` proposal. Such a
+  dossier is always `unverified` until a person checks it against the primary source, and
+  its `## Verification notes` open with "Written by Claude". Scope stays the person's
+  decision. A failure mode derived by rule carries `failure_mode_source:
+  classifier:<prompt>@<version>`, never `ours`. Instances quoted at `high` or `medium` are
+  adopted; `low` ones are listed in the notes only. An evidence type that cannot be derived
+  is not guessed: the setting is read first.
 - For file changes, use the Edit tool, not python/sed/heredoc scripts. If you need a script,
   write it to a file first, then run it.
 - One fact per field. Never encode information in parentheses.

@@ -283,6 +283,9 @@ score fields.
   `none` · `unclear`
 - `verification`: `verified` · `partially_verified` · `unverified`
 - `multi_agent_label_source`: `ours` · `external:<source_id>` · `classifier:<prompt>@<ver>`
+- `failure_mode_source`: `ours` (a person judged it) · `classifier:<prompt>@<ver>` (derived
+  by rule from that prompt's facts and not yet confirmed by a person) · empty when there is
+  no failure mode
 - `occurrence_date_precision`: `day` · `month` · `year`
 
 ## The registry

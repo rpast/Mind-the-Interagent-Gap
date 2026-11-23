@@ -47,10 +47,16 @@ computed from, and the rule. The rules are `mvp/pipeline/derive.py`; the questio
 Open `2_promote.xlsx`. It lists the records you decided `in`. Fill the yellow column
 `promote`: `yes` or `no`.
 
-- `yes`: the next run writes a blank dossier in `mvp/incidents/`. Fill it in by hand, as
-  before, and `run.py check` must pass. A record that is not ready to classify is refused
-  and stays on the sheet.
+- `yes`: the next run writes a blank dossier in `mvp/incidents/`. Fill it in by hand, or
+  ask Claude to fill it from the pipeline's readings (it is then `unverified` until you
+  check it; see the Claude-written dossiers rule in `CLAUDE.md`). `run.py check` must
+  pass. A record that is not ready to classify is refused and stays on the sheet.
 - `no`: the record gets no dossier and does not come back.
+
+Before saying `yes`, check the record is not already an incident: search the existing
+dossiers and `OPEN.md`. A duplicate is added to the existing dossier's `sources` instead
+of being promoted. Once the dossier cites it, the record drops off the sheet; a `yes`
+already typed for it is reported as "not listed" and not logged, which is expected.
 
 ## What happens on the next run
 

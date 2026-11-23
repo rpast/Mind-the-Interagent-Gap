@@ -14,8 +14,9 @@ code disagree, the code wins: the labelling rules live in `mvp/pipeline/derive.p
    produced it alone**.
 3. A swarm doing what one capable agent could have done is a multi-agent *setup*, not a
    multi-agent *risk*, and stays out.
-4. Each judged incident becomes one *dossier*, a hand-edited file in `mvp/incidents/`, and
-   the index, `mvp/out/incident_index.csv`, is generated from the dossiers.
+4. Each judged incident becomes one *dossier*, a file in `mvp/incidents/` written by hand
+   or, at the curator's request, by Claude from the readings, and the index,
+   `mvp/out/incident_index.csv`, is generated from the dossiers.
 5. The pipeline in one line: **fetch → normalise → prefilter → read → readiness → extract
    facts (model) → derive labels (rules) → review and promote (person) → check → index.**
 
@@ -28,7 +29,7 @@ Three kinds of actor touch a record. Keep them apart; the project depends on it.
 | **script** (`mvp/pipeline/run.py`) | moves and counts data: fetch, normalise, prefilter, readiness, check, index | `raw/`, `records/`, `state/`, `out/` |
 | **model** (Claude, following a prompt in `mvp/prompts/`, run by the `/classify-incidents` skill) | **judgement**: reads sources and writes down facts; extracts gate facts; picks instances | `context/`, `proposals/` |
 | **fixed rule** (`mvp/pipeline/derive.py`) | turns the model's facts into labels, the same way every time | `state/verdicts.jsonl` |
-| **person** | decides scope for the index, writes the dossier, sets `verification` | `incidents/` |
+| **person** | decides scope for the index, writes the dossier (or asks Claude to), sets `verification` | `incidents/` |
 
 Only a person can put an incident in scope. In a dossier that is `multi_agent: true` with
 `multi_agent_label_source: ours`, and `run.py check` fails the build on any other
@@ -228,7 +229,9 @@ characters), and the facts the gates need are usually missing from them.
   person already judged `multi_agent: true`, `multi_agent_label_source: ours`,
   `failure_mode: FM3`, `instances: I35; I26; I28`, `verification: partially_verified`. So
   1668 is **not promoted**: it should be added to MIG-0016's `sources` (`OPEN.md` items 25
-  and 63). On 2026-11-16 that link has not been made yet.
+  and 63). On 2026-11-16 that link has not been made yet. **Made 2026-11-23:** 1668 and
+  1800 are now sources of that dossier, AIID is canonical, and it is renamed
+  **AIID-1668**.
 
 ### 11. Promote and write the dossier
 
@@ -242,6 +245,15 @@ characters), and the facts the gates need are usually missing from them.
   `evidence_type` and `verification` themselves. A `yes` for a `not_ready` record is
   refused and stays on the sheet. `python mvp/pipeline/run.py promote aiid:NNNN` still
   scaffolds one dossier by hand, and refuses a `not_ready` record unless given `--force`.
+- **Or Claude fills it.** At the curator's request Claude fills the scaffolds from what the
+  pipeline holds: the person's scope decision becomes `multi_agent_basis`; evidence type
+  and failure mode come from the verdict, the failure mode tagged
+  `failure_mode_source: classifier:<prompt>@<version>`; instances quoted at `high` or
+  `medium` are adopted. The dossier stays `unverified` until a person checks it against
+  the primary source (the rule is in `CLAUDE.md`). First done 2026-11-23, for 26 dossiers.
+- **Duplicates.** A record decided `in` that is already an incident is linked, not
+  promoted: it is added to the existing dossier's `sources`. On 2026-11-23 six records were
+  linked into five dossiers, which were renamed from `MIG-` to `AIID-` ids.
 - **Who:** person, helped by the script. The sheets need openpyxl; without it the step says
   how to install it, skips the sheets, and the run goes on.
 
@@ -253,6 +265,10 @@ characters), and the facts the gates need are usually missing from them.
   `verified` dossier whose scope rests on a secondary or curator reading.
 - `python mvp/pipeline/run.py index` writes `mvp/out/incident_index.csv` (one row per
   dossier) and `mvp/state/pipeline.json`; `viz` renders the pages in `mvp/out/`.
+- `python mvp/pipeline/index_report.py` writes `mvp/out/index_report.xlsx`: every incident
+  in the index with its labels, and every record that is not, with the stage it stopped
+  at, who stopped it (prefilter, reading, rules or person) and why.
+- On 2026-11-23: 52 dossiers covering 59 records; 1,785 records not in the index.
 - On 2026-11-16: 26 dossiers, 19 `multi_agent: true`, 4 `false`, 3 `unclear`; `check` passes
   with 11 warnings, one per dossier resting on a secondary reading.
 
@@ -308,13 +324,14 @@ Blue: script. Amber: model. Green: fixed rule. Pink: person.
 | prefilter | script | `records/`, dossier sources | `state/queue.jsonl` | `run.py prefilter` |
 | read | model, `enrich_context.v2` | queue, records, the web source | `context/<source>.jsonl` | `/classify-incidents` step 0 |
 | readiness | script | context, queue, dossiers | `state/readiness.jsonl` | `run.py readiness` |
-| call 1 | model, `extract_gate.v3` | record and context row | `proposals/extract_gate.<date>.jsonl` | `/classify-incidents` |
+| call 1 | model, `extract_gate.v4` | record and context row | `proposals/extract_gate.<date>.jsonl` | `/classify-incidents` |
 | derive | fixed rule, `derive.py` | newest `extract_gate` proposals | `state/verdicts.jsonl` | `run.py derive` |
 | instances-due | script | dossiers, verdicts, instance proposals | `state/instances_due.jsonl` | `run.py instances-due` |
 | call 2 | model, `assign_instances.v2` | record, context, `taxonomy/instances.csv` | `proposals/assign_instances.<date>.jsonl` | `/classify-incidents` |
 | decide scope, promote | person, helped by script | verdicts, proposals, sources | `review/*.csv` logs, then `incidents/<ID>.md` | `run.py review`; `run.py promote <record_key>` by hand |
 | check | script | everything | exit code only | `run.py check` |
 | index, viz | script | `incidents/` | `out/incident_index.csv`, `out/*.html`, `state/pipeline.json` | `run.py index`, `run.py viz` |
+| report | script | dossiers, records, queue, context, verdicts, logs, taxonomy | `out/index_report.xlsx` | `index_report.py` |
 
 ## The gates
 

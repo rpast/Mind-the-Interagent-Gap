@@ -39,6 +39,7 @@
 
 24. **Write the ForumMagnum adapter.** LessWrong, the Alignment Forum and the EA Forum all expose a GraphQL endpoint and are registered as `discovery` sources, but `run.py discover` currently emits a work order for them. This is the main route to incidents AIID does not carry, and 18 of our 27 are in that category.
 25. **Link the 27 migrated dossiers to AIID records where they exist.** The migration deliberately does not auto-merge: it looked for close title matches and found none above threshold. OPEN item 23 says 9 of our 27 are in AIID, so the links exist and have to be made by hand. Once a dossier cites AIID, `check` requires AIID to be its canonical source, which renames it from `MIG-nnnn` to `AIID-nnnn`.
+    **Partly done 2026-11-23:** five dossiers linked and renamed, from records a person decided `in` on sheet 1: MIG-0003 → AIID-1054, MIG-0016 → AIID-1668 (also cites aiid:1800), MIG-0017 → AIID-1797, MIG-0019 → AIID-1646, MIG-0020 → AIID-1604. `mvp/gold/multiagent_gold.csv` carries the new ids; the archived review rounds keep the old ones. Still to link: 1556 → MIG-0015 (item 63), and the rest of the nine AIID matches item 23 counts.
 26. **Rename four truncated dossier titles.** The migration derived titles from long summary sentences; the dossiers for AIR-2026-0101, AIR-2026-0219, AIR-2026-0194 and AIR-2026-0183 want real names.
 27. **Fill `actor_count` and `interaction_kind`** on the 27 migrated dossiers. Both are `unclear` because the PoC never captured them, and the second feeds Gate 2.
 28. **Review the gold set before any calibration. Blocking.** Every PoC label came from AI-assisted sessions — all 8 commits carry a Claude co-author trailer — and none was independently checked, so calibrating against it would measure agreement with an earlier model pass rather than accuracy. The PoC's own verification rule was also not met: of 27 incidents, 6 are explicitly *Verified*, 6 *Partially verified*, 8 have notes with no verdict and **7 have no verification record at all**; 14 rest on a single source. Separately and structurally, the set had **no negatives**, so precision could not be measured at all.
@@ -573,6 +574,9 @@
     through WebFetch's summariser and must be checked against the page before they enter a
     dossier. To do: review the 103 proposals; promote the new candidates (strongest: AIID
     7, 1263, 28, 528, 794, 1633, 1794, 1796, 1766).
+    **Done 2026-11-23**, except 1556: the 103 were reviewed (35 in, 61 out, 7 unclear), the
+    other five duplicates were linked (item 25), and 26 new dossiers were promoted. 1263 was
+    not promoted. 1054 turned out to be a sixth duplicate, of MIG-0003.
 
 64. **Review is two spreadsheets, 2026-11-18.** `mvp/review/1_decide_scope.xlsx` (scope:
     in, out, unclear) and `2_promote.xlsx` (yes, no), with the logs `scope_decisions.csv`
@@ -602,6 +606,35 @@
     follow on the sheet. Decide what the scope question should be for attacks only, and
     cut the prompt fields and rules that do not serve it. Sheet 1 now shows every model
     answer, the rules' intermediate steps and a `Fields` tab with the lineage, as a stopgap.
+    - **Consider a direct model scope suggestion.** Add a final `extract_gate` field,
+      `scope_suggestion` (in / out / unclear) with a one-line reason and a quote, and show
+      it on sheet 1 beside `rules_say`. It stays a suggestion: only a human verdict sets
+      scope. Before trusting it, measure it against the 103 human scope decisions of
+      2026-11-23 in `mvp/review/scope_decisions.csv`. Watch for anchoring: the gold review
+      hides prior labels for that reason (item 28), so the sheet may need to do the same.
+    - **Simplify the data flow map, after the first full run cycle.** In
+      `mvp/out/pipeline_patch.html` the step names do not match the sheets and the CLI
+      ("Decide scope" is `review` on the CLI; "Human review" is the promote sheet), the
+      same records appear in several boxes as if they were separate counts, and rule
+      outcomes and human decisions are mixed (records out by the rules gather in one box,
+      while a person's `out` stops at Decide scope). Use one name per step across sheet,
+      CLI and map, and show human decisions apart from rule outcomes.
+    - **Find duplicates by code before sheet 2.** On 2026-11-23 six records decided `in`
+      were duplicates of existing dossiers, found by hand. `review` could flag a record whose
+      title or date matches a dossier's, or that `OPEN.md` names against a dossier.
+    - **Rename `status = in_scope` on the sheet.** It reads like a decision but is only the
+      rules' settled suggestion; `ask = yes` on an `in_scope` row looks contradictory.
+
+66. **Verify the 26 Claude-written dossiers, 2026-11-23.** At the curator's request Claude
+    filled the 26 dossiers promoted on 2026-11-23 from the pipeline's readings (rule in
+    `CLAUDE.md`: Claude-written dossiers). All are `unverified`; their failure modes are
+    `classifier:` labels, not `ours`; 12 rest on a secondary or partial reading. Each needs a
+    person to read the primary source, confirm or correct the failure mode, instances and
+    evidence type, and set `verification`. Readings to re-check: aiid:1734 and aiid:1799
+    were re-read as exposures, not attacks, so the attack presumption no longer applies to
+    them; aiid:1794's quoted I29 is low and was not adopted. Also open from this round: a
+    new instance for cross-agent collaboration through public artefacts or shared boards
+    (aiid:1633, 1766, 1781 fit none of the 36).
 
 ## Layer 2. Detection
 17. Write the one-page coding protocol: the definition of coverage and the 0–3 validity weight.

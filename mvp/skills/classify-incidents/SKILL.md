@@ -182,6 +182,17 @@ run `python mvp/pipeline/run.py review`, which writes `mvp/review/2_promote.xlsx
 records decided in. A `yes` there makes the blank dossier a human writes up. Do not decide
 scope yourself, and never fill in either sheet.
 
+Before the person fills sheet 2, list the likely duplicates: candidates whose event already
+has a dossier in `mvp/incidents/`, judged by title, date and actors, and any that `OPEN.md`
+names against a dossier. Say which dossier each matches. A duplicate is linked as a source
+of that dossier, not promoted; linking is the curator's call, not this skill's.
+
+Filling the dossiers is not part of this skill. If the curator asks Claude to fill them,
+that is a separate step under the Claude-written dossiers rule in `CLAUDE.md`.
+
+When the commands below say `python`, use `.venv/bin/python` where system Python lacks
+openpyxl.
+
 ## Rules
 
 - Never edit `mvp/incidents/`. Never set `multi_agent: true` anywhere.

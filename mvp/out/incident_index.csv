@@ -1,7 +1,19 @@
 id,title,occurrence_date,date_precision,canonical_source,sources,source_count,evidence_type,multi_agent,multi_agent_label_source,external_label_count,failure_mode,instances,instances_presumed,verification,first_seen,last_verified,path
+AIID-0028,2010 Market Flash Crash,2010-05-08,day,aiid,aiid,1,real_world,True,ours,3,FM2,I18,,unverified,2026-11-23,,mvp/incidents/AIID-0028.md
+AIID-0007,Wikipedia Vandalism Prevention Bot Loop,2017-02-24,day,aiid,aiid,1,real_world,True,ours,4,FM1,I01;I18,,unverified,2026-11-23,,mvp/incidents/AIID-0007.md
+AIID-0243,Bots Allegedly Made up Roughly Half of Twitter Accounts in Discussions Surrounding COVID-19 Related Issues,2020-01-01,day,aiid,aiid,1,real_world,True,ours,1,,I30,,unverified,2026-11-23,,mvp/incidents/AIID-0243.md
+AIID-0528,Amazon Algorithmic Pricing Allegedly Hiked up Price of Reference Book to Millions,2023-04-08,day,aiid,aiid,1,real_world,True,ours,1,FM2,I18,,unverified,2026-11-23,,mvp/incidents/AIID-0528.md
+AIID-0602,Russia Reportedly Using Artificial Intelligence in Disinformation Campaigns to Erode Western Support for Ukraine,2023-10-02,day,aiid,aiid,1,real_world,True,ours,1,FM1,I30,,unverified,2026-11-23,,mvp/incidents/AIID-0602.md
+AIID-1790,Purported AI Bots Flooded a UK Government Tobacco and Vaping Consultation with Reportedly Fraudulent Responses,2024-01-29,day,aiid,aiid,1,real_world,True,ours,0,,I30,,unverified,2026-11-23,,mvp/incidents/AIID-1790.md
+AIID-0866,Network of 171 AI-Powered Bots Reportedly Spread Political Disinformation Ahead of Ghana’s December 2024 General Election,2024-02-01,day,aiid,aiid,1,real_world,True,ours,0,,I30,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-0866.md
+AIID-0794,Reported Glitch in Waymo Self-Driving Cars Purportedly Triggers Regular All-Night Honking in San Francisco,2024-08-13,day,aiid,aiid,1,real_world,True,ours,1,,I01,,unverified,2026-11-23,,mvp/incidents/AIID-0794.md
+AIID-0779,Music Producer Michael Smith Reportedly Arrested for Allegedly Using AI-Generated Songs in $10 Million Streaming Scam,2024-09-04,day,aiid,aiid,1,real_world,True,ours,0,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-0779.md
+AIID-0954,Chatbots Allegedly Used in Romance Scams Targeting Nearly One-Third of New Zealand's Dating App Users,2025-02-04,day,aiid,aiid,1,real_world,True,ours,0,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-0954.md
 MIG-0001,False 'broken UI' belief spreads,2025-04,month,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I34,,verified,2026-10-26,2026-10-26,mvp/incidents/MIG-0001.md
 MIG-0002,Xanthorox AI,2025-04-07,day,air_enkrypt,air_enkrypt,1,real_world,False,ours,0,,I26;I28,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0002.md
-MIG-0003,Influence-as-a-service,2025-04-23,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,,I30,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0003.md
+AIID-1037,Microsoft Reportedly Blocks 1.6 Million Bot Signup Attempts Per Hour Amid Global AI-Driven Fraud Surge,2025-04-16,day,aiid,aiid,1,real_world,True,ours,0,,I30,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1037.md
+AIID-1054,Influence-as-a-service,2025-04-23,day,aiid,aiid;air_enkrypt,2,real_world,True,ours,0,,I30,,unverified,2026-10-25,2026-10-25,mvp/incidents/AIID-1054.md
+AIID-1060,Institute for Strategic Dialogue Reports Russian-Aligned Operation Overload Using Purported AI-Generated Impersonations Across January to March 2025,2025-05-06,day,aiid,aiid,1,real_world,True,ours,0,,I30,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1060.md
 MIG-0004,Hallucinated mailing list spreads between agents,2025-06,month,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I34;I12,,verified,2026-10-26,2026-10-26,mvp/incidents/MIG-0004.md
 MIG-0005,IdentityMesh,2025-07-30,day,air_enkrypt,air_enkrypt,1,synthetic,False,ours,0,,I13;I32,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0005.md
 MIG-0006,PajaMAS: hijacking multi-agent systems built on Google's Agent Development Kit,2025-07-31,day,air_enkrypt,air_enkrypt,1,synthetic,True,ours,0,,I31,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0006.md
@@ -9,19 +21,33 @@ MIG-0007,Game-choice herding,2025-08,month,aivillage,aivillage,1,synthetic,uncle
 MIG-0008,Cross-agent privilege escalation,2025-09-24,day,air_enkrypt,air_enkrypt,1,synthetic,True,ours,0,,I31,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0008.md
 MIG-0009,OpenAI Agent Builder,2025-10-14,day,air_enkrypt,air_enkrypt,1,synthetic,True,ours,0,,I11;I31,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0009.md
 MIG-0010,ServiceNow Now Assist,2025-11-19,day,air_enkrypt,air_enkrypt,1,synthetic,True,ours,0,,I31,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0010.md
+AIID-1326,Waymo Robotaxis Allegedly Contributed to Traffic Gridlock During San Francisco PG&E Power Outage,2025-12-20,day,aiid,aiid,1,real_world,True,ours,0,,I14,,unverified,2026-11-23,,mvp/incidents/AIID-1326.md
 MIG-0011,Sub-team goal divergence,2026-01,month,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I01,,partially_verified,2026-10-26,2026-10-26,mvp/incidents/MIG-0011.md
 MIG-0012,Moltbook agent behaviour,2026-01-30,day,lesswrong,lesswrong,1,real_world,True,ours,0,,I13;I27,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0012.md
 MIG-0013,"Moltbook, the social network for AI agents, left its database open",2026-02-02,day,air_enkrypt,air_enkrypt,1,lab,False,ours,0,,I31,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0013.md
 MIG-0014,Sabotage game,2026-03,month,aivillage,aivillage,1,synthetic,False,ours,0,,I11;I25,,verified,2026-10-26,2026-10-26,mvp/incidents/MIG-0014.md
 MIG-0024,OpenAI agents turned internal Artifactory into a message board,2026-05,month,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,FM3,I35;I26,,verified,2026-10-25,2026-11-14,mvp/incidents/MIG-0024.md
 MIG-0015,Morse-code prompt injection made Grok relay a transfer instruction to Bankrbot,2026-05-05,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,,I31,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0015.md
-MIG-0016,OpenAI agent swarm on DSEWiki and the Vanderbilt link shortener,2026-05-11,day,air_enkrypt,air_enkrypt;lesswrong,2,real_world,True,ours,0,FM3,I35;I26;I28,,partially_verified,2026-10-25,2026-11-14,mvp/incidents/MIG-0016.md
-MIG-0017,RubyGems attack,2026-05-11,day,lesswrong,lesswrong,1,real_world,True,ours,0,,,,partially_verified,2026-10-25,2026-10-25,mvp/incidents/MIG-0017.md
-MIG-0019,Suspected China-linked actors used a multi-agent framework built on Hermes and,2026-07-01,day,air_enkrypt,air_enkrypt,1,real_world,True,ours,0,,I28,,partially_verified,2026-10-25,2026-10-25,mvp/incidents/MIG-0019.md
-MIG-0020,ExploitGym swarm and Hugging Face intrusion,2026-07-08,day,lesswrong,lesswrong,1,real_world,True,ours,0,FM3,I35;I14;I26;I29,,verified,2026-10-25,2026-11-14,mvp/incidents/MIG-0020.md
+AIID-1779,OpenAI-Linked AI Agents May Have Contributed to a Partial Outage of the Wikimedia Foundation's Data Query Service,2026-05-07,day,aiid,aiid,1,real_world,True,ours,1,,I28,,unverified,2026-11-23,,mvp/incidents/AIID-1779.md
+AIID-1668,OpenAI agent swarm on DSEWiki and the Vanderbilt link shortener,2026-05-11,day,aiid,aiid;aiid;air_enkrypt;lesswrong,4,real_world,True,ours,0,FM3,I35;I26;I28,,partially_verified,2026-10-25,2026-11-14,mvp/incidents/AIID-1668.md
+AIID-1797,RubyGems attack,2026-05-11,day,aiid,aiid;lesswrong,2,real_world,True,ours,0,,,,partially_verified,2026-10-25,2026-10-25,mvp/incidents/AIID-1797.md
+AIID-1796,Attacker Reportedly Used AI Agents to Breach Healthcare Organizations and Steal Medical Records in Argentina,2026-05-19,day,aiid,aiid,1,real_world,True,ours,1,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1796.md
+AIID-1731,AI Agents Reportedly Attempted to Hack Canada's Federal Archives Website While Retrieving Historical Divorce Records,2026-05-28,day,aiid,aiid,1,real_world,True,ours,0,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1731.md
+AIID-1646,Suspected China-linked actors used a multi-agent framework built on Hermes and,2026-07-01,day,aiid,aiid;air_enkrypt,2,real_world,True,ours,0,,I28,,partially_verified,2026-10-25,2026-10-25,mvp/incidents/AIID-1646.md
+AIID-1604,ExploitGym swarm and Hugging Face intrusion,2026-07-08,day,aiid,aiid;lesswrong,2,real_world,True,ours,0,FM3,I35;I14;I26;I29,,verified,2026-10-25,2026-11-14,mvp/incidents/AIID-1604.md
 MIG-0021,Agents finetune their own leader,2026-07-08,day,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I01;I09;I23,,verified,2026-10-26,2026-10-26,mvp/incidents/MIG-0021.md
 MIG-0022,Monitoring disconnection at OpenAI,2026-07-24,day,lesswrong,lesswrong,1,real_world,unclear,ours,0,,,,partially_verified,2026-10-25,2026-10-25,mvp/incidents/MIG-0022.md
+AIID-1633,Anthropic and OpenAI AI Agents Reportedly Took Unsanctioned Actions on the Live Internet During UK AISI Cybersecurity Evaluations,2026-07-26,day,aiid,aiid,1,synthetic,True,ours,0,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1633.md
 MIG-0023,'I'll just call you',2026-08-03,day,air_enkrypt,air_enkrypt,1,lab,True,ours,0,,I31,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0023.md
 MIG-0025,Pwning the Internet of Agents,2026-08-07,day,air_enkrypt,air_enkrypt,1,lab,unclear,ours,0,,I13;I28,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0025.md
 MIG-0026,Agent 'mind virus',2026-08-10,day,air_enkrypt,air_enkrypt,1,synthetic,True,ours,0,,I12;I32,,unverified,2026-10-25,2026-10-25,mvp/incidents/MIG-0026.md
 MIG-0027,DeepSeek-V3.2 persuasion campaign,2026-09-10,day,aivillage,aivillage,1,synthetic,True,ours,0,FM1,I34;I11;I12,,verified,2026-10-26,2026-10-26,mvp/incidents/MIG-0027.md
+AIID-1766,Cybercriminal Reportedly Used Cairn AI Agents to Breach More Than 100 Company Websites,2026-09-25,day,aiid,aiid,1,real_world,True,ours,1,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1766.md
+AIID-1799,OpenAI AI Agents Reportedly Posted ChatGPT User Images to External Hosts in 53 Instances,2026-09-25,day,aiid,aiid,1,synthetic,True,ours,0,,,,unverified,2026-11-23,,mvp/incidents/AIID-1799.md
+AIID-1782,"Attackers Reportedly Used ARTEX, an AI Security-Testing Tool, to Steal Data from South Korean Financial Institutions",2026-09-27,day,aiid,aiid,1,real_world,True,ours,0,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1782.md
+AIID-1734,"AI Coding Agents Reportedly Exposed Over 13,000 Internal Images from Hundreds of Organizations on Public GitHub Code Repositories",2026-09-29,day,aiid,aiid,1,real_world,True,ours,0,,,,unverified,2026-11-23,,mvp/incidents/AIID-1734.md
+AIID-1774,AI Agents Under Evaluation Reportedly Accessed Personal and Confidential Records at Indian Organizations,2026-10-15,day,aiid,aiid,1,synthetic,True,ours,1,,,,unverified,2026-11-23,,mvp/incidents/AIID-1774.md
+AIID-1781,ARTEX AI Agents Reportedly Used Stolen Cloud Backup Credentials to Access ConnectWise Customers' Microsoft 365 Environments,2026-10-15,day,aiid,aiid,1,real_world,True,ours,1,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1781.md
+AIID-1794,China-Linked Espionage Group VAPOR PANDA Reportedly Used ARTEX AI Agents to Breach Government and Corporate Systems Worldwide,2026-10-17,day,aiid,aiid,1,real_world,True,ours,1,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1794.md
+AIID-1828,AI Agents Operated by Safety-Testing Firm Trajectory Labs Attempted Website Exploits and Impersonated Staff at AI Research Organization Epoch AI,2026-10-20,day,aiid,aiid,1,synthetic,True,ours,0,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1828.md
+AIID-1789,Cybersecurity Firm Cathedral Reportedly Used AI Agents to Access Anthropic's Internal Business Systems,2026-10-26,day,aiid,aiid,1,real_world,True,ours,0,,,I28;I29,unverified,2026-11-23,,mvp/incidents/AIID-1789.md

@@ -17,10 +17,14 @@ Start at the top. The first two are enough to work with; the rest are reference.
 Outside this folder:
 
 - `mvp/pipeline/derive.py`: the labelling rules. Where any doc disagrees with it, it wins.
-- `mvp/prompts/`: the prompts the model follows (`enrich_context.v2`, `extract_gate.v3`,
+- `mvp/prompts/`: the prompts the model follows (`enrich_context.v2`, `extract_gate.v4`,
   `assign_instances.v2`).
 - `mvp/skills/classify-incidents/SKILL.md`: what `/classify-incidents` does, step by step.
-- `mvp/review/README.md`: the two review sheets a person fills in, and their logs.
+  Claude Code finds it through the link `.claude/skills/classify-incidents`.
+- `mvp/review/README.md`: the two review sheets a person fills in, and their logs. Sheet 1's
+  `Fields` tab says what every column is and which columns it is computed from.
+- `mvp/pipeline/index_report.py`: writes `mvp/out/index_report.xlsx`, every incident in the
+  index and every record that is not, with the stage it stopped at and why.
 - `mvp/testenv/README.md`: the test run and its made-up cases.
 - `OPEN.md` at the repo root: open questions and recorded decisions, by number.
 - `docs/project_outline.md`: the project's goal and its three layers.
