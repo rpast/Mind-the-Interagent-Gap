@@ -14,6 +14,9 @@ env/
 .~lock.*#
 .ipynb_checkpoints/
 
+# Screenshots shared over sshfs
+shots/
+
 # Local agent config
 .claude/settings.local.json
 .claude/.cc-writes/

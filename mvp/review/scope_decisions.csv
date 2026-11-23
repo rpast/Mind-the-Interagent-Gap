@@ -1,1 +1,104 @@
 record_key,decision,reason,decided_on,sheet_generated_on
+aiid:7,in,clear case of emerging multiagent conflict,2026-11-23,2026-11-23
+aiid:28,in,included in hammond et al as an example,2026-11-23,2026-11-23
+aiid:243,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:528,in,,2026-11-23,2026-11-23
+aiid:602,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:721,out,not enough evidence to decide on failure mode or risk factor,2026-11-23,2026-11-23
+aiid:779,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:794,in,,2026-11-23,2026-11-23
+aiid:866,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:909,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:916,out,,2026-11-23,2026-11-23
+aiid:929,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:954,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:967,out,,2026-11-23,2026-11-23
+aiid:1037,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1054,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1060,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1201,out,,2026-11-23,2026-11-23
+aiid:1263,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1268,out,,2026-11-23,2026-11-23
+aiid:1368,out,,2026-11-23,2026-11-23
+aiid:1395,out,,2026-11-23,2026-11-23
+aiid:1534,out,,2026-11-23,2026-11-23
+aiid:1556,out,,2026-11-23,2026-11-23
+aiid:1580,out,,2026-11-23,2026-11-23
+aiid:1588,out,,2026-11-23,2026-11-23
+aiid:1604,in,"OpenAI postmortem: >1k agents coordinated through self-built infrastructure, emergent goals, unsanctioned access to HF",2026-11-23,2026-11-23
+aiid:1633,in,,2026-11-23,2026-11-23
+aiid:1646,in,,2026-11-23,2026-11-23
+aiid:1659,out,,2026-11-23,2026-11-23
+aiid:1668,in,,2026-11-23,2026-11-23
+aiid:1692,out,,2026-11-23,2026-11-23
+aiid:1731,in,,2026-11-23,2026-11-23
+aiid:1766,in,,2026-11-23,2026-11-23
+aiid:1779,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1781,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1782,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1789,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1790,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1794,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1796,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1797,in,,2026-11-23,2026-11-23
+aiid:1799,in,,2026-11-23,2026-11-23
+aiid:1800,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+aiid:1815,out,,2026-11-23,2026-11-23
+aiid:1828,in,,2026-11-23,2026-11-23
+aiid:44,unclear,,2026-11-23,2026-11-23
+aiid:49,unclear,,2026-11-23,2026-11-23
+aiid:125,unclear,,2026-11-23,2026-11-23
+aiid:366,unclear,,2026-11-23,2026-11-23
+aiid:376,out,,2026-11-23,2026-11-23
+aiid:725,out,,2026-11-23,2026-11-23
+aiid:761,out,,2026-11-23,2026-11-23
+aiid:774,out,,2026-11-23,2026-11-23
+aiid:803,out,,2026-11-23,2026-11-23
+aiid:833,out,,2026-11-23,2026-11-23
+aiid:846,out,,2026-11-23,2026-11-23
+aiid:875,out,,2026-11-23,2026-11-23
+aiid:894,out,,2026-11-23,2026-11-23
+aiid:994,out,,2026-11-23,2026-11-23
+aiid:1001,out,,2026-11-23,2026-11-23
+aiid:1015,out,,2026-11-23,2026-11-23
+aiid:1017,out,,2026-11-23,2026-11-23
+aiid:1020,out,,2026-11-23,2026-11-23
+aiid:1044,out,,2026-11-23,2026-11-23
+aiid:1055,out,,2026-11-23,2026-11-23
+aiid:1129,out,,2026-11-23,2026-11-23
+aiid:1135,out,,2026-11-23,2026-11-23
+aiid:1154,out,,2026-11-23,2026-11-23
+aiid:1326,in,,2026-11-23,2026-11-23
+aiid:1359,out,,2026-11-23,2026-11-23
+aiid:1422,out,,2026-11-23,2026-11-23
+aiid:1466,unclear,,2026-11-23,2026-11-23
+aiid:1481,unclear,,2026-11-23,2026-11-23
+aiid:1485,out,,2026-11-23,2026-11-23
+aiid:1492,unclear,,2026-11-23,2026-11-23
+aiid:1507,out,,2026-11-23,2026-11-23
+aiid:1559,out,,2026-11-23,2026-11-23
+aiid:1586,out,,2026-11-23,2026-11-23
+aiid:1589,out,,2026-11-23,2026-11-23
+aiid:1594,out,,2026-11-23,2026-11-23
+aiid:1618,out,,2026-11-23,2026-11-23
+aiid:1630,out,,2026-11-23,2026-11-23
+aiid:1662,out,,2026-11-23,2026-11-23
+aiid:1687,out,,2026-11-23,2026-11-23
+aiid:1702,out,,2026-11-23,2026-11-23
+aiid:1707,out,,2026-11-23,2026-11-23
+aiid:1710,out,,2026-11-23,2026-11-23
+aiid:1715,out,,2026-11-23,2026-11-23
+aiid:1719,out,,2026-11-23,2026-11-23
+aiid:1734,in,,2026-11-23,2026-11-23
+aiid:1774,in,,2026-11-23,2026-11-23
+aiid:25,out,,2026-11-23,2026-11-23
+aiid:635,out,,2026-11-23,2026-11-23
+aiid:953,out,,2026-11-23,2026-11-23
+aiid:1004,out,,2026-11-23,2026-11-23
+aiid:1006,out,,2026-11-23,2026-11-23
+aiid:1235,out,,2026-11-23,2026-11-23
+aiid:1581,out,,2026-11-23,2026-11-23
+aiid:800,out,,2026-11-23,2026-11-23
+aiid:809,out,,2026-11-23,2026-11-23
+aiid:945,out,,2026-11-23,2026-11-23
+aiid:1142,out,,2026-11-23,2026-11-23

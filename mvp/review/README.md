@@ -35,6 +35,13 @@ Fill the yellow column `decision`, with the drop-down:
 
 `reason` is optional; a line is worth writing. Leave a row blank to decide later.
 
+Right of `reason` are the rules' intermediate steps (`is_attack`, `presumption_fires`,
+`gate1`, `status`, `evidence_type`, `failure_mode`, `instances_presumed`), then every
+question the model answered in `extract_gate`, each with its `<field>_quote`. The `Fields`
+tab lists every column: who sets it (model, rules, you), what it is, which columns it is
+computed from, and the rule. The rules are `mvp/pipeline/derive.py`; the questions are
+`mvp/prompts/extract_gate.v4.md` (the `prompt` column names the version a row used).
+
 ## Sheet 2: promote
 
 Open `2_promote.xlsx`. It lists the records you decided `in`. Fill the yellow column

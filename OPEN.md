@@ -593,6 +593,16 @@
       comes back blank, so what was typed in it is lost. A sheet that cannot be read is left
       in place and not rewritten.
 
+65. **TODO: simplify the pipeline around multi-agent attacks, 2026-11-23.** The project is
+    interested only in multi-agent attacks, but attack-ness is not a field of its own: the
+    rules infer it from `multiplicity_role` (anything but `not_applicable` or empty,
+    `derive.is_security`), and the prompt uses `not_applicable` both for a non-attack and for
+    an attack where multiplicity plays no part, so an attack can be read as a non-attack.
+    The chain multiplicity_role → presumption → counterfactual → rules_say is also hard to
+    follow on the sheet. Decide what the scope question should be for attacks only, and
+    cut the prompt fields and rules that do not serve it. Sheet 1 now shows every model
+    answer, the rules' intermediate steps and a `Fields` tab with the lineage, as a stopgap.
+
 ## Layer 2. Detection
 17. Write the one-page coding protocol: the definition of coverage and the 0–3 validity weight.
 18. Build `data/evals.csv` (technique, what it measures, method, access, validity note). Seed it from METR, Apollo Research, UK AISI, GovSim, Melting Pot, agent-security benchmarks and steganography evals.

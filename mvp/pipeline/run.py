@@ -1304,6 +1304,7 @@ SHEETS = {
     },
 }
 HELP_SHEET = "How to fill this in"
+FIELDS_SHEET = "Fields"
 META_SHEET = "_meta"
 OPENPYXL_HINT = "install openpyxl: pip install -r requirements.txt"
 NOTHING_LEFT = "(nothing is left on this sheet)"
@@ -1404,6 +1405,17 @@ def cut(text, n=300):
     return text if len(text) <= n else text[:n - 1].rstrip() + "…"
 
 
+def sheet_value(value):
+    """A model answer as cell text: lists joined with '; ', booleans as true/false."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple)):
+        return "; ".join(str(v) for v in value)
+    return str(value)
+
+
 def scope_sheet_rows(state, records):
     gates = proposal_rows("extract_gate")
     asked = set(state["scope_ask"])
@@ -1412,8 +1424,23 @@ def scope_sheet_rows(state, records):
         pair = split_key(key)
         v, rec, gate = state["verdicts"][pair], records.get(pair, {}), gates.get(pair, {})
         say = rules_say(v)
+        labels = rules.labels_of(v)
         quotes = [q for q in (gate.get("quotes") or {}).values() if q][:2]
+        answers = {}
+        for field in MODEL_FIELDS:
+            answers[field] = sheet_value(gate.get(field))
+            if field in QUOTED_FIELDS:
+                answers[f"{field}_quote"] = (gate.get("quotes") or {}).get(field, "")
         rows.append({
+            **answers,
+            "prompt": gate.get("prompt_id", "") + (f"@{gate['prompt_version']}"
+                                                   if gate.get("prompt_version") else ""),
+            "is_attack": "yes" if gate and rules.is_security(gate) else "no",
+            "presumption_fires": "yes" if gate and rules.presumption_fires(gate) else "no",
+            "gate1": v.get("gate1", ""), "status": v.get("status", ""),
+            "evidence_type": labels.get("evidence_type") or "",
+            "failure_mode": labels.get("failure_mode") or "",
+            "instances_presumed": "; ".join(labels.get("instances_presumed") or []),
             "record_key": key, "ask": "yes" if key in asked else "check",
             "title": rec.get("title", ""), "date": rec.get("date", ""),
             "url": rec.get("url", ""), "rules_say": say,
@@ -1442,9 +1469,121 @@ def promote_sheet_rows(state, records):
     return rows
 
 
-SCOPE_COLUMNS = ["record_key", "ask", "title", "date", "url", "rules_say", "settled_by_rules",
-                 "why_a_person", "confidence", "counterfactual", "by_presumption",
-                 "key_quote", "decision", "reason"]
+# The model's answers to the extract_gate questions, in prompt order
+# (mvp/prompts/extract_gate.v4.md). QUOTED_FIELDS also get a `<field>_quote` column.
+MODEL_FIELDS = ["n_ai_agents", "agent_names", "interaction_present", "interaction_kind",
+                "setting", "stakes", "environment_controlled_by",
+                "single_agent_counterfactual", "multiplicity_role", "cooperation_occurred",
+                "cooperation_expected", "objective_relation", "confidence",
+                "uncertainty_reason"]
+QUOTED_FIELDS = ["n_ai_agents", "agent_names", "interaction_present", "interaction_kind",
+                 "setting", "stakes", "environment_controlled_by",
+                 "single_agent_counterfactual", "multiplicity_role", "cooperation_occurred",
+                 "cooperation_expected", "objective_relation"]
+SCOPE_COLUMNS = (["record_key", "ask", "title", "date", "url", "rules_say", "settled_by_rules",
+                  "why_a_person", "confidence", "counterfactual", "by_presumption",
+                  "key_quote", "decision", "reason",
+                  "is_attack", "presumption_fires", "gate1", "status", "evidence_type",
+                  "failure_mode", "instances_presumed", "prompt"]
+                 + [c for f in MODEL_FIELDS if f != "confidence"
+                    for c in ([f, f"{f}_quote"] if f in QUOTED_FIELDS else [f])])
+# The "Fields" tab of sheet 1: where every column comes from. Rules are those of
+# mvp/pipeline/derive.py; keep the two in step when a rule changes.
+SCOPE_FIELDS_HEAD = ["column", "set_by", "what it is", "computed from", "rule"]
+SCOPE_FIELDS_CHAIN = [
+    "How the columns feed each other (model = the extract_gate answers; rules = "
+    "mvp/pipeline/derive.py; you = your decision):",
+    "  multiplicity_role  ->  is_attack",
+    "  multiplicity_role + n_ai_agents + single_agent_counterfactual  ->  presumption_fires",
+    "  is_attack + multiplicity_role + presumption_fires + single_agent_counterfactual  "
+    "->  counterfactual, by_presumption",
+    "  counterfactual + is_attack + interaction_present  ->  rules_say",
+    "  confidence + unclear Gate 1 answers + (if rules_say = in) unclear Gate 2 answers + "
+    "evidence_type  ->  why_a_person  ->  settled_by_rules, status",
+    "  rules_say + why_a_person  ->  gate1;  rules_say + confidence  ->  ask",
+    "  setting + stakes + environment_controlled_by  ->  evidence_type",
+    "  cooperation_occurred + cooperation_expected + objective_relation  ->  failure_mode "
+    "(only if rules_say = in)",
+    "  rules_say + is_attack + multiplicity_role  ->  instances_presumed",
+    "Only `decision` puts a record in scope. Every other column is a suggestion.",
+    "",
+]
+SCOPE_FIELDS = [
+    ("record_key", "record", "source and its record id", "mvp/records/", ""),
+    ("ask", "rules", "does this row need you", "rules_say, confidence",
+     "yes if rules_say = in or confidence = low; else check"),
+    ("title / date / url", "record", "the record as the source gives it", "mvp/records/", ""),
+    ("rules_say", "rules", "would the rules put it in scope (Gate 1)",
+     "counterfactual, is_attack, interaction_present",
+     "attack: in if counterfactual = could_not. Not an attack: in if counterfactual = "
+     "could_not AND interaction_present = true. Otherwise out; unclear if nothing settles it"),
+    ("settled_by_rules", "rules", "could the rules decide without a person", "why_a_person",
+     "no if why_a_person is not empty"),
+    ("why_a_person", "rules", "why the rules could not settle it (verdict field review_why)",
+     "confidence, Gate 1 and Gate 2 answers, evidence_type",
+     "lists: 'confidence <x>' if confidence is not high; interaction_present if unclear "
+     "(not on attacks); single_agent_counterfactual if unclear and presumption_fires = no; "
+     "if rules_say = in: cooperation_occurred if unclear, cooperation_expected if unclear "
+     "and cooperation occurred, objective_relation if unclear and not on the FM3 branch, "
+     "'evidence type not derivable' if evidence_type is empty"),
+    ("confidence", "model", "how well the source states the facts", "",
+     "high only when the source states the facts rather than implying them"),
+    ("counterfactual", "rules", "the single-agent counterfactual after the attack rules",
+     "is_attack, multiplicity_role, presumption_fires, single_agent_counterfactual",
+     "not an attack: the model's answer. Attack: load_bearing -> could_not; incidental -> "
+     "could; unreported -> could_not if presumption_fires, else the model's answer"),
+    ("by_presumption", "rules", "did the attack presumption decide scope",
+     "presumption_fires, single_agent_counterfactual, rules_say",
+     "yes if presumption_fires, the model had not already answered could_not, and "
+     "rules_say = in"),
+    ("key_quote", "model", "the first two quotes the model gave", "*_quote", ""),
+    ("decision", "you", "in / out / unclear", "", "the only column that sets scope"),
+    ("reason", "you", "why, in a line", "", "kept in scope_decisions.csv"),
+    ("is_attack", "rules", "is this an attack record", "multiplicity_role",
+     "yes unless multiplicity_role is not_applicable or empty. Note: the prompt also uses "
+     "not_applicable for an attack where multiplicity plays no part"),
+    ("presumption_fires", "rules", "does the attack presumption apply",
+     "multiplicity_role, n_ai_agents, single_agent_counterfactual",
+     "yes if multiplicity_role = unreported, n_ai_agents is empty or >= 2, and "
+     "single_agent_counterfactual is not could"),
+    ("gate1", "rules", "Gate 1 verdict", "rules_say, Gate 1 part of why_a_person",
+     "review if a Gate 1 answer is unclear (see why_a_person); else in or out = rules_say"),
+    ("status", "rules", "overall verdict", "why_a_person, rules_say",
+     "review if why_a_person is not empty; else in_scope or out_of_scope"),
+    ("evidence_type", "rules", "real_world / synthetic / lab / theoretical",
+     "setting, stakes, environment_controlled_by",
+     "none -> theoretical; narrow_probe -> lab; researcher_built -> synthetic; deployed + "
+     "real + nobody or operator -> real_world; else empty"),
+    ("failure_mode", "rules", "Gate 2 failure mode, only if rules_say = in",
+     "cooperation_occurred, cooperation_expected, objective_relation",
+     "cooperation occurred + unexpected -> FM3; else identical -> FM1, mixed -> FM2; "
+     "else empty"),
+    ("instances_presumed", "rules", "instances the presumption attaches",
+     "rules_say, is_attack, multiplicity_role",
+     "I28; I29 if rules_say = in, attack, and multiplicity_role = unreported"),
+    ("prompt", "model", "which prompt version produced the answers", "", ""),
+    ("n_ai_agents", "model", "how many AI agents (not systems, products or artefacts)?",
+     "", ""),
+    ("agent_names", "model", "which agents, as the record names them?", "", ""),
+    ("interaction_present", "model", "do the agents act on or talk to each other?", "", ""),
+    ("interaction_kind", "model",
+     "communication / one-acting-on-another / shared-environment / none?", "",
+     "not used by the rules"),
+    ("setting", "model", "deployed / researcher_built / narrow_probe / none?", "", ""),
+    ("stakes", "model", "real / simulated / none?", "", ""),
+    ("environment_controlled_by", "model", "experimenter / operator / nobody?", "", ""),
+    ("single_agent_counterfactual", "model",
+     "could one sufficiently capable agent have produced this outcome?", "",
+     "could / could_not / unclear"),
+    ("multiplicity_role", "model",
+     "attacks only: did the number or mix of agents matter?", "",
+     "load_bearing / incidental / unreported / not_applicable"),
+    ("cooperation_occurred", "model", "did the agents actually work together?", "", ""),
+    ("cooperation_expected", "model", "was that cooperation intended?", "", ""),
+    ("objective_relation", "model", "identical / mixed / opposing objectives?", "", ""),
+    ("uncertainty_reason", "model", "why the model was unsure, in a sentence", "", ""),
+    ("<field>_quote", "model", "the verbatim span the model gave for that answer", "", ""),
+]
 PROMOTE_COLUMNS = ["record_key", "title", "date", "url", "decided_in_on", "scope_reason",
                    "promote", "note"]
 SHEET_WIDTHS = {"record_key": 16, "ask": 8, "title": 48, "date": 12, "url": 30, "rules_say": 10,
@@ -1452,7 +1591,8 @@ SHEET_WIDTHS = {"record_key": 16, "ask": 8, "title": 48, "date": 12, "url": 30, 
                 "counterfactual": 15, "by_presumption": 12, "key_quote": 60,
                 "decision": 12, "reason": 40, "decided_in_on": 14, "scope_reason": 40,
                 "promote": 12, "note": 40}
-SHEET_WRAP = {"title", "why_a_person", "key_quote", "reason", "scope_reason", "note"}
+SHEET_WRAP = {"title", "why_a_person", "key_quote", "reason", "scope_reason", "note",
+              "uncertainty_reason"}
 SCOPE_HELP = [
     "Decide scope: is this record a multi-agent incident, yes or no?",
     "Read the title and the quote, and open the url when you need more. Only you can say "
@@ -1466,6 +1606,9 @@ SCOPE_HELP = [
     "out = one agent, or many doing what one could have done. "
     "unclear = the source was read and does not say.",
     "Write a short `reason` if you can. It is kept in mvp/review/scope_decisions.csv.",
+    "Right of `reason`: the rules' intermediate steps, then every question the model "
+    "answered with its quote. The `Fields` tab says what each column is and which columns "
+    "it is computed from.",
     "You do not have to finish. Leave a row blank and it stays on the next sheet.",
     "Save the file, then run `python mvp/pipeline/run.py review` or press Continue on "
     "the page. A row you filled wrongly is reported and comes back blank.",
@@ -1495,9 +1638,10 @@ def clean(value):
     return " " + text if text.startswith("=") else text
 
 
-def write_sheet(kind, columns, rows, help_lines):
-    """Write one sheet to mvp/review/, replacing the last one. The last two columns are
-    the ones a person fills in; the first of them gets a drop-down."""
+def write_sheet(kind, columns, rows, help_lines, fields=None, path=None):
+    """Write one sheet to mvp/review/, replacing the last one (or to `path`). The sheet's
+    `field` and `text` columns are the ones a person fills in; `field` gets a drop-down.
+    `fields`, if given, is (chain lines, header, rows) for a `Fields` tab."""
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     from openpyxl.worksheet.datavalidation import DataValidation
@@ -1510,13 +1654,14 @@ def write_sheet(kind, columns, rows, help_lines):
     head = PatternFill("solid", start_color="D9E1F2")
     ask = PatternFill("solid", start_color="FFF2CC")
     ask_head = PatternFill("solid", start_color="FFD966")
-    fill_cols = columns[-2:]
+    fill_cols = [cfg["field"], cfg["text"]]
     for i, name in enumerate(columns, 1):
         c = ws.cell(1, i)
         c.font = Font(bold=True)
         c.fill = ask_head if name in fill_cols else head
         c.alignment = Alignment(vertical="top", wrap_text=True)
-        ws.column_dimensions[get_column_letter(i)].width = SHEET_WIDTHS.get(name, 14)
+        ws.column_dimensions[get_column_letter(i)].width = SHEET_WIDTHS.get(
+            name, 40 if name.endswith("_quote") else 14)
     if rows:
         for row in rows:
             ws.append([clean(row.get(c, "")) for c in columns])
@@ -1526,7 +1671,8 @@ def write_sheet(kind, columns, rows, help_lines):
     for r in range(2, last + 1):
         for i, name in enumerate(columns, 1):
             c = ws.cell(r, i)
-            c.alignment = Alignment(vertical="top", wrap_text=name in SHEET_WRAP)
+            c.alignment = Alignment(vertical="top", wrap_text=name in SHEET_WRAP
+                                    or name.endswith("_quote"))
             if name in fill_cols:
                 c.fill = ask
             if name == "url" and str(c.value).startswith(("http://", "https://")):
@@ -1546,13 +1692,31 @@ def write_sheet(kind, columns, rows, help_lines):
     for i, line in enumerate(help_lines, 1):
         hs.cell(i, 1, line).alignment = Alignment(wrap_text=True, vertical="top")
     hs.cell(1, 1).font = Font(bold=True)
+    if fields:
+        chain, fhead, frows = fields
+        fs = wb.create_sheet(FIELDS_SHEET)
+        for line in chain:
+            fs.append([line])
+        fs.append(fhead)
+        hrow = fs.max_row
+        for i in range(1, len(fhead) + 1):
+            fs.cell(hrow, i).font = Font(bold=True)
+            fs.cell(hrow, i).fill = head
+        for r in frows:
+            fs.append(list(r))
+        for row in fs.iter_rows(min_row=hrow + 1):
+            for c in row:
+                c.alignment = Alignment(wrap_text=True, vertical="top")
+        for col, w in zip("ABCDE", (26, 8, 45, 40, 70)):
+            fs.column_dimensions[col].width = w
+        fs.cell(1, 1).font = Font(bold=True)
     meta = wb.create_sheet(META_SHEET)
     meta.append(["generated_on", TODAY])
     meta.append(["sheet", kind])
     meta.sheet_state = "hidden"
     wb.properties.title = f"{cfg['title']} (generated {TODAY})"
     REVIEW.mkdir(parents=True, exist_ok=True)
-    path = REVIEW / cfg["file"]
+    path = Path(path) if path else REVIEW / cfg["file"]
     tmp = path.with_name(path.name + ".tmp")
     wb.save(tmp)
     os.replace(tmp, path)
@@ -1663,12 +1827,13 @@ def stage_review():
     # 3. write both sheets again from the state now
     state = review_state(records)
     if openpyxl is not None:
-        for kind, columns, rows, lines in (
-                ("scope", SCOPE_COLUMNS, scope_sheet_rows(state, records), SCOPE_HELP),
+        for kind, columns, rows, lines, fields in (
+                ("scope", SCOPE_COLUMNS, scope_sheet_rows(state, records), SCOPE_HELP,
+                 (SCOPE_FIELDS_CHAIN, SCOPE_FIELDS_HEAD, SCOPE_FIELDS)),
                 ("promote", PROMOTE_COLUMNS, promote_sheet_rows(state, records),
-                 PROMOTE_HELP)):
+                 PROMOTE_HELP, None)):
             if kind not in unreadable:
-                write_sheet(kind, columns, rows, lines)
+                write_sheet(kind, columns, rows, lines, fields)
     # 4. the numbers
     for kind, n in decided.items():
         REVIEW_DECIDED[kind] += n
