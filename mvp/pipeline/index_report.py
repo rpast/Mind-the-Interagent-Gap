@@ -75,6 +75,7 @@ def index_rows(risks, insts):
         fm = meta.get("failure_mode") or ""
         ids = meta.get("instances") or []
         presumed = meta.get("instances_presumed") or []
+        ids = ids + [i for i in presumed if i not in ids]
         srcs = meta.get("sources") or []
         rows.append({
             "id": meta.get("id"),
@@ -111,10 +112,10 @@ INDEX_COLS = [
     ("failure_mode", 9, "FM1 Miscoordination, FM2 Conflict, FM3 Collusion, from the Gate 2 tree; empty when none applies (normal for attacks)."),
     ("failure_mode_name", 16, "Name of the failure mode."),
     ("failure_mode_source", 20, "ours = a person judged it; classifier:<prompt>@<version> = derived by rule from the model's facts, not yet confirmed by a person."),
-    ("instances", 14, "Quoted instance ids (mvp/taxonomy/instances.csv). Descriptive; assigned independently of the failure mode."),
-    ("instance_names", 30, "Names of the quoted instances."),
+    ("instances", 14, "All instance ids, quoted and presumed (mvp/taxonomy/instances.csv). Descriptive; assigned independently of the failure mode. The presumed ones are repeated in instances_presumed."),
+    ("instance_names", 30, "Names of all the instances, quoted and presumed."),
     ("instances_discussed_under", 14, "The failure mode or risk factor under which Hammond et al. discuss those instances. A reading aid only: never a label of this incident."),
-    ("instances_presumed", 12, "I28; I29 presumed for an attack whose source does not say what the number or mix of agents contributed. Not quoted."),
+    ("instances_presumed", 12, "I28; I29 presumed for an attack whose source does not say what the number or mix of agents contributed. Not quoted. Also listed in instances."),
     ("verification", 15, "verified / partially_verified / unverified against the primary source by a person."),
     ("origin", 30, "How the dossier came to be."),
     ("scope_basis", 50, "Why the incident is in scope: always a person's verdict."),
