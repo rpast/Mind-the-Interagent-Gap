@@ -90,7 +90,11 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
   position: absolute; left: 0; top: 0; width: 1560px; height: 1220px; transform-origin: 0 0; user-select: none;
 }
 #wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.wire { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.wire { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: miter; }
+.wire.hot { stroke-width: 2.5; }
+/* the wide, invisible grip over each wire: drag a run to move it */
+.whit { fill: none; stroke: transparent; stroke-width: 11; pointer-events: stroke; touch-action: none; }
+.whit:hover { stroke: var(--ink); stroke-opacity: .08; }
 .wire.hand { stroke-dasharray: 6 4; }
 .wire.unbuilt { stroke-dasharray: 1.5 4; }
 /* a reference: a rule or a list is read; no records travel this wire */
@@ -169,8 +173,8 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 .node.end { width: 136px; border-right-width: 5px; }
 .node.end .nb { min-height: 0; }
 .node.picked { outline: 2px solid var(--ink); outline-offset: 3px; }
-.port { position: absolute; width: 7px; height: 7px; background: var(--paper); border: 1px solid var(--ink); }
-.port.in { background: var(--ink); }
+.port { position: absolute; width: 7px; height: 7px; background: var(--paper); border: 1px solid var(--port, var(--ink)); pointer-events: none; }
+.port.in { background: var(--port, var(--ink)); }
 
 /* ---- a real update, painted on the boxes ---- */
 .node .rsb {
@@ -415,7 +419,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
     <button class="btn" id="zfit">Fit</button>
     <button class="btn" id="zin" aria-label="Zoom in">+</button>
   </span>
-  <button class="btn" id="tidy" title="Put every box back where it started">Tidy</button>
+  <button class="btn" id="tidy" title="Put every box back where it started and square up every wire">Tidy</button>
   <button class="btn" id="helpbtn" aria-pressed="false" aria-controls="help">How to read this map</button>
   <button class="btn" id="legbtn" aria-pressed="true">Legend</button>
   <button class="btn" id="colbtn" aria-pressed="false" aria-controls="colours" title="Choose the four colours of the palette">Colours</button>
@@ -487,6 +491,12 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
     </div>
     <h3>Presets</h3>
     <div class="presets" id="presets"></div>
+    <h3>Wire ends</h3>
+    <div class="foot">
+      <label><input type="color" id="portcol"> Square ends</label>
+      <span class="note" id="portnote"></span>
+      <button class="btn" id="portreset" title="Go back to the ink colour">Default</button>
+    </div>
     <div class="foot">
       <span class="note" id="colnote"></span>
       <button class="btn" id="colreset" title="Go back to the default, which follows the system light or dark setting">Reset</button>
@@ -592,7 +602,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
 
 <script>
 const D = {
-  "generated": "2026-11-23",
+  "generated": "2026-11-24",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -2293,7 +2303,7 @@ const D = {
         "rhs": 422
       },
       {
-        "eq": "left to decide = rows on the decide-scope sheet",
+        "eq": "left to decide = undecided rows on the decide-scope sheet",
         "lhs": 319,
         "ok": true,
         "rhs": 319
@@ -2681,7 +2691,7 @@ const D = {
             "rows": [
               {
                 "label": "an aggregator's page, read in full",
-                "n": 397,
+                "n": 385,
                 "tech": "secondary"
               },
               {
@@ -2691,7 +2701,7 @@ const D = {
               },
               {
                 "label": "the original source, read in full",
-                "n": 99,
+                "n": 111,
                 "tech": "primary_full"
               }
             ],
@@ -2796,12 +2806,12 @@ const D = {
             "rows": [
               {
                 "label": "Original source read in full",
-                "n": 61,
+                "n": 73,
                 "tech": "scope ready"
               },
               {
                 "label": "Facts from a partial or secondary reading",
-                "n": 361,
+                "n": 349,
                 "tech": "scope provisional"
               },
               {
@@ -2846,12 +2856,12 @@ const D = {
               },
               {
                 "label": "low",
-                "n": 65,
+                "n": 64,
                 "tech": "confidence low"
               },
               {
                 "label": "medium",
-                "n": 248,
+                "n": 249,
                 "tech": "confidence medium"
               }
             ],
@@ -2951,7 +2961,7 @@ const D = {
             "rows": [
               {
                 "label": "The rules said in: a person decided in",
-                "n": 31,
+                "n": 30,
                 "tech": "rules_say in; in"
               },
               {
@@ -2961,7 +2971,7 @@ const D = {
               },
               {
                 "label": "The rules said out: a person decided in",
-                "n": 4,
+                "n": 5,
                 "tech": "rules_say out; in"
               },
               {
@@ -3005,7 +3015,7 @@ const D = {
           {
             "rows": [
               {
-                "label": "Rows left on the sheet",
+                "label": "Rows on the sheet left to decide",
                 "n": 319,
                 "tech": "review/1_decide_scope.xlsx"
               },
@@ -3300,12 +3310,12 @@ const D = {
             "rows": [
               {
                 "label": "A pattern was proposed",
-                "n": 36,
+                "n": 55,
                 "tech": "assign_instances proposal"
               },
               {
                 "label": "The dossier already lists patterns",
-                "n": 19,
+                "n": 0,
                 "tech": "dossier instances"
               },
               {
@@ -3326,17 +3336,17 @@ const D = {
         "held_label": "in scope, no pattern yet",
         "id": "instances",
         "in": 55,
-        "n": 36,
+        "n": 55,
         "out": [],
         "rule": "proposal_rows('assign_instances') over records in scope",
         "stop": [
           {
             "label": "patterns proposed",
-            "n": 36
+            "n": 55
           },
           {
             "label": "patterns already in the dossier",
-            "n": 19
+            "n": 0
           }
         ]
       }
@@ -3347,7 +3357,7 @@ const D = {
       "extracted": 422,
       "in_dossier_already": 27,
       "in_scope": 55,
-      "instance_records": 36,
+      "instance_records": 55,
       "not_queued": 684,
       "out_of_scope": 711,
       "promoted_early": 0,
@@ -3364,16 +3374,19 @@ const D = {
       "scope_decided_unclear": 7,
       "scope_left": 319
     },
-    "gate_proposals": 422,
+    "gate_proposals": 442,
     "gold": {
       "ceiling": 0.8260869565217391,
       "ceiling_n": 23,
+      "classifier_n": 55,
+      "classifier_precision": 0.8695652173913043,
+      "classifier_recall": 0.9090909090909091,
       "in": 22,
       "out": 33,
       "rows": 58,
       "unclear": 3
     },
-    "instance_proposals": 36,
+    "instance_proposals": 55,
     "instances": 36,
     "instances_due": 0,
     "manual": 0,
@@ -3425,7 +3438,7 @@ const D = {
     "verdicts": {
       "in_scope": 1,
       "out_of_scope": 103,
-      "review": 318
+      "review": 338
     },
     "verdicts_rules": "2026-11-16"
   },
@@ -17336,17 +17349,17 @@ const D = {
       "label": "Prefilter"
     },
     {
-      "count": 482,
+      "count": 575,
       "detail": {
-        "proposals": 482
+        "proposals": 575
       },
       "id": "classify",
       "label": "Classify"
     },
     {
-      "count": 651,
+      "count": 558,
       "detail": {
-        "awaiting": 651
+        "awaiting": 558
       },
       "id": "review",
       "label": "Review"
@@ -17423,6 +17436,10 @@ function defs() {
   const st = O(fl("gate1").groups && (fl("gate1").groups[0] || {}));
   const derivedRows = Array.isArray(st.rows) ? st.rows : [];
   const sv = s => (derivedRows.find(r => r && r.tech === "status " + s) || {}).n || 0;
+  // a built step has run once the files it writes hold something: its count on the flow
+  const ran = id => fl(id).n ? "run" : "waiting";
+  const derived = Object.values(O(M.verdicts)).some(v => Number(v) > 0) || fl("gate1").n ? "run" : "waiting";
+  const scored = gold.classifier_n != null;
   return [
   { id: "sources", kind: "doc", status: "run", by: "doc", x: 30, y: 300, title: "Sources",
     num: n(M.sources), cap: "sources listed" + (has(M, "sources_with_records") ? ", " + n(M.sources_with_records) + " with records" : ""),
@@ -17482,7 +17499,7 @@ function defs() {
     inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "mvp/state/queue.jsonl",
     extra: prefilterRules, cmd: "python mvp/pipeline/run.py prefilter" },
 
-  { id: "readrec", status: "waiting", by: "model", x: 990, y: 300, title: "Read the record",
+  { id: "readrec", status: ran("readrec"), by: "model", x: 990, y: 300, title: "Read the record",
     num: n(fl("readrec").n) + " read", cap: "so far, of " + nIn("readrec") + " candidates" + waiting("readrec"),
     plain: ["Reads the short record and asks one question first: how many agents are acting here?",
             "The unit is the agent, not the system or the company. One product, one platform or one operator can hold several agents, and such a record counts as several.",
@@ -17492,7 +17509,7 @@ function defs() {
     byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, record pass.",
     inp: "A candidate.", out: "A first note: one agent, several, or cannot tell.", prod: "mvp/context/<source>.jsonl",
     cmd: "/classify-incidents  (step 0, record pass)" },
-  { id: "readsrc", status: "waiting", by: "model", x: 1250, y: 300, title: "Read the source",
+  { id: "readsrc", status: ran("readsrc"), by: "model", x: 1250, y: 300, title: "Read the source",
     num: n(fl("readsrc").n) + " read", cap: "so far, of " + nIn("readsrc") + " sent on" + waiting("readsrc"),
     plain: ["For every record that might involve several agents, could not be told, or was flagged, opens the original article or report and writes down what it says about seven facts, with exact quotes, and how much of it was read. If the source shows one agent after all, the record goes to “out of scope”; if the facts are settled, it is ready to judge.",
             "The number counts the records whose best reading goes deeper than the record's own text. The others wait here for somebody to read their source."],
@@ -17526,14 +17543,14 @@ function defs() {
     inp: "The paper, read by a person.", out: "The definitions.", prod: "mvp/docs/definitions.md · mvp/taxonomy/",
     facts: [["Failure types and risk factors", M.risks], ["Named patterns", M.instances], ["From the paper", 33], ["Written by this project", 3]],
     cmd: "mvp/docs/definitions.md" },
-  { id: "extract", status: "waiting", by: "model", x: 30, y: 680, title: "Extract facts",
+  { id: "extract", status: ran("extract"), by: "model", x: 30, y: 680, title: "Extract facts",
     num: n(fl("extract").n), cap: "records with facts extracted" + waiting("extract"),
     plain: "An AI model reads the record and its reading and fills in a form: how many agents, did they act on each other, did they cooperate, were their goals the same. It is told not to give a verdict, only facts with quotes.",
     tech: "Classifier call 1: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Only for records whose scope is ready or provisional. The count: distinct ready records with an extract_gate proposal (newest row per record), not proposal lines.",
     byNote: "Instructions: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Run in Claude Code: /classify-incidents, call 1.",
     inp: "A ready candidate and its reading.", out: "A filled-in form of facts.", prod: "mvp/proposals/",
     cmd: "/classify-incidents  (call 1)" },
-  { id: "gate1", status: (fl("gate1").n ? "run" : "waiting"), by: "rule", x: 270, y: 680, title: "Derive · Gate 1",
+  { id: "gate1", status: ran("gate1"), by: "rule", x: 270, y: 680, title: "Derive · Gate 1",
     num: n(fl("gate1").n), cap: "labelled by the rules: " + n(sv("in_scope")) + " in · " + n(sv("out_of_scope")) + " out · " + n(sv("review")) + " need a person" + waiting("gate1"),
     plain: ["A fixed rule applied to the form, not a judgement call. An incident is in scope only if the harm needed more than one agent: something a single agent, however capable, could not have done alone. An attack by a fleet of agents counts, unless the source shows the crowd made no difference.",
             "Each record gets one of three answers: settled in scope, settled out of scope, or “needs a person” when the model was unsure or a fact is unclear. All three go to a person; none of them is final."],
@@ -17541,21 +17558,21 @@ function defs() {
     byNote: "run.py derive applies pipeline/derive.py to the extracted facts.",
     inp: "The facts.", out: "In scope, out of scope, or needs a person.", prod: "mvp/state/verdicts.jsonl",
     cmd: "python mvp/pipeline/run.py derive" },
-  { id: "gate2", status: "waiting", by: "rule", x: 270, y: 810, title: "Gate 2 · What failed?",
+  { id: "gate2", status: derived, by: "rule", x: 270, y: 810, title: "Gate 2 · What failed?",
     num: "rule", cap: "one of three, or none",
     plain: "Picks the kind of failure, or none. Collusion: the agents worked together when they were not supposed to. Miscoordination: same goal, but they got in each other’s way. Conflict: partly shared goals, and everyone ended up worse off. It never throws an incident out; Gate 1 already decided that.",
     tech: "cooperation_occurred AND unexpected → FM3; otherwise objective_relation: identical → FM1, mixed → FM2, opposing → none.",
     byNote: "Applied to the extracted facts.",
     inp: "The facts.", out: "A failure type, or none.", prod: "mvp/proposals/",
     cmd: "mvp/docs/definitions.md § Gate 2" },
-  { id: "evtype", status: "waiting", by: "rule", x: 270, y: 940, title: "Evidence type",
+  { id: "evtype", status: derived, by: "rule", x: 270, y: 940, title: "Evidence type",
     num: "rule", cap: "where it happened",
     plain: "Says what kind of evidence this is: it happened in the real world, in a simulation somebody built, in a narrow lab test, or only as an argument on paper.",
     tech: "From setting, stakes and environment_controlled_by: real_world / synthetic / lab / theoretical.",
     byNote: "Applied to the extracted facts.",
     inp: "The facts.", out: "One of four labels.", prod: "mvp/proposals/",
     cmd: "mvp/taxonomy/evidence_types.csv" },
-  { id: "instances", status: "waiting", by: "model", x: 520, y: 1000, title: "Name the pattern",
+  { id: "instances", status: ran("instances"), by: "model", x: 520, y: 1000, title: "Name the pattern",
     num: n(fl("instances").n), cap: "with a pattern proposed, of " + nIn("instances") + " in scope" + waiting("instances"),
     plain: ["The finer description under a label. For an in-scope incident, a model says which of the paper's named patterns it shows, for example “Swarm Attacks”, and must quote the words that show each.",
             "What it is for: later, to show which of the paper's named patterns have real incidents behind them and which have none. It does not decide whether an incident is in scope, nor its failure type. Nothing uses its output yet.",
@@ -17610,10 +17627,18 @@ function defs() {
     inp: "Original sources, read by a person.", out: "The right answers.", prod: "mvp/gold/multiagent_gold.csv",
     facts: [["In scope", gold.in], ["Out of scope", gold.out], ["Unclear", gold.unclear]],
     cmd: "python mvp/gold/build_review.py" },
-  { id: "score", status: "waiting", by: "script", x: 1030, y: 940, title: "Score",
-    num: pct(gold.ceiling), cap: "earlier hand work, for comparison", unit: "Not a record count: a share",
-    plain: "Marks the models’ suggestions against the answer key. The models have not run yet, so the only score so far is for the project’s own earlier hand-picked list: of the incidents it called multi-agent, this share survived a careful second look.",
-    tech: "mvp/gold/score_gate1.py. Precision of earlier curation on " + n(gold.ceiling_n) + " scorable rows. No classifier score exists.",
+  { id: "score", status: scored ? "run" : "waiting", by: "script", x: 1030, y: 940, title: "Score",
+    num: pct(scored ? gold.classifier_precision : gold.ceiling),
+    cap: scored ? "of the rules’ “in scope” are right · " + pct(gold.classifier_recall) + " found" : "earlier hand work, for comparison",
+    unit: "Not a record count: a share",
+    plain: scored
+      ? ["Marks the models’ suggestions against the answer key. Of the records the rules called multi-agent, this share really is; of the multi-agent records in the key, " + pct(gold.classifier_recall) + " were found. Scored on " + n(gold.classifier_n) + " records.",
+         "For comparison, the project’s own earlier hand-picked list scored " + pct(gold.ceiling) + " on the same question."]
+      : "Marks the models’ suggestions against the answer key. The models have not run yet, so the only score so far is for the project’s own earlier hand-picked list: of the incidents it called multi-agent, this share survived a careful second look.",
+    tech: scored
+      ? "mvp/gold/score_gate1.py. Classifier precision " + pct(gold.classifier_precision) + ", recall " + pct(gold.classifier_recall) + " on " + n(gold.classifier_n) + " scorable gold rows; earlier curation precision " + pct(gold.ceiling) + " on " + n(gold.ceiling_n) + "."
+      : "mvp/gold/score_gate1.py. Precision of earlier curation on " + n(gold.ceiling_n) + " scorable rows. No classifier score exists.",
+    facts: scored ? [["Precision, the rules", pct(gold.classifier_precision)], ["Recall, the rules", pct(gold.classifier_recall)], ["Precision, earlier hand work", pct(gold.ceiling)]] : [],
     inp: "Suggestions and the answer key.", out: "How often the models are right.", prod: "mvp/out/gate1_accuracy.json",
     cmd: "python mvp/gold/score_gate1.py" },
   ];
@@ -17789,18 +17814,24 @@ NODES.forEach(nd => {
   e.addEventListener("pointerenter", () => say(nd.title + " — " + paras(nd.plain)[0].split(". ")[0] + "."));
   drag(e, e, (dx, dy) => moveNodes([...picked].map(i => byId[i]), dx, dy), saveLayout,
        ev => { if (ev.shiftKey) { picked.has(nd.id) ? picked.delete(nd.id) : picked.add(nd.id); paint(); } else openSheet(nd); },
-       () => { if (!picked.has(nd.id)) pick([nd.id]); });
+       () => { if (!picked.has(nd.id) || groupPick) pick([nd.id]); });
 });
 function paras(x) { return Array.isArray(x) ? x : [x]; }
 
+// a section name moves its whole section; a click on it selects the section, for the
+// arrow keys. That selection does not stick to the boxes: drag one box afterwards and
+// only that box moves, so a box can be placed within its section
 frames.forEach(fr => drag(fr.l, fr.l, (dx, dy) => moveNodes(fr.ids.map(i => byId[i]), dx, dy), saveLayout,
-                          () => pick(fr.ids)));
+                          () => { pick(fr.ids); groupPick = true; }));
 
 // ------------------------------------------------------------- selection
-function pick(ids, add) { if (!add) picked.clear(); ids.forEach(i => picked.add(i)); paint(); }
+let groupPick = false;
+function pick(ids, add) { groupPick = false; if (!add) picked.clear(); ids.forEach(i => picked.add(i)); paint(); }
 function paint() { NODES.forEach(q => q.el.classList.toggle("picked", picked.has(q.id))); }
 function saveLayout() { const L = {}; NODES.forEach(q => L[q.id] = { x: q.el.offsetLeft, y: q.el.offsetTop });
-  const lg = document.getElementById("legend"); L._legend = { x: lg.offsetLeft, y: lg.offsetTop }; store.set(LAYOUT, L); }
+  const lg = document.getElementById("legend"); L._legend = { x: lg.offsetLeft, y: lg.offsetTop };
+  L._wires = {}; wires.forEach(w => { if (w.c) L._wires[w.key] = w.c; });
+  store.set(LAYOUT, L); }
 function moveNodes(list, dx, dy) {
   if (!list.length) return;
   dx /= zoom; dy /= zoom;
@@ -17808,15 +17839,109 @@ function moveNodes(list, dx, dy) {
   dx = Math.max(dx, 20 - Math.min(...list.map(q => q.el.offsetLeft)));
   dy = Math.max(dy, 40 - Math.min(...list.map(q => q.el.offsetTop)));
   list.forEach(q => { q.el.style.left = (q.el.offsetLeft + dx) + "px"; q.el.style.top = (q.el.offsetTop + dy) + "px"; });
+  // a shaped wire whose two boxes both moved keeps its shape and moves with them
+  const ids = new Set(list.map(q => q.id));
+  wires.forEach(w => { if (w.c && ids.has(w.a.id) && ids.has(w.b.id)) w.c = w.c.map((v, i) => v + (axisAt(w, i) ? dy : dx)); });
   route();
 }
 
+// ----------------------------------------------------------------- wires
+// Every wire is square (Manhattan routing): straight runs that turn at right angles. It
+// leaves its box straight out of a side, runs to the free coordinates in `c`, and goes
+// straight into the other box. The coordinates alternate axis, starting with the axis
+// the wire leaves on. Drag a middle run to move it; drag an end run to put a jog in it;
+// double-click a wire to square it up again. A wire somebody shaped keeps its runs where
+// they were put (saved with the layout, under _wires); the others are routed afresh.
+const STUB = 18, DIR = { r: [1, 0], l: [-1, 0], t: [0, -1], b: [0, 1] };
+const axisOf = s => (s === "l" || s === "r") ? 0 : 1;   // 0: leaves along x, 1: along y
+const shaped = O(saved._wires);
+const hits = document.createElementNS(NS, "g");
 const wires = wireDefs().map(([a, b, label, kind, sides]) => {
   const path = document.createElementNS(NS, "path"); path.setAttribute("class", "wire " + (kind || ""));
   svg.appendChild(path);
   let text = null;
   text = document.createElementNS(NS, "text"); text.setAttribute("class", "wlabel"); text.setAttribute("text-anchor", "middle"); text.textContent = label || ""; svg.appendChild(text);
-  return { key: a + ">" + b, a: byId[a], b: byId[b], path, text, label: label || "", sides: sides || "rl" };
+  const hit = document.createElementNS(NS, "path"); hit.setAttribute("class", "whit"); hits.appendChild(hit);
+  const key = a + ">" + b, s = sides || "rl";
+  const c = Array.isArray(shaped[key]) && shaped[key].every(v => typeof v === "number") ? shaped[key] : null;
+  return { key, a: byId[a], b: byId[b], path, text, hit, label: label || "", sides: s, c, raw: [] };
+});
+svg.appendChild(hits);   // last, so a wire can be grabbed where it crosses another's label
+// the run a coordinate sits on: free coordinate i runs along the wire's leaving axis when i is even
+const axisAt = (w, i) => (i % 2 ? 1 - axisOf(w.sides[0]) : axisOf(w.sides[0]));
+// a coordinate list with the wrong parity for its sides cannot be drawn: route afresh
+const fits = (w, c) => Array.isArray(c) && (c.length % 2) === (axisOf(w.sides[0]) === axisOf(w.sides[1]) ? 1 : 0);
+
+// the free coordinates of a fresh route between P1 and Q1, the ends of the two stubs
+function autoCoords(P, Q, s0, s1) {
+  const A0 = axisOf(s0), A1 = axisOf(s1), B0 = 1 - A0, d0 = DIR[s0], d1 = DIR[s1];
+  if (A0 === A1) {
+    // both ends on the same side: go round, clear of both boxes
+    if (s0 === s1) return [(d0[A0] > 0 ? Math.max(P[A0], Q[A0]) : Math.min(P[A0], Q[A0])) + d0[A0] * 24];
+    // facing sides, the far end ahead: one turn each way, half way across
+    if ((Q[A0] - P[A0]) * d0[A0] >= 0) return [(P[A0] + Q[A0]) / 2];
+    // the far end behind: out, across half way, and back in
+    return [P[A0], (P[B0] + Q[B0]) / 2, Q[A0]];
+  }
+  // sides at right angles: one corner, if it lies ahead of the start and outside the end
+  if ((Q[A0] - P[A0]) * d0[A0] >= 0 && (P[A1] - Q[A1]) * d1[A1] >= 0) return [];
+  return [P[A0], Q[B0]];
+}
+// the corner points of a wire, P to Q, kept raw (zero-length runs and all) so that run
+// m of the drawing is always the same run of the coordinates: m 0 is the start stub, m 1
+// to k+2 are free runs 0 to k+1, m k+3 is the end stub
+function corners(w, P, Q) {
+  const s0 = w.sides[0], s1 = w.sides[1];
+  const P1 = [P[0] + DIR[s0][0] * STUB, P[1] + DIR[s0][1] * STUB], Q1 = [Q[0] + DIR[s1][0] * STUB, Q[1] + DIR[s1][1] * STUB];
+  if (w.c && !fits(w, w.c)) w.c = null;
+  const c = w.c || autoCoords(P1, Q1, s0, s1);
+  const pts = [P, P1]; let cur = P1.slice(), ax = axisOf(s0);
+  c.forEach(v => { cur[ax] = v; pts.push(cur.slice()); ax = 1 - ax; });
+  cur[ax] = Q1[ax]; pts.push(cur.slice()); ax = 1 - ax;
+  cur[ax] = Q1[ax]; pts.push(cur.slice());
+  pts.push(Q);
+  return { pts, c, P1, Q1 };
+}
+const dOf = pts => pts.filter((p, i) => !i || p[0] !== pts[i - 1][0] || p[1] !== pts[i - 1][1])
+                      .map((p, i) => (i ? "L" : "M") + p[0] + "," + p[1]).join(" ");
+
+// grab a run: the nearest run of the drawing to the pointer
+function nearestRun(w, x, y) {
+  let best = -1, bd = Infinity;
+  for (let m = 0; m < w.raw.length - 1; m++) {
+    const [p, q] = [w.raw[m], w.raw[m + 1]]; if (p[0] === q[0] && p[1] === q[1]) continue;
+    const t = Math.max(0, Math.min(1, ((x - p[0]) * (q[0] - p[0]) + (y - p[1]) * (q[1] - p[1])) / ((q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2)));
+    const d = Math.hypot(x - (p[0] + t * (q[0] - p[0])), y - (p[1] + t * (q[1] - p[1])));
+    if (d < bd) { bd = d; best = m; }
+  }
+  return best;
+}
+const runVertical = (w, m) => m >= 0 && w.raw[m][0] === w.raw[m + 1][0];
+function canvasAt(ev) { const r = canvas.getBoundingClientRect(); return [(ev.clientX - r.left) / zoom, (ev.clientY - r.top) / zoom]; }
+function saveWires() { saveLayout(); }
+wires.forEach(w => {
+  w.hit.addEventListener("pointermove", ev => {
+    if (w.dragging) return;
+    const [x, y] = canvasAt(ev); w.hit.style.cursor = runVertical(w, nearestRun(w, x, y)) ? "ew-resize" : "ns-resize";
+  });
+  w.hit.addEventListener("pointerenter", () => { w.path.classList.add("hot"); say("A wire: drag a run of it to move that run; double-click it to square it up again."); });
+  w.hit.addEventListener("pointerleave", () => { if (!w.dragging) w.path.classList.remove("hot"); });
+  w.hit.addEventListener("dblclick", () => { w.c = null; route(); saveWires(); });
+  let idx = -1, from = 0;
+  drag(w.hit, w.hit, (dx, dy) => {
+    if (idx < 0) return;
+    const ax = axisAt(w, idx); from += (ax ? dy : dx) / zoom;
+    w.c[idx] = Math.round(from); route();
+  }, () => { w.dragging = false; w.path.classList.remove("hot"); idx = -1; saveWires(); }, null, ev => {
+    // which run was grabbed decides which coordinate moves; an end run first gets a jog
+    const [x, y] = canvasAt(ev), m = nearestRun(w, x, y); if (m < 0) return;
+    const { c, P1, Q1 } = corners(w, w.raw[0], w.raw[w.raw.length - 1]);
+    w.c = c.slice(); const k = w.c.length, j = Math.max(0, Math.min(k + 1, m - 1));
+    if (j === 0) { const A0 = axisOf(w.sides[0]); w.c.unshift(P1[A0], P1[1 - A0]); idx = 1; }
+    else if (j === k + 1) { const ax = k % 2 ? 1 - axisOf(w.sides[0]) : axisOf(w.sides[0]); w.c.push(Q1[ax], Q1[1 - ax]); idx = k; }
+    else idx = j - 1;
+    from = w.c[idx]; w.dragging = true;
+  });
 });
 
 function anchor(nd, side) {
@@ -17841,12 +17966,8 @@ function route() {
   });
   wires.forEach(w => {
     const [p, q] = pts.get(w), s0 = w.sides[0], s1 = w.sides[1];
-    let k = Math.max(40, (s0 === "r" ? Math.abs(q[0] - p[0]) : Math.abs(q[1] - p[1])) / 2);
-    // both ends on the same side (a wire that goes round underneath): dip well clear of both boxes
-    if (s0 === s1) k = 90 + Math.abs((s0 === "b" || s0 === "t") ? q[1] - p[1] : q[0] - p[0]);
-    const dir = { r: [k, 0], l: [-k, 0], t: [0, -k], b: [0, k] };
-    const c1 = [p[0] + dir[s0][0], p[1] + dir[s0][1]], c2 = [q[0] + dir[s1][0], q[1] + dir[s1][1]];
-    w.path.setAttribute("d", `M${p[0]},${p[1]} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${q[0]},${q[1]}`);
+    w.raw = corners(w, p, q).pts;
+    const d = dOf(w.raw); w.path.setAttribute("d", d); w.hit.setAttribute("d", d);
     if (w.text) {
       const m = w.path.getPointAtLength(w.path.getTotalLength() / 2); w.text.setAttribute("x", m.x); w.text.setAttribute("y", m.y - 4);
       // a short side-by-side wire has no room for words between its boxes: the count only;
@@ -18048,7 +18169,7 @@ function fit() { setZoom(Math.min(1, (scroller.clientWidth - 4) / CW)); }
 document.getElementById("zin").onclick = () => setZoom(zoom + 0.1);
 document.getElementById("zout").onclick = () => setZoom(zoom - 0.1);
 document.getElementById("zfit").onclick = fit;
-document.getElementById("tidy").onclick = () => { store.set(LAYOUT, {}); pick([]); NODES.forEach(q => { q.el.style.left = q.x + "px"; q.el.style.top = q.y + "px"; }); placeLegend(LEG); route(); };
+document.getElementById("tidy").onclick = () => { store.set(LAYOUT, {}); pick([]); wires.forEach(w => { w.c = null; }); NODES.forEach(q => { q.el.style.left = q.x + "px"; q.el.style.top = q.y + "px"; }); placeLegend(LEG); route(); };
 const legend = document.getElementById("legend"), legbtn = document.getElementById("legbtn");
 const LEG = { x: 1500, y: 880 };
 function placeLegend(p) { legend.style.left = p.x + "px"; legend.style.top = p.y + "px"; }
@@ -18070,7 +18191,7 @@ const PRESETS = [
   ["Blueprint",      ["#f2f6ff", "#8fa9dc", "#4a6db4", "#1c3f8a"]],
 ];
 const colwin = document.getElementById("colours"), colbtn = document.getElementById("colbtn");
-const colInputs = [...colwin.querySelectorAll("input[type=color]")];
+const colInputs = [...colwin.querySelectorAll("input[type=color][data-c]")];
 const isHex = v => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
 function hex(v) { v = String(v || "").trim();
   if (/^#[0-9a-f]{3}$/i.test(v)) v = "#" + [...v.slice(1)].map(c => c + c).join("");
@@ -18084,7 +18205,8 @@ function applyPalette(p) {
 function current() { const cs = getComputedStyle(root); return [0, 1, 2, 3].map(i => hex(cs.getPropertyValue("--c" + i))); }
 function syncInputs() { const c = current(), chosen = !!root.style.getPropertyValue("--c0");
   colInputs.forEach((inp, i) => { inp.value = c[i]; });
-  document.getElementById("colnote").textContent = chosen ? "Your colours." : "Default: follows the system light or dark setting."; }
+  document.getElementById("colnote").textContent = chosen ? "Your colours." : "Default: follows the system light or dark setting.";
+  const pi = document.getElementById("portcol"); if (pi && !root.style.getPropertyValue("--port")) pi.value = c[0]; }
 function setPalette(p) { store.set(PALETTE, p); applyPalette(p); }
 colInputs.forEach((inp, i) => inp.addEventListener("input", () => { const p = current(); p[i] = hex(inp.value); setPalette(p); }));
 PRESETS.forEach(([name, p]) => {
@@ -18094,6 +18216,16 @@ PRESETS.forEach(([name, p]) => {
   document.getElementById("presets").appendChild(b);
 });
 document.getElementById("colreset").onclick = () => setPalette(null);
+// the colour of the small squares at the ends of the wires: its own choice, kept apart
+// from the palette; none chosen = the ink colour
+const PORTCOL = "patch-port-colour-1", portIn = document.getElementById("portcol");
+function applyPort(v) {
+  if (v) root.style.setProperty("--port", v); else root.style.removeProperty("--port");
+  portIn.value = v || current()[0];
+  document.getElementById("portnote").textContent = v ? "Your colour." : "Default: the ink colour.";
+}
+portIn.addEventListener("input", () => { const v = hex(portIn.value); store.set(PORTCOL, v); applyPort(v); });
+document.getElementById("portreset").onclick = () => { store.set(PORTCOL, null); applyPort(null); };
 function underBar(win) { // open just under the toolbar, which wraps onto several rows on a phone
   const top = Math.round(document.querySelector(".bar").getBoundingClientRect().bottom) + 6;
   win.style.top = top + "px"; win.style.maxHeight = (innerHeight - top - 8) + "px"; }
@@ -18106,6 +18238,7 @@ document.getElementById("colclose").onclick = () => { showColours(false); colbtn
 // the default follows the system; keep the swatches honest when it flips
 try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncInputs); } catch (e) {}
 { const p = store.get(PALETTE); applyPalette(Array.isArray(p) && p.length === 4 && p.every(isHex) ? p : null); }
+{ const v = store.get(PORTCOL); applyPort(isHex(v) ? v : null); }
 
 // ------------------------------------------------------------------ help
 const helpwin = document.getElementById("help"), helpbtn = document.getElementById("helpbtn");
@@ -18119,7 +18252,7 @@ document.getElementById("helpclose").onclick = () => { showHelp(false); helpbtn.
 // ----------------------------------------------------------- rubber band
 // Press on empty space and pull: every box the rectangle touches is selected.
 scroller.addEventListener("pointerdown", ev => {
-  if (ev.button || ev.pointerType === "touch" || ev.target.closest(".node, .flabel, #legend")) return;
+  if (ev.button || ev.pointerType === "touch" || ev.target.closest(".node, .flabel, #legend, .whit")) return;
   const sr = scroller.getBoundingClientRect();
   if (ev.clientX - sr.left > scroller.clientWidth || ev.clientY - sr.top > scroller.clientHeight) return;  // a scrollbar
   const cr = canvas.getBoundingClientRect(), at = e => [(e.clientX - cr.left) / zoom, (e.clientY - cr.top) / zoom];
@@ -18144,7 +18277,7 @@ scroller.addEventListener("pointerdown", ev => {
 });
 
 // ----------------------------------------------------------- message line
-const msg = document.getElementById("msg"), IDLE = "Click a box to see what it does. Drag a box to move it. Drag across empty space to select several. Drag a section name to move the section.";
+const msg = document.getElementById("msg"), IDLE = "Click a box to see what it does. Drag a box to move it. Drag across empty space to select several. Drag a section name to move the section. Drag a run of a wire to reshape it; double-click a wire to square it up.";
 function say(t) { msg.textContent = t; }
 const still = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
 

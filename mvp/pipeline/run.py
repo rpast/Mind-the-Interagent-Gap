@@ -3379,10 +3379,14 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
                 gold[row["review_verdict"]] += 1
     acc = OUT / "gate1_accuracy.json"
     if acc.exists():
-        ceiling = json.loads(acc.read_text(encoding="utf-8"))["predictors"].get(
-            "ceiling_hand_curation") or {}
+        predictors = json.loads(acc.read_text(encoding="utf-8"))["predictors"]
+        ceiling = predictors.get("ceiling_hand_curation") or {}
         gold["ceiling"] = ceiling.get("precision")
         gold["ceiling_n"] = ceiling.get("n")
+        classifier = predictors.get("classifier") or {}
+        gold["classifier_precision"] = classifier.get("precision")
+        gold["classifier_recall"] = classifier.get("recall")
+        gold["classifier_n"] = classifier.get("n")
     per_source = {}
     for (sid, _rid) in records:
         per_source[sid] = per_source.get(sid, 0) + 1

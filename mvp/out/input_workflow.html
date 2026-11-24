@@ -134,7 +134,7 @@ h2 { font-size: 14px; margin: 0 0 10px; }
 
 <script>
 const D = {
-  "generated": "2026-11-23",
+  "generated": "2026-11-24",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -1835,7 +1835,7 @@ const D = {
         "rhs": 422
       },
       {
-        "eq": "left to decide = rows on the decide-scope sheet",
+        "eq": "left to decide = undecided rows on the decide-scope sheet",
         "lhs": 319,
         "ok": true,
         "rhs": 319
@@ -2223,7 +2223,7 @@ const D = {
             "rows": [
               {
                 "label": "an aggregator's page, read in full",
-                "n": 397,
+                "n": 385,
                 "tech": "secondary"
               },
               {
@@ -2233,7 +2233,7 @@ const D = {
               },
               {
                 "label": "the original source, read in full",
-                "n": 99,
+                "n": 111,
                 "tech": "primary_full"
               }
             ],
@@ -2338,12 +2338,12 @@ const D = {
             "rows": [
               {
                 "label": "Original source read in full",
-                "n": 61,
+                "n": 73,
                 "tech": "scope ready"
               },
               {
                 "label": "Facts from a partial or secondary reading",
-                "n": 361,
+                "n": 349,
                 "tech": "scope provisional"
               },
               {
@@ -2388,12 +2388,12 @@ const D = {
               },
               {
                 "label": "low",
-                "n": 65,
+                "n": 64,
                 "tech": "confidence low"
               },
               {
                 "label": "medium",
-                "n": 248,
+                "n": 249,
                 "tech": "confidence medium"
               }
             ],
@@ -2493,7 +2493,7 @@ const D = {
             "rows": [
               {
                 "label": "The rules said in: a person decided in",
-                "n": 31,
+                "n": 30,
                 "tech": "rules_say in; in"
               },
               {
@@ -2503,7 +2503,7 @@ const D = {
               },
               {
                 "label": "The rules said out: a person decided in",
-                "n": 4,
+                "n": 5,
                 "tech": "rules_say out; in"
               },
               {
@@ -2547,7 +2547,7 @@ const D = {
           {
             "rows": [
               {
-                "label": "Rows left on the sheet",
+                "label": "Rows on the sheet left to decide",
                 "n": 319,
                 "tech": "review/1_decide_scope.xlsx"
               },
@@ -2842,12 +2842,12 @@ const D = {
             "rows": [
               {
                 "label": "A pattern was proposed",
-                "n": 36,
+                "n": 55,
                 "tech": "assign_instances proposal"
               },
               {
                 "label": "The dossier already lists patterns",
-                "n": 19,
+                "n": 0,
                 "tech": "dossier instances"
               },
               {
@@ -2868,17 +2868,17 @@ const D = {
         "held_label": "in scope, no pattern yet",
         "id": "instances",
         "in": 55,
-        "n": 36,
+        "n": 55,
         "out": [],
         "rule": "proposal_rows('assign_instances') over records in scope",
         "stop": [
           {
             "label": "patterns proposed",
-            "n": 36
+            "n": 55
           },
           {
             "label": "patterns already in the dossier",
-            "n": 19
+            "n": 0
           }
         ]
       }
@@ -2889,7 +2889,7 @@ const D = {
       "extracted": 422,
       "in_dossier_already": 27,
       "in_scope": 55,
-      "instance_records": 36,
+      "instance_records": 55,
       "not_queued": 684,
       "out_of_scope": 711,
       "promoted_early": 0,
@@ -2906,16 +2906,19 @@ const D = {
       "scope_decided_unclear": 7,
       "scope_left": 319
     },
-    "gate_proposals": 422,
+    "gate_proposals": 442,
     "gold": {
       "ceiling": 0.8260869565217391,
       "ceiling_n": 23,
+      "classifier_n": 55,
+      "classifier_precision": 0.8695652173913043,
+      "classifier_recall": 0.9090909090909091,
       "in": 22,
       "out": 33,
       "rows": 58,
       "unclear": 3
     },
-    "instance_proposals": 36,
+    "instance_proposals": 55,
     "instances": 36,
     "instances_due": 0,
     "manual": 0,
@@ -2967,7 +2970,7 @@ const D = {
     "verdicts": {
       "in_scope": 1,
       "out_of_scope": 103,
-      "review": 318
+      "review": 338
     },
     "verdicts_rules": "2026-11-16"
   },
@@ -16878,17 +16881,17 @@ const D = {
       "label": "Prefilter"
     },
     {
-      "count": 482,
+      "count": 575,
       "detail": {
-        "proposals": 482
+        "proposals": 575
       },
       "id": "classify",
       "label": "Classify"
     },
     {
-      "count": 651,
+      "count": 558,
       "detail": {
-        "awaiting": 651
+        "awaiting": 558
       },
       "id": "review",
       "label": "Review"
