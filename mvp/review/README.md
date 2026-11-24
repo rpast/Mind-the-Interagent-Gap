@@ -4,7 +4,7 @@ Where a person decides. Three spreadsheets, three logs.
 
 | file | what | who writes it |
 |---|---|---|
-| `1_decide_scope.xlsx` | sheet 1: records the rules labelled, with no scope decision yet. One row each | `run.py review`; a person fills it |
+| `1_decide_scope.xlsx` | sheet 1: every record the rules labelled and every record a dossier cites, one row each; the ones with no scope decision yet take one | `run.py review`; a person fills it |
 | `2_promote.xlsx` | sheet 2: records you decided `in` that have no dossier yet | `run.py review`; a person fills it |
 | `3_edit_dossiers.xlsx` | sheet 3: every dossier, one row each, with the fields you can set | `run.py review`; a person edits it |
 | `scope_decisions.csv` | the log of scope decisions: `mig_key, source_id, source_key, decision, reason, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
@@ -23,13 +23,21 @@ its row.
 
 ## Sheet 1: decide scope
 
-Open `1_decide_scope.xlsx`. One row is one record. Every record with no scope decision is
-listed, but column `ask` says which ones need you:
+Open `1_decide_scope.xlsx`. One row is one record. Every record with a verdict is listed,
+decided or not, and so is every record a dossier cites. Column `ask` says which ones
+need you:
 
-- `yes`: the rules would put the record in, or the model's confidence is `low`. These
-  rows come first. Decide them.
-- `check`: the rules leave the record out. It is listed so you can sample-check the
-  exclusions in case the model got one wrong. Deciding it is optional.
+- `yes`: no scope decision yet, and the rules would put the record in, or the model's
+  confidence is `low`. These rows come first. Decide them.
+- `check`: no scope decision yet, and the rules leave the record out. It is listed so you
+  can sample-check the exclusions in case the model got one wrong. Deciding it is
+  optional.
+- `decided`: you have decided its scope already. Listed for reading only.
+- `dossier`: a dossier cites the record. Listed for reading only; change the dossier on
+  sheet 3.
+
+On `decided` and `dossier` rows the `decision` cell is not read: a value typed there is
+reported and not logged. To take back a decision, delete its row in the log (above).
 
 Read the title and `key_quote`; open `url` when you need more. `rules_say` and
 `why_a_person` are the rules' suggestion and the reason it is not settled. Only you put a
@@ -49,6 +57,15 @@ question the model answered in `extract_gate`, each with its `<field>_quote`. Th
 tab lists every column: who sets it (model, rules, you), what it is, which columns it is
 computed from, and the rule. The rules are `mvp/pipeline/derive.py`; the questions are
 `mvp/prompts/extract_gate.v4.md` (the `prompt` column names the version a row used).
+
+Further right is everything else extracted for the record: your earlier decision
+(`decided`, `decided_on`, `decided_reason`); what the dossier citing it says now
+(`dossier_multi_agent`, `dossier_failure_mode`, `dossier_instances`,
+`dossier_verification`); the reading of the source from `mvp/context/` (`read_depth`,
+`agent_count`, and one `<fact>_reading` column for each of the seven facts, as status,
+reading and quote); and the instance proposals from `mvp/proposals/`
+(`instances_proposed` with confidence and quote, `instances_rejected` with the reason,
+`instances_note`).
 
 ## Sheet 2: promote
 

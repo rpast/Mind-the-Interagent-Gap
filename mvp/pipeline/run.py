@@ -1573,9 +1573,13 @@ def review_state(records=None):
                          and promo.get(k, {}).get("decision") != "no"), key=natural)
     gates = proposal_rows("extract_gate")
     scope_ask = [k for k in on_scope if asks_a_person(verdicts[keys[k]], gates.get(keys[k]))]
+    # Sheet 1 shows more than it asks: every record with a verdict, decided or not, and
+    # every record a dossier cites, so a person can read what was extracted for each.
+    # Only the rows in `scope` take a decision.
+    shown = sorted(set(keys) | {record_key(*p) for p in attested}, key=natural)
     return {"verdicts": verdicts, "attested": attested, "scope_log": scope,
             "promote_log": promo, "scope": on_scope, "scope_ask": scope_ask,
-            "promote": on_promote}
+            "scope_shown": shown, "promote": on_promote}
 
 
 def cut(text, n=300):
@@ -1594,15 +1598,55 @@ def sheet_value(value):
     return str(value)
 
 
+def reading_cell(fact):
+    """One fact of a context row as cell text: status, then the reading, then the quote."""
+    if not fact:
+        return ""
+    text = fact.get("status") or ""
+    if fact.get("text"):
+        text += f": {fact['text']}"
+    if fact.get("quote"):
+        text += f' | "{fact["quote"]}"'
+    return text
+
+
+def instances_cell(rows):
+    """Instance proposals as cell text: id, confidence and quote (or why rejected)."""
+    out = []
+    for i in rows or []:
+        what = i.get("quote") or i.get("why") or ""
+        conf = f" {i['confidence']}" if i.get("confidence") else ""
+        out.append(f"{i.get('instance_id', '')}{conf}" + (f': "{what}"' if i.get("quote")
+                                                          else f": {what}" if what else ""))
+    return "\n".join(out)
+
+
+def dossiers_by_source():
+    """(source_id, source_record_id) -> the frontmatter of the dossier that cites it."""
+    out = {}
+    for path in all_dossiers():
+        meta, _ = read_dossier(path)
+        for s in meta.get("sources") or []:
+            out[(s.get("source_id"), str(s.get("record_id")))] = meta
+    return out
+
+
 def scope_sheet_rows(state, records):
     gates = proposal_rows("extract_gate")
-    asked = set(state["scope_ask"])
+    inst = proposal_rows("assign_instances")
+    context = load_context()
+    dossiers = dossiers_by_source()
+    asked, open_ = set(state["scope_ask"]), set(state["scope"])
     index = mig_index()
     rows = []
-    for key in state["scope"]:
+    for key in state["scope_shown"]:
         pair = split_key(key)
-        v, rec, gate = state["verdicts"][pair], records.get(pair, {}), gates.get(pair, {})
-        say = rules_say(v)
+        v, rec, gate = state["verdicts"].get(pair, {}), records.get(pair, {}), gates.get(pair, {})
+        ctx, prop, dos = context.get(pair) or {}, inst.get(pair) or {}, dossiers.get(pair)
+        log = state["scope_log"].get(key) or {}
+        ask = ("dossier" if pair in state["attested"] else "decided" if key not in open_
+               else "yes" if key in asked else "check")
+        say = rules_say(v) if v else ""
         labels = rules.labels_of(v)
         quotes = [q for q in (gate.get("quotes") or {}).values() if q][:2]
         answers = {}
@@ -1620,16 +1664,30 @@ def scope_sheet_rows(state, records):
             "evidence_type": labels.get("evidence_type") or "",
             "failure_mode": labels.get("failure_mode") or "",
             "instances_presumed": "; ".join(labels.get("instances_presumed") or []),
-            **key_fields(pair, index), "ask": "yes" if key in asked else "check",
+            **key_fields(pair, index), "ask": ask,
             "title": rec.get("title", ""), "date": rec.get("date", ""),
             "url": rec.get("url", ""), "rules_say": say,
-            "settled_by_rules": "no" if v.get("status") == "review" else "yes",
+            "settled_by_rules": ("" if not v else "no" if v.get("status") == "review"
+                                 else "yes"),
             "why_a_person": "; ".join(v.get("review_why") or []),
             "confidence": gate.get("confidence", ""),
             "counterfactual": rules.labels_of(v).get("counterfactual_resolved") or "",
-            "by_presumption": "yes" if v.get("by_presumption") else "no",
+            "by_presumption": "" if not v else "yes" if v.get("by_presumption") else "no",
             "key_quote": cut(" | ".join(quotes)),
-            "_order": (0 if key in asked else 1,
+            "decided": log.get("decision", ""), "decided_on": log.get("decided_on", ""),
+            "decided_reason": log.get("reason", ""),
+            "dossier_multi_agent": sheet_value(dos.get("multi_agent")) if dos else "",
+            "dossier_failure_mode": (dos.get("failure_mode") or "") if dos else "",
+            "dossier_instances": sheet_value(dos.get("instances")) if dos else "",
+            "dossier_verification": (dos.get("verification") or "") if dos else "",
+            "read_depth": best_depth(ctx) if ctx else "",
+            "agent_count": ctx.get("agent_count", ""),
+            **{f"{f}_reading": reading_cell((ctx.get("facts") or {}).get(f))
+               for f in CONTEXT_FACTS},
+            "instances_proposed": instances_cell(prop.get("instances")),
+            "instances_rejected": instances_cell(prop.get("considered_and_rejected")),
+            "instances_note": prop.get("uncertainty_reason", ""),
+            "_order": ({"yes": 0, "check": 1, "decided": 2, "dossier": 3}[ask],
                        0 if say == "in" else 1 if v.get("status") == "review" else 2,
                        natural(key))})
     rows.sort(key=lambda r: r["_order"])
@@ -1666,7 +1724,12 @@ SCOPE_COLUMNS = (["mig_key", "source_id", "source_key", "ask", "title", "date", 
                   "is_attack", "presumption_fires", "gate1", "status", "evidence_type",
                   "failure_mode", "instances_presumed", "prompt"]
                  + [c for f in MODEL_FIELDS if f != "confidence"
-                    for c in ([f, f"{f}_quote"] if f in QUOTED_FIELDS else [f])])
+                    for c in ([f, f"{f}_quote"] if f in QUOTED_FIELDS else [f])]
+                 + ["decided", "decided_on", "decided_reason", "dossier_multi_agent",
+                    "dossier_failure_mode", "dossier_instances", "dossier_verification",
+                    "read_depth", "agent_count"]
+                 + [f"{f}_reading" for f in CONTEXT_FACTS]
+                 + ["instances_proposed", "instances_rejected", "instances_note"])
 # The "Fields" tab of sheet 1: where every column comes from. Rules are those of
 # mvp/pipeline/derive.py; keep the two in step when a rule changes.
 SCOPE_FIELDS_HEAD = ["column", "set_by", "what it is", "computed from", "rule"]
@@ -1695,8 +1758,11 @@ SCOPE_FIELDS = [
     ("source_id", "record", "the source the record comes from", "mvp/records/", ""),
     ("source_key", "record", "the key the source itself uses; blank when it has none "
      "(a hand-added record)", "mvp/records/", ""),
-    ("ask", "rules", "does this row need you", "rules_say, confidence",
-     "yes if rules_say = in or confidence = low; else check"),
+    ("ask", "rules", "does this row need you", "rules_say, confidence, the scope log, "
+     "the dossiers",
+     "dossier if a dossier cites the record; decided if a person has decided its scope; "
+     "otherwise yes if rules_say = in or confidence = low, else check. Only yes and check "
+     "rows take a decision"),
     ("title / date / url", "record", "the record as the source gives it", "mvp/records/", ""),
     ("rules_say", "rules", "would the rules put it in scope (Gate 1)",
      "counterfactual, is_attack, interaction_present",
@@ -1768,6 +1834,27 @@ SCOPE_FIELDS = [
     ("objective_relation", "model", "identical / mixed / opposing objectives?", "", ""),
     ("uncertainty_reason", "model", "why the model was unsure, in a sentence", "", ""),
     ("<field>_quote", "model", "the verbatim span the model gave for that answer", "", ""),
+    ("decided", "you", "your earlier scope decision: in / out / unclear",
+     "mvp/review/scope_decisions.csv", "the newest row for the record"),
+    ("decided_on / decided_reason", "you", "when you decided it, and the reason you gave",
+     "mvp/review/scope_decisions.csv", ""),
+    ("dossier_multi_agent / dossier_failure_mode / dossier_instances / "
+     "dossier_verification", "dossier", "what the dossier citing this record says now",
+     "mvp/incidents/", "change these on sheet 3, 3_edit_dossiers.xlsx"),
+    ("read_depth", "reading", "how far the source was read: record, secondary, "
+     "primary_partial, primary_full, curator, unreadable", "mvp/context/",
+     "the best depth of the newest reading"),
+    ("agent_count", "reading", "none / one / several / unknown, from the reading",
+     "mvp/context/", ""),
+    ("<fact>_reading", "reading", "what the source says on one of the seven facts the gates "
+     "need: status, then the reading, then the verbatim quote",
+     "mvp/context/", "not_stated = read and silent; unread = nobody looked"),
+    ("instances_proposed", "model", "the instances the model would assign, with confidence "
+     "and the quote", "mvp/proposals/assign_instances.*.jsonl",
+     "high and medium are adoptable; low is noted only"),
+    ("instances_rejected", "model", "instances the model considered and why it rejected them",
+     "mvp/proposals/assign_instances.*.jsonl", ""),
+    ("instances_note", "model", "why the model was unsure about the instances", "", ""),
 ]
 PROMOTE_COLUMNS = ["mig_key", "source_id", "source_key", "title", "date", "url",
                    "decided_in_on", "scope_reason", "promote", "note"]
@@ -1775,9 +1862,12 @@ SHEET_WIDTHS = {"mig_key": 11, "source_id": 11, "source_key": 14, "ask": 8, "tit
                 "settled_by_rules": 12, "why_a_person": 30, "confidence": 11,
                 "counterfactual": 15, "by_presumption": 12, "key_quote": 60,
                 "decision": 12, "reason": 40, "decided_in_on": 14, "scope_reason": 40,
-                "promote": 12, "note": 40}
+                "promote": 12, "note": 40, "decided_reason": 40, "instances_proposed": 60,
+                "instances_rejected": 60, "instances_note": 40,
+                **{f"{f}_reading": 60 for f in CONTEXT_FACTS}}
 SHEET_WRAP = {"title", "why_a_person", "key_quote", "reason", "scope_reason", "note",
-              "uncertainty_reason"}
+              "uncertainty_reason", "decided_reason", "instances_proposed",
+              "instances_rejected", "instances_note"} | {f"{f}_reading" for f in CONTEXT_FACTS}
 SCOPE_HELP = [
     "Decide scope: is this record a multi-agent incident, yes or no?",
     "Read the title and the quote, and open the url when you need more. Only you can say "
@@ -1786,14 +1876,21 @@ SCOPE_HELP = [
     "the model's confidence is low; these rows come first, and they are the ones to "
     "decide. `check`: the rules leave the record out; it is listed so you can sample-check "
     "the exclusions, and deciding it is optional. Filter on `ask` to see one kind.",
+    "Rows with `ask` = decided or dossier are for reading only: every record you have "
+    "already decided, and every record a dossier cites, with all that was extracted for "
+    "it. Their `decision` cell is not read; a value typed there is reported and not "
+    "logged. Your earlier decision is in `decided`; the dossier's current labels are in "
+    "the `dossier_*` columns, and you change those on sheet 3, 3_edit_dossiers.xlsx.",
     "Fill the yellow column `decision` with the drop-down: in, out or unclear.",
     "in = two or more AI agents, and the harm came from them acting on each other. "
     "out = one agent, or many doing what one could have done. "
     "unclear = the source was read and does not say.",
     "Write a short `reason` if you can. It is kept in mvp/review/scope_decisions.csv.",
     "Right of `reason`: the rules' intermediate steps, then every question the model "
-    "answered with its quote. The `Fields` tab says what each column is and which columns "
-    "it is computed from.",
+    "answered with its quote, then your earlier decision and the dossier's labels, then "
+    "the reading of the source (`read_depth` and one `<fact>_reading` column per fact) "
+    "and the instance proposals. The `Fields` tab says what each column is and which "
+    "columns it is computed from.",
     "You do not have to finish. Leave a row blank and it stays on the next sheet.",
     "Save the file, then run `python mvp/pipeline/run.py review` or press Continue on "
     "the page. A row you filled wrongly is reported and comes back blank.",
@@ -3124,7 +3221,7 @@ def map_flow(reg, records, queue, context, index_rows):
                     {"title": "What the rules said", "rows": rows(
                         *[(STATUS_WORDS[s], split[s], f"status {s}") for s in rules.STATUSES])},
                     {"title": "The sheet", "rows": rows(
-                        ("Rows left on the sheet", len(rs["scope"]),
+                        ("Rows on the sheet left to decide", len(rs["scope"]),
                          "review/1_decide_scope.xlsx"),
                         ("Of those, asking for your judgement", len(rs["scope_ask"]),
                          "ask = yes: the rules would put it in, or confidence is low"),
@@ -3228,7 +3325,8 @@ def map_flow(reg, records, queue, context, index_rows):
           sum(split.values()))
     check("derived = decided in + decided out + unclear + already in a dossier + left to decide",
           len(derived), len(dec_in) + len(dec_out) + len(dec_unc) + len(a_only) + len(left))
-    check("left to decide = rows on the decide-scope sheet", len(left), len(rs["scope"]))
+    check("left to decide = undecided rows on the decide-scope sheet", len(left),
+          len(rs["scope"]))
     check("decided in = promoted + not promoted + rows on the promote sheet", len(dec_in),
           len(promoted) + len(promo_no) + len(rs["promote"]))
     check("in scope = proposed + already listed + waiting", len(in_scope),
