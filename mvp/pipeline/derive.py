@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The rules that turn call 1's extracted facts into labels. The single authority.
 
-Call 1 (`mvp/prompts/extract_gate.v3.md`) extracts facts and answers the two gate
+Call 1 (`mvp/prompts/extract_gate.v4.md`) extracts facts and answers the two gate
 questions; it does not decide labels. This module decides them, by rule, the same way
 every time. `run.py derive` applies it to every extract_gate proposal and writes the
 result to mvp/state/verdicts.jsonl; `mvp/gold/score_gate1.py` applies it to a gold run.

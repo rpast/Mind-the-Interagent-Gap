@@ -112,8 +112,8 @@ modes, risk factors and instances. `resources/multi-agent-risks.pdf`.
 **Instance.** A named pattern from Hammond's Table 1, such as I28 Swarm Attacks; 36 in
 `mvp/taxonomy/instances.csv`. Descriptive only: it never sets the failure mode.
 
-**Instances-due.** `run.py instances-due`: lists in-scope records, by rule or by a person,
-that have no instance proposal yet. Writes `mvp/state/instances_due.jsonl`.
+**Instances-due.** `run.py instances-due`: lists the records a person put in scope that
+have no risk-instance proposal yet. A record in scope by the rules alone is not listed. Writes `mvp/state/instances_due.jsonl`.
 
 **Interaction.** One agent acting on, messaging, answering or using the output of another.
 Agents merely present in the same place do not count.

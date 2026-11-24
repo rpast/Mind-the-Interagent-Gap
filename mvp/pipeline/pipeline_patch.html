@@ -142,6 +142,12 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 /* the warning shown when the map's numbers do not add up */
 #flowwarn { margin: 0; padding: 4px 8px; border-bottom: 2px solid var(--ink); background: var(--paper); font-weight: bold; }
 #flowwarn ul { margin: 2px 0 0; padding-left: 18px; font-weight: normal; }
+/* when the numbers were counted, from what, and whether every sum holds */
+#mapinfo { margin: 0; padding: 3px 8px; border-bottom: 1px dotted var(--ink); font-size: 11px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+#mapinfo .ok { border: 1px solid var(--ink); padding: 0 5px; }
+#mapinfo .bad { background: var(--ink); color: var(--paper); padding: 0 5px; font-weight: bold; }
+#sheet .note.bad { font-weight: bold; }
+#sheet .next { border-left: 3px solid var(--ink); padding-left: 6px; }
 #sheet .flowline { margin: 2px 0; }
 #sheet .flowline code { display: inline; border: 0; padding: 0; }
 #sheet .tech { display: block; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 10px; font-weight: normal; }
@@ -232,6 +238,9 @@ code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 1
 #legend > header { cursor: grab; touch-action: none; }
 #legend.dragging > header { cursor: grabbing; }
 #legend .body { padding: 6px 8px; display: grid; grid-template-columns: 46px 1fr; gap: 6px 8px; align-items: center; }
+#legend .lgsub { grid-column: 1 / -1; margin-top: 4px; padding-top: 4px; border-top: 1px dotted var(--ink); font-size: 9px; letter-spacing: .09em; text-transform: uppercase; }
+#legend .lgline { grid-column: 1 / -1; }
+#legend .lgline .tag { font-weight: normal; font-size: 9px; letter-spacing: .09em; text-transform: uppercase; border-top: 1px dotted var(--ink); margin-right: 4px; }
 .sw { height: 14px; border: 1px solid var(--ink); background: var(--paper); }
 .sw.run { background: var(--ink); }
 .sw.wait { background: repeating-linear-gradient(0deg, var(--ink) 0 1px, var(--paper) 1px 3px); }
@@ -428,6 +437,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
 <div class="main">
 <section class="win" id="patchwin" aria-label="Pipeline patch">
   <header><span class="t" id="wintitle">Pipeline</span><span class="testmark" id="wintest" hidden title="The tags on the boxes come from the test run.">Test run on show</span></header>
+  <div id="mapinfo" role="status"></div>
   <div id="flowwarn" role="alert" hidden></div>
   <div id="scroller">
     <div id="sizer">
@@ -436,8 +446,8 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
     <aside class="win" id="legend" aria-label="Legend">
       <header><span class="t">Legend</span></header>
       <div class="body">
-        <span class="sw run"></span><span>Works today</span>
-        <span class="sw wait"></span><span>Built, not yet run</span>
+        <span class="sw run"></span><span>Operational: its files hold output</span>
+        <span class="sw wait"></span><span>Built, no output yet</span>
         <span class="sw un"></span><span>Not built yet: a placeholder</span>
         <span class="sw hand"></span><span>Done by a person</span>
         <span class="sw docsw"></span><span>A document or a store of files</span>
@@ -448,7 +458,18 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
         <span class="sw dots"></span><span>Not built yet</span>
         <span class="sw branchsw"></span><span>The same records, also sent on a side path</span>
         <span class="sw refsw"></span><span>Reads a rule or a list: no records travel</span>
-        <span class="sw metasw">36</span><span>Slanted number, dotted tag: not a count of records</span>
+        <span class="sw metasw">36</span><span>Slanted number: counts something other than records; its tag says what</span>
+        <span class="lgsub">Run by, at the foot of a box</span>
+        <span class="lgline"><b class="tag">Script</b> a program, the same every time</span>
+        <span class="lgline"><b class="tag">Model + prompt</b> an AI model, run from Claude Code</span>
+        <span class="lgline"><b class="tag">Fixed rule</b> a rule in code: no judgement</span>
+        <span class="lgline"><b class="tag">Person</b> somebody reads and decides</span>
+        <span class="lgline"><b class="tag">Document</b> a file people write</span>
+        <span class="lgsub">Tags during an update</span>
+        <span class="lgline"><span class="pill inv">your turn</span> the run waits for you: the panel says what to do</span>
+        <span class="lgline"><span class="pill">pending</span> <span class="pill">running</span> <span class="pill">done</span> not started, going, finished</span>
+        <span class="lgline"><span class="pill">skipped</span> left out: not built yet, or you chose to skip it</span>
+        <span class="lgline"><span class="pill inv">failed</span> stopped with an error: the panel says which</span>
       </div>
     </aside>
       </div>
@@ -507,11 +528,12 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
 <aside class="win" id="help" role="dialog" aria-labelledby="helptitle">
   <header><button class="closebox" id="helpclose" aria-label="Close help"></button><span class="t" id="helptitle">How to read this map</span></header>
   <div class="body">
-    <p>Each box is one step. A record travels left to right through four sections: <b>1 Collect</b>, <b>2 Read</b>, <b>3 Judge</b>, <b>4 Record</b>. Click a box for what it does, who or what runs it, what goes in, what comes out and where it is kept.</p>
+    <p>Each box is one step. A record travels left to right through four main sections: <b>1 Collect</b>, <b>2 Read</b>, <b>3 Judge</b>, <b>4 Record</b>. Two side sections sit beside them: <b>Discover</b>, not built yet, inside Collect; and <b>Test</b>, which checks the rules against an answer key. Click a box for how many records are there right now, where they go, what the step does, who or what runs it and where it is kept.</p>
+    <p>The words used everywhere are defined in <code>mvp/docs/glossary.md</code>. The main ones: a <b>record</b> is one source's account of one incident; a <b>candidate</b> is a record worth reading; a <b>reading</b> is our notes on what a source says, with quotes; a <b>dossier</b> is our own file on one incident; to <b>promote</b> a record is to make a dossier for it. <b>Gate 1</b> asks whether an incident is multi-agent; <b>Gate 2</b> asks what kind of failure it shows.</p>
     <h3>The look of a box</h3>
     <dl>
-      <dt class="sw run"></dt><dd>Works today and has been run.</dd>
-      <dt class="sw wait"></dt><dd>Built, but not run on real data yet.</dd>
+      <dt class="sw run"></dt><dd>Operational: the files it writes hold output.</dd>
+      <dt class="sw wait"></dt><dd>Built, but its files hold no output yet.</dd>
       <dt class="sw un"></dt><dd>Not built yet: a placeholder.</dd>
       <dt class="sw hand"></dt><dd>Rounded corners: a person does this.</dd>
       <dt class="sw docsw"></dt><dd>Turned corner: a document or a folder of files, not an action.</dd>
@@ -527,10 +549,10 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
       <dt class="tag">Document</dt><dd>A file people write and the pipeline reads.</dd>
     </dl>
     <h3>The numbers on the boxes</h3>
-    <p><b>Every number on the map is a number of records, over all sources.</b> A record is one incident as one source describes it, for example AIID incident 1604 (<code>aiid:1604</code>). Never lines in a file, readings or suggestions: a record read twice, or with two suggestions, still counts once.</p>
-    <p>Numbers go where the records go. Each wire carries the number of records that travel along it. At every box, what comes in equals what goes on, plus what stops there, plus what is still waiting there. Click a box to see its number split by source and by the groups that matter there, where it comes from, where it goes and which files it is counted from. If any of these sums fails, a warning above the map lists it.</p>
-    <p>A few boxes show something that is not a count of records: the number of sources, the size of the rulebook, a score. Their number is slanted and carries a dotted tag that says what it counts. Where a box shows a word (“rule”) there is nothing to count.</p>
-    <p>The numbers are taken from the project's files when this page was made. While an update runs, they are counted again each time a step finishes or waits for you, and the boxes change in place.</p>
+    <p><b>Most numbers on the map are numbers of records, over all sources.</b> A record is one source's account of one incident. The same incident can be told by several sources, so it can be several records, and one dossier can list them all. A record counts once however often it was read or how many suggestions it has: the numbers never count lines in a file.</p>
+    <p>Numbers go where the records go. Each wire carries the number of records that travel along it. At every box, what comes in equals what goes on, plus what stops there, plus what is still waiting there. Click a box to see its number split by source and by the groups that matter there, where it comes from, where it goes and which files it is counted from. The line above the map says how many of these sums hold; if any fails, it turns into a warning that lists each one.</p>
+    <p>The exceptions are the boxes that show something other than records: the number of sources, the size of the Risk Instances Repo, a score. Their number is slanted and carries a dotted tag that says what it counts. Where a box shows a word (“rule”) it has no count of its own.</p>
+    <p>The numbers are counted from the project's files by <code>python mvp/pipeline/run.py index</code>, and the page is drawn from them by <code>run.py viz</code>. The line above the map says when they were counted. While an update runs, they are counted again each time a step finishes or waits for you, and the boxes change in place.</p>
     <h3>Wires</h3>
     <dl>
       <dt class="sw solid"></dt><dd>Records passed on automatically. The label gives how many.</dd>
@@ -540,7 +562,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
       <dt class="sw dots"></dt><dd>Not built yet.</dd>
     </dl>
     <h3>Two ways to run it</h3>
-    <p>Both need the front end: <code>python mvp/pipeline/run.py serve</code>, then open the address it prints.</p>
+    <p>Both can be started from the command line, <code>python mvp/pipeline/run.py update</code> or <code>run.py testrun</code>, or from this page once <code>python mvp/pipeline/run.py serve</code> is running: open the address it prints. Only the page shows the tags and the panel with Continue and Skip. On the command line an update stops at a step that needs a person and says what to do; a test run answers every such step itself.</p>
     <p><b>Update</b> runs the real pipeline and changes the project's files. While it runs, each box gets a tag: <span class="pill">pending</span> <span class="pill inv">running</span> <span class="pill inv">your turn</span> <span class="pill">done</span> <span class="pill inv">failed</span> <span class="pill">skipped</span> <span class="pill">not built yet</span>. “Your turn” means the run is waiting for you; the panel on the right says what to do.</p>
     <p><b>Test run</b> is a dry run. The same steps run, with the same panel, tags and choices, on a handful of made-up incidents in a scratch folder. Your project's files are not touched and nothing is downloaded. Where a step would wait for Claude Code or for you, Continue puts sample work in place so you can see what happens next; Skip shows what happens without it.</p>
     <p>A test run is marked everywhere it shows: <span class="testmark">Test run</span> in the panel and the window title, and striped title bars. While its panel is open, the numbers on the boxes are the test run's, counted in its scratch folder: sample figures, not your project's. The window title says so. Close the panel and the boxes show your project's numbers again.</p>
@@ -568,7 +590,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
       <div class="sub">
         <label for="manualdir" class="note">Folder path</label>
         <input type="text" id="manualdir" placeholder="/home/you/incident-notes" disabled autocomplete="off" spellcheck="false">
-        <p class="note">Accepted: one <code>.txt</code> or <code>.md</code> file per incident, or several in one file separated by headings (<code>## </code>). The title is the heading or the first line; the first date (2026-06-18, 2026-06 or 2026) and the first web address found become the date and the link. They skip the prefilter and the reading checkpoint: they count as in scope on your word.</p>
+        <p class="note">Accepted: one <code>.txt</code> or <code>.md</code> file per incident, or several in one file separated by headings (<code>## </code>). The title is the heading or the first line; the first date (2026-06-18, 2026-06 or 2026) and the first web address found become the date and the link. The prefilter queues them on your word; they skip both readings and count as in scope on your word.</p>
       </div>
     </fieldset>
     <p class="setuperr" id="setuperr" role="alert"></p>
@@ -588,7 +610,7 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
       <label><input type="checkbox" id="trefetch"> Simulate a fresh fetch</label>
       <p class="note sub">The first try fails on purpose, so you meet the choice the real fetch gives you: try again, or use the saved copy.</p>
       <label><input type="checkbox" id="tmanual"> Include a hand-written incident</label>
-      <p class="note sub">A made-up write-up goes in as if you had added it by hand: it skips the prefilter and counts as in scope on your word.</p>
+      <p class="note sub">A made-up write-up goes in as if you had added it by hand: the prefilter queues it on your word, it skips both readings and counts as in scope on your word.</p>
       <label><input type="checkbox" id="tdiscover"> Also discover other sources <span class="pill none">not built yet</span></label>
       <p class="note sub">Not built yet: these steps will be shown and skipped.</p>
     </fieldset>
@@ -641,7 +663,7 @@ function figures() {
   return { fetchable, snap, aiidN, rules: O(M.prefilter_rules), basis: O(M.queue_basis), flags: O(M.queue_flags) };
 }
 
-// status: run = works today · waiting = built, never run · unbuilt
+// status: run = operational · waiting = built, never run · unbuilt
 // kind: proc | doc | hand | end  ·  by: a key of BY
 // plain / tech may be a string or a list of paragraphs
 function defs() {
@@ -654,46 +676,61 @@ function defs() {
   const enrich = promptOf("readrec", "prompts/enrich_context.v2.md");
   const fl = id => FN(id), nIn = id => n(fl(id).in);
   const waiting = id => fl(id).held ? " · " + n(fl(id).held) + " waiting" : "";
-  const st = O(fl("gate1").groups && (fl("gate1").groups[0] || {}));
-  const derivedRows = Array.isArray(st.rows) ? st.rows : [];
-  const sv = s => (derivedRows.find(r => r && r.tech === "status " + s) || {}).n || 0;
+  // the rules' final answer is on the last rule box, Gate 2; Gate 1's own answer on Gate 1
+  const groupRows = (id, title) => (((fl(id).groups || []).find(g => g && g.title === title) || {}).rows || []);
+  const sv = s => (groupRows("gate2", "What the rules settled").find(r => r && r.tech === "status " + s) || {}).n || 0;
+  const g1v = a => (groupRows("gate1", "Gate 1's answer").find(r => r && r.tech === "gate1 " + a) || {}).n || 0;
+  const etNone = (groupRows("evtype", "Evidence type, by the rules").find(r => r && r.tech === "evidence_type none") || {}).n || 0;
+  const fmAsked = groupRows("gate2", "Failure type, for the records Gate 1 let in").filter(r => r && /^failure_mode /.test(r.tech)).reduce((a, r) => a + Number(r.n || 0), 0);
   // a built step has run once the files it writes hold something: its count on the flow
   const ran = id => fl(id).n ? "run" : "waiting";
-  const derived = Object.values(O(M.verdicts)).some(v => Number(v) > 0) || fl("gate1").n ? "run" : "waiting";
   const scored = gold.classifier_n != null;
+  // a step with no count of its own has run once a file it keeps exists
+  const kept = id => (O(M.artifacts)[id] || []).some(a => a && a.exists) ? "run" : "waiting";
+  const decided = fl("scope").in - fl("scope").held;   // records a person has decided on
+  const prov = O(M.instances_by_provenance), canon = O(M.dossiers_by_canonical);
+  const nCanon = Object.values(canon).reduce((a, v) => a + Number(v || 0), 0);
+  const nOther = nCanon - Number(canon.aiid || 0);
+  const vp = O(M.verdict_prompts), vpTxt = Object.keys(vp).sort().map(k => k + " " + n(vp[k])).join(", ");
+  const fstop = id => (fl(id).stop || []).reduce((a, s) => a + Number(O(s).n || 0), 0);
+  const grp = (id, title) => ((fl(id).groups || []).find(g => g && g.title === title) || { rows: [] }).rows || [];
+  const row = (id, title, tech) => Number((grp(id, title).find(r => r && r.tech === tech) || {}).n || 0);
+  const verified = row("dossiers", "Dossiers, by how well they were checked", "verification verified");
+  const secondary = row("readsrc", "Source read, by how deep", "secondary");
+  const unclearN = Number(O((fl("scope").stop || [])[1]).n || 0);
   return [
-  { id: "sources", kind: "doc", status: "run", by: "doc", x: 30, y: 300, title: "Sources",
+  { id: "sources", kind: "doc", status: M.sources ? "run" : "waiting", by: "doc", x: 30, y: 300, title: "Sources",
     num: n(M.sources), cap: "sources listed" + (has(M, "sources_with_records") ? ", " + n(M.sources_with_records) + " with records" : ""),
     unit: "Not a record count: sources",
     plain: "The list of places where AI incidents get reported: one large public database, the AI Incident Database (AIID), plus forums, company blogs and other registries. A person keeps the list; the pipeline reads it to know where to look.",
     tech: "mvp/registry/sources.csv. One row per source: role, access_method, adapter, reuse status. Rows with role reference are read for definitions, not for incidents.",
-    byNote: "Hand-curated: a person edits the file, nothing writes to it.",
+    byNote: "A person keeps this list; no program writes to it.",
     inp: "Nothing: a person edits it.", out: "The list of places to read.", prod: "mvp/registry/sources.csv",
-    facts: [["Read by a script", M.sources_automatic], ["Need a person", M.sources_by_hand], ["Reader not written yet", M.sources_unbuilt]]
+    facts: [["Downloaded by a program", M.sources_automatic], ["Searched by a person, from a work order", M.sources_by_hand], ["No downloader built yet", M.sources_unbuilt]]
       .concat(has(M, "sources_fetchable") ? [["Could be read for incidents", M.sources_fetchable]] : [])
       .concat(has(M, "sources_reference") ? [["Reference only, not read for incidents", M.sources_reference]] : []),
     cmd: "mvp/registry/sources.csv" },
   { id: "discover", status: "unbuilt", by: "script", x: 250, y: 30, title: "Discover",
     num: "—", cap: "not built yet: a placeholder",
-    plain: ["A placeholder. It would search forums and other registries for incidents the main database never recorded. Most of the incidents we already know of came from such places, so the gap matters, but nothing here runs yet.",
+    plain: ["A placeholder. It would search forums and other registries for incidents the main database never recorded. The gap matters: " + (nCanon ? n(nOther) + " of our " + n(nCanon) + " dossiers have their main source outside the AI Incident Database" : "many known incidents were reported outside the AI Incident Database") + ". Nothing here runs yet.",
             "An update that asks for it shows this step as “not built yet” and goes on without it. Its one working part is the work orders drawn under it."],
     tech: "run.py discover. The ForumMagnum and companyscope adapters are specified and not implemented; the stage returns no records. update --discover reports the step as placeholder and continues. Its sub-step, work orders, does run.",
     byNote: "When built: run.py discover. Today it only writes the work orders.",
     inp: "The list of sources.", out: "New records, once built. Today: only the work orders below.", prod: "mvp/raw/<source>/ (once built)",
     cmd: "python mvp/pipeline/run.py discover" },
-  { id: "orders", kind: "hand", status: "run", by: "person", x: 250, y: 150, title: "Work orders",
-    num: n(M.sources_by_hand), cap: "to-do notes: one per source", unit: "Not a record count: notes",
-    plain: "Part of Discover. Some websites refuse to be read by a program. For each such source (one note per source, not per incident) the pipeline writes a to-do note: what to search for there, where, and what to paste back. A person does the search; what they paste back goes on like any other record.",
-    tech: "Sub-step of discover: run.py discover writes mvp/state/work_orders.md, one section per registry row a script cannot read. No longer written by fetch; an update run does not depend on it.",
-    byNote: "A script writes the note; a person does what it says.",
+  { id: "orders", kind: "hand", status: kept("orders"), by: "person", x: 250, y: 150, title: "Work orders",
+    num: n(M.sources_by_hand), cap: "work orders: one per source a program cannot read", unit: "Not a record count: work orders",
+    plain: ["Part of Discover. Some websites refuse to be read by a program. For each such source the pipeline writes one work order (one per source, not per incident): what to search for there, where, and what to paste back.",
+            "A person does the search. What they paste back is saved as that source's records and goes on through Normalise like any downloaded record. This is a different route from “Add by hand”, which takes your own write-ups."],
+    tech: "Sub-step of discover: run.py discover writes mvp/state/work_orders.md, one section per registry row a script cannot read (role discovery, adapter work_order). No longer written by fetch; an update run does not depend on it.",
+    byNote: "A script writes the work order; a person does what it says.",
     inp: "A source a program cannot read.", out: "What the person found, pasted back in.", prod: "mvp/state/work_orders.md",
     cmd: "python mvp/pipeline/run.py discover" },
   { id: "fetch", status: "run", by: "script", x: 250, y: 300, title: "Fetch",
     num: n(fl("fetch").n), cap: "records collected, from " + n(Object.keys(O(fl("fetch").by_source)).length) + " sources",
-    plain: ["Downloads an untouched copy of what a source publishes. The number counts the records collected from every source except the curator's own write-ups, whichever way they arrived.",
-            "Of the " + n(F.fetchable != null ? F.fetchable : M.sources) + " sources it could read, only " + n(M.sources_automatic) + " can be downloaded by a program today: the AI Incident Database. The records of the other sources were copied in by hand earlier, from the to-do notes.",
-            "AIID's copy holds " + aiidTxt + " plus AIID's own classifications of them. Nothing is changed or tidied here, so there is always an original to go back to." + snapTxt + " An update reuses the saved copy unless you ask to download it again, which needs the AIID token.",
-            "AIID is fetched in full, but the pipeline looks only at incidents dated " + (F.rules.recent_from || "2024-01-01") + " or later. AIID's own multi-agent label stops in 2024, so from then on our classification is the only one. An earlier incident is looked at only if it is on the frozen list: the pre-2024 candidates analysed before 2026-11-17, kept in mvp/registry/frozen_pre2024.csv. The rest of the older incidents are kept but not looked at; open the box for the split."],
+    plain: ["Downloads an untouched copy of each source a program can read. Today that is " + n(M.sources_automatic) + " of the " + n(F.fetchable != null ? F.fetchable : M.sources) + " sources: the AI Incident Database (AIID). Nothing is changed or tidied here, so there is always an original to go back to.",
+            "The number counts the records of every source except your own write-ups: the AIID download, and the records of the other sources that a person copied in earlier from the work orders.",
+            "AIID's copy holds " + aiidTxt + " plus AIID's own classifications of them." + snapTxt + " An update reuses the saved copy unless you ask to download it again, which needs the AIID token. Which of these records are then looked at is decided by the Prefilter."],
     tech: "run.py fetch aiid. Dispatches on the registry's adapter column; AIID over GraphQL into mvp/raw/aiid/ (" + aiidTxt + " and their classifications). update reuses the snapshot unless --refetch (needs the token: --token-file). The count: records of every source but manual, from latest_records().",
     inp: "A source that a program can read.", out: "An untouched copy, kept as it arrived.", prod: "mvp/raw/aiid/",
     facts: F.snap.present ? [["Saved AIID copy, fetched", F.snap.fetched || "date not recorded"], ["Incidents in the saved AIID copy", F.snap.records]] : [],
@@ -701,146 +738,162 @@ function defs() {
   { id: "manual", kind: "hand", status: M.manual ? "run" : "waiting", by: "person", x: 250, y: 450, title: "Add by hand",
     num: n(fl("manual").n), cap: "records added by hand",
     plain: ["You, the curator, point the pipeline at a folder of your own write-ups in plain text: one file per incident, or several in one file separated by ## headings.",
-            "Each becomes a record like any other. The prefilter queues it on your word, with no rule needed, and it skips both readings: it goes straight to “Ready to judge”, in scope on your word. You are the person who vouches for it. A dossier is still written by hand, and it cannot be marked fully verified on your write-up alone."],
+            "Each becomes a record like any other. The prefilter queues it on your word, with no rule needed, and it skips both readings: it goes straight to “Ready for the model's questions”, in scope on your word. You are the person who vouches for it. Its failure type, evidence type and patterns are still judged like any other, and its dossier cannot be marked verified on your write-up alone."],
     tech: "update --manual DIR. Verbatim copies to mvp/raw/manual/; records to mvp/records/manual.jsonl (meta.manual = true, meta.origin_path); queue basis manual; context row in mvp/context/manual.jsonl with manual: true, agent_count several, read depth curator. readiness: scope ready; evidence type, failure mode and instances provisional. check refuses verification: verified on a curator reading.",
     byNote: "You write the files; run.py update --manual copies them in.",
     inp: "A folder of .txt or .md files.", out: "Records marked as added by hand, already in scope.", prod: "mvp/records/manual.jsonl",
     cmd: "python mvp/pipeline/run.py update --manual DIR" },
   { id: "normalise", status: "run", by: "script", x: 490, y: 300, title: "Normalise",
     num: n(fl("normalise").n), cap: "records, all sources",
-    plain: "Every source describes incidents in its own layout. This step copies them into one common layout and gives each a fingerprint, so if a source later edits an entry, we notice.",
+    plain: "Every source describes incidents in its own layout. This step copies them into one common layout and stamps each with a fingerprint of its content. If a source later changes an entry, the new version is stored beside the old one. Nothing is dropped or judged here.",
     tech: "run.py normalise. mvp/records/<source>.jsonl, append-only, content-hashed, keyed (source_id, source_record_id).",
     inp: "Untouched copies.", out: "Records: one per incident report, all in the same shape.", prod: "mvp/records/<source>.jsonl",
     cmd: "python mvp/pipeline/run.py normalise aiid" },
   { id: "prefilter", status: "run", by: "script", x: 730, y: 300, title: "Prefilter",
     num: n(fl("prefilter").n), cap: "candidates queued, of " + nIn("prefilter") + " records",
-    plain: ["Every record goes one of three ways. A record a dossier already covers goes straight to the dossiers. Any other record is queued as a candidate if it is a recent AIID record, is on the frozen pre-2024 list, or was added by hand. The rest, older incidents not on the frozen list, stop here and are not looked at (see Fetch).",
-            "The rules are a wide, cheap net: most of what it keeps will turn out to be irrelevant; the point is not to miss anything. They are written in the code, in " + where + ". Records added by hand are queued on the curator's word and go straight to “Ready to judge”."],
+    plain: ["Chooses the candidates: the records worth reading. Every record goes one of three ways.",
+            "A record a dossier already lists goes straight to the dossiers. Any other record is queued as a candidate if it is an AIID record dated " + (F.rules.recent_from || "2024-01-01") + " or later, is on the frozen list, or was added by hand. AIID's own multi-agent label stops in 2024, so from then on our reading is the only one. The frozen list holds the older records that were already candidates before 2026-11-17 (mvp/registry/frozen_pre2024.csv).",
+            "The rest stop here: " + ((fl("prefilter").stop || []).map(s => n(O(s).n) + " " + String(O(s).label || "").replace(/ \(see Fetch\)$/, "")).join("; ") || "none") + ".",
+            "Some candidates are also flagged: someone else already labelled them multi-agent, or the text matched a keyword such as “agents” or “swarm”. A flag does not queue a record; it protects it. A flagged record is never screened out on its short text alone: its source must be read first.",
+            "The rules are a wide, cheap net: most of what it keeps will turn out to be irrelevant; the point is not to miss anything. They are written in the code, in " + where + ". Records added by hand go straight to “Ready for the model's questions”."],
     tech: "run.py prefilter. Queued: a recent AIID record, a record on the frozen pre-2024 list, or a record added by hand (its basis). Flagged: an outside label or a keyword (its flags). Records already behind a dossier (dossier_source_refs) are left out. Writes mvp/state/queue.jsonl. Rules in " + where + ".",
     inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "mvp/state/queue.jsonl",
     extra: prefilterRules, cmd: "python mvp/pipeline/run.py prefilter" },
 
-  { id: "readrec", status: ran("readrec"), by: "model", x: 990, y: 300, title: "Read the record",
-    num: n(fl("readrec").n) + " read", cap: "so far, of " + nIn("readrec") + " candidates" + waiting("readrec"),
-    plain: ["Reads the short record and asks one question first: how many agents are acting here?",
+  { id: "readrec", status: ran("readrec"), by: "model", x: 990, y: 300, title: "Read the record text",
+    num: n(fl("readrec").n) + " read", cap: "of " + nIn("readrec") + " candidates" + waiting("readrec"),
+    plain: ["Reads the record's own short text, the title and summary the source gives, and asks one question first: how many AI agents are acting here?",
             "The unit is the agent, not the system or the company. One product, one platform or one operator can hold several agents, and such a record counts as several.",
             "A named system whose insides the record does not describe is “cannot tell”, and its source is read next.",
-            "Only when the text plainly shows one agent (one chatbot conversation, one generated fake) or none is the record out of scope. A record that someone else tagged, or that matched a keyword, is never dismissed from its short text alone: its source is read first."],
+            "Only when the text plainly shows one agent (one chatbot conversation, one generated fake) or none is the record screened out. A flagged record, one that someone else labelled or that matched a keyword, is never screened out on its short text alone: its source is read first."],
     tech: "Enrichment, record pass: " + enrich + " on the record text; sets agent_count (none | one | several | unknown) and attack. Unit per definitions.md § What counts as an agent: one principal is not one agent; unknown is the default for a named system with undescribed internals. Shortcut to out of scope at depth record only for records that are not flagged; a flagged record (an outside label or a keyword) needs a secondary-or-better reading to confirm one or none. The count: queued records (not added by hand) with a context row; waiting: no context row.",
     byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, record pass.",
     inp: "A candidate.", out: "A first note: one agent, several, or cannot tell.", prod: "mvp/context/<source>.jsonl",
     cmd: "/classify-incidents  (step 0, record pass)" },
   { id: "readsrc", status: ran("readsrc"), by: "model", x: 1250, y: 300, title: "Read the source",
-    num: n(fl("readsrc").n) + " read", cap: "so far, of " + nIn("readsrc") + " sent on" + waiting("readsrc"),
-    plain: ["For every record that might involve several agents, could not be told, or was flagged, opens the original article or report and writes down what it says about seven facts, with exact quotes, and how much of it was read. If the source shows one agent after all, the record goes to “out of scope”; if the facts are settled, it is ready to judge.",
+    num: n(fl("readsrc").n) + " read", cap: "of " + nIn("readsrc") + " sent on" + waiting("readsrc"),
+    plain: ["For every record that might involve several agents, could not be told, or was flagged, opens the record's page in the database and, where it can, the article or report that page cites.",
+            "It writes down what the source says about seven facts, each with an exact quote: the agents, how they interacted, whether their number mattered, the setting, cooperation, their goals, and how the harm came about. It also notes how much of the source was read.",
+            (secondary ? n(secondary) + " of the " + n(fl("readsrc").n) + " readings so far stopped at the database's own page, without the article it cites. Facts from such a reading are provisional: good enough to go on, but not firm. " : "") + "If the source shows one agent after all, the record is screened out; otherwise it goes on to the model's questions.",
             "The number counts the records whose best reading goes deeper than the record's own text. The others wait here for somebody to read their source."],
-    tech: "Enrichment, source pass: " + enrich + ". Writes mvp/context/<source>.jsonl: seven facts, each stated / not_stated / unread, plus read depth (record < secondary < curator < primary_partial < primary_full). The count: records sent on whose best_depth() is above record; waiting: best_depth() record or unreadable, or a needed fact still unread.",
+    tech: "Enrichment, source pass: " + enrich + ". Writes mvp/context/<source>.jsonl: seven facts (agents, interaction, multiplicity, setting, cooperation, objectives, mechanism), each stated / not_stated / not_applicable / unread, plus read depth (unreadable < record < secondary < curator < primary_partial < primary_full); secondary yields scope provisional, never ready. The count: records sent on whose best_depth() is above record; waiting: best_depth() record or unreadable, or a needed fact still unread.",
     byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, source pass. Sites that block programs are read by a person.",
     inp: "A candidate that might involve several agents.", out: "A reading: the facts, the quotes, how deeply it was read.", prod: "mvp/context/<source>.jsonl",
     cmd: "/classify-incidents  (step 0, source pass)" },
-  { id: "outscope", kind: "end", status: "run", by: "rule", x: 1050, y: 150, title: "Out of scope",
-    num: n(fl("outscope").n), cap: "out of scope: one agent or none",
-    plain: "An end point. Records that plainly show one agent, or none, stop here: they cannot be multi-agent incidents. They are not judged further and get no dossier. Their reading stays in mvp/context/ so the decision can be checked later.",
-    tech: "readiness: scope not_needed when agent_count is one or none, agents stated, and (not flagged, or best read depth above record). Not counted in “can be judged”.",
+  { id: "outscope", kind: "end", status: fl("outscope").n ? "run" : "waiting", by: "rule", x: 1050, y: 150, title: "Screened out",
+    num: n(fl("outscope").n), cap: "screened out: one agent or none",
+    plain: ["An end point. Records whose reading plainly shows one AI agent, or none, stop here: they cannot be multi-agent incidents. They are not judged further and get no dossier. Their reading stays in mvp/context/ so the decision can be checked later.",
+            "This is a screening by a fixed rule on the reading, not a person's decision. “Out of scope” elsewhere on the map means the rules' answer at Gate 1, or a person's decision."],
+    tech: "readiness: scope ready (reason: no agent / one agent only) and the other three decisions not_needed, when agent_count is one or none, the agents fact is stated, and the record is not flagged or its best read depth is above record. out_of_scope(verdict). Not counted in “Ready”.",
     byNote: "run.py readiness applies the rule to the reading.",
     inp: "A record settled as one agent only.", out: "Nothing further. The reading is kept.", prod: "mvp/context/<source>.jsonl",
     cmd: "python mvp/pipeline/run.py readiness" },
-  { id: "ready", status: "run", by: "script", x: 1500, y: 300, title: "Ready to judge",
-    num: n(fl("ready").n), cap: "ready to judge",
-    plain: ["A checkpoint. “Ready” means enough is known to decide about a record. It does not mean the record is in scope: many ready records will be judged out.",
-            "Two cases look alike and are not. Say the question is whether two bots exchanged messages.",
-            "The source was read and does not say. The article was read in full and never mentions it. That is a finding: the answer is “unclear”, and the record can be judged.",
-            "Nobody opened the source. Only the two-line summary has been seen. There is no answer yet, not even “unclear”, so the record waits here until somebody reads it."],
+  { id: "ready", status: kept("ready"), by: "script", x: 1500, y: 300, title: "Ready for the model's questions",
+    num: n(fl("ready").n), cap: "ready: enough is known to ask",
+    plain: ["A checkpoint. Ready means enough is known to ask the model's fact questions. It does not mean the record is in scope, or that it is good: many ready records will be judged out.",
+            "Two cases look alike and are not. If the source was read and is silent on a fact, that silence is a finding: the answer is “unclear”, and the record can go on. If nobody has opened the source yet, there is no answer at all, so the record waits until somebody reads it.",
+            "Open the box to see how firm the facts are. Firm: the original source was read in full. Provisional: only the database's page or part of the source was read; the record goes on, but its dossier cannot be marked verified on that reading."],
     tech: "run.py readiness. Per decision: ready / provisional / not_ready / not_needed, from mvp/context/. A fact not_stated resolves (→ unclear); a fact unread does not. Records settled one/none are excluded from these counts. Manual rows: scope ready on the curator's word. Enforced by the skill, by promote and by check.",
     inp: "A candidate and its reading.", out: "The candidates with enough behind them to be judged.", prod: "mvp/state/readiness.jsonl",
     cmd: "python mvp/pipeline/run.py readiness" },
 
-  { id: "taxonomy", kind: "doc", status: "run", by: "doc", x: 30, y: 860, title: "Rulebook",
-    num: n(M.instances), cap: "named patterns in the rulebook", unit: "Not a record count: rulebook size",
-    plain: ["The definitions everything is judged against. It holds: what counts as an agent; the two gates (is it multi-agent, and what kind of failure); the three failure types and the risk factors from a 2025 paper by Hammond and colleagues; which of them go together; the four kinds of evidence; and " + n(M.instances) + " named patterns.",
-            "Of the named patterns, 33 come from the paper and 3 were written by this project for cases the paper does not name."],
-    tech: "mvp/docs/definitions.md and mvp/taxonomy/: risks.csv (failure modes FM1–3, risk factors RF1–7), instances.csv (33 hammond_table_1, 3 ours), associations.csv (FM–RF links, from Hammond only), evidence_types.csv. Hand-curated.",
-    byNote: "Hand-curated; read by the models and the rules.",
-    inp: "The paper, read by a person.", out: "The definitions.", prod: "mvp/docs/definitions.md · mvp/taxonomy/",
-    facts: [["Failure types and risk factors", M.risks], ["Named patterns", M.instances], ["From the paper", 33], ["Written by this project", 3]],
-    cmd: "mvp/docs/definitions.md" },
+  { id: "taxonomy", kind: "doc", status: M.instances ? "run" : "waiting", by: "doc", x: 780, y: 860, title: "Risk Instances Repo",
+    num: n(M.instances), cap: "risk instances in the repo", unit: "Not a record count: repo size",
+    plain: ["The list of risk instances the model chooses from when it proposes risk instances: " + n(M.instances) + " named, defined cases such as “Swarm Attacks”. Each belongs to one of the three failure types of a 2025 paper by Hammond and colleagues.",
+            "Of the risk instances, " + n(prov.hammond_table_1) + " come from the paper and " + n(prov.ours) + " were written by this project for cases the paper does not name.",
+            "The same folder also holds the failure types and risk factors, which of them go together, and the four kinds of evidence. The gates do not read it while they run: their definitions are written into the extract prompt and the rules."],
+    tech: "mvp/taxonomy/instances.csv (provenance: " + Object.keys(prov).map(k => k + " " + n(prov[k])).join(", ") + "), loaded in full by classifier call 2 and checked by run.py check against every dossier's instances. Same folder: risks.csv (failure modes FM1–3, risk factors RF1–7; " + n(M.risks) + " rows), associations.csv (FM–RF links, from Hammond only), evidence_types.csv. The written gate rules are mvp/docs/definitions.md. Hand-curated.",
+    byNote: "Kept by hand; read by the model that proposes risk instances.",
+    inp: "The paper, read by a person.", out: "The risk instances and their definitions.", prod: "mvp/taxonomy/instances.csv",
+    facts: [["Failure types and risk factors", M.risks], ["Risk instances", M.instances], ["From the paper", prov.hammond_table_1], ["Written by this project", prov.ours]],
+    cmd: "mvp/taxonomy/instances.csv" },
   { id: "extract", status: ran("extract"), by: "model", x: 30, y: 680, title: "Extract facts",
     num: n(fl("extract").n), cap: "records with facts extracted" + waiting("extract"),
-    plain: "An AI model reads the record and its reading and fills in a form: how many agents, did they act on each other, did they cooperate, were their goals the same. It is told not to give a verdict, only facts with quotes.",
-    tech: "Classifier call 1: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Only for records whose scope is ready or provisional. The count: distinct ready records with an extract_gate proposal (newest row per record), not proposal lines.",
-    byNote: "Instructions: " + promptOf("extract", "prompts/extract_gate.v3.md") + ". Run in Claude Code: /classify-incidents, call 1.",
+    plain: ["An AI model reads the record and its reading and fills in a form: how many agents, whether they acted on each other, the setting and what was at stake, who controlled the environment, whether they cooperated and whether their goals were the same. Every answer carries a quote, and the model says how sure it is.",
+            "It also answers the question Gate 1 turns on: could one agent, however capable, have done this alone? It gives no labels: the labels are made next, by fixed rules."],
+    tech: "Classifier call 1: " + promptOf("extract", "prompts/extract_gate.v4.md") + ". Fields: n_ai_agents, interaction_present, setting, stakes, environment_controlled_by, multiplicity_role (security records), single_agent_counterfactual, cooperation_occurred, cooperation_expected, objective_relation, confidence, quotes. Only for records whose scope is ready or provisional. The count: distinct ready records with an extract_gate proposal (newest row per record), not proposal lines." + (vpTxt ? " Prompt versions behind the current answers: " + vpTxt + "." : ""),
+    byNote: "Instructions: " + promptOf("extract", "prompts/extract_gate.v4.md") + ". Run in Claude Code: /classify-incidents, call 1.",
     inp: "A ready candidate and its reading.", out: "A filled-in form of facts.", prod: "mvp/proposals/",
     cmd: "/classify-incidents  (call 1)" },
-  { id: "gate1", status: ran("gate1"), by: "rule", x: 270, y: 680, title: "Derive · Gate 1",
-    num: n(fl("gate1").n), cap: "labelled by the rules: " + n(sv("in_scope")) + " in · " + n(sv("out_of_scope")) + " out · " + n(sv("review")) + " need a person" + waiting("gate1"),
-    plain: ["A fixed rule applied to the form, not a judgement call. An incident is in scope only if the harm needed more than one agent: something a single agent, however capable, could not have done alone. An attack by a fleet of agents counts, unless the source shows the crowd made no difference.",
-            "Each record gets one of three answers: settled in scope, settled out of scope, or “needs a person” when the model was unsure or a fact is unclear. All three go to a person; none of them is final."],
-    tech: "run.py derive applies pipeline/derive.py to the newest extract_gate proposal of each record and writes mvp/state/verdicts.jsonl (status in_scope | out_of_scope | review). Gate 1: could_not AND interaction_present; on a security record, multiplicity_role load_bearing or unreported resolves to could_not.",
-    byNote: "run.py derive applies pipeline/derive.py to the extracted facts.",
-    inp: "The facts.", out: "In scope, out of scope, or needs a person.", prod: "mvp/state/verdicts.jsonl",
+  { id: "gate1", status: ran("gate1"), by: "rule", x: 270, y: 680, title: "Gate 1 · Is it multi-agent?",
+    num: n(fl("gate1").n), cap: "Gate 1's answer: " + n(g1v("in")) + " in · " + n(g1v("out")) + " out · " + n(g1v("review")) + " unclear" + waiting("gate1"),
+    plain: ["Gate 1 asks whether an incident is multi-agent. A fixed rule answers it from the extracted facts: no judgement, no model. An incident is in only if the harm needed more than one agent: something a single agent, however capable, could not have done alone, and the agents acted on each other.",
+            "An attack by many agents counts by default when the source does not say what the number of agents added. That default is dropped when the record shows fewer than two agents, or when the model judged that one agent could have done it. If the source shows the number made no difference, the attack is out.",
+            "Gate 1 answers in or out; when a fact it turns on is unclear, it answers unclear. It is the first of three rules run one after the other on each record: then the evidence type, then Gate 2. The rules' final answer, with every reason a person is needed, comes out of Gate 2."],
+    tech: "First of the three rules run.py derive applies with pipeline/derive.py (rules " + (M.verdicts_rules || "") + ") to the newest extract_gate proposal of each record; the result is the verdict field gate1: in | out | review | curator. The whole verdict goes to mvp/state/verdicts.jsonl after Gate 2. Non-security record: in if single_agent_counterfactual = could_not AND interaction_present = true. Security record (multiplicity_role set): load_bearing → could_not; incidental → could; unreported → could_not only when n_ai_agents is null or ≥ 2 and the model did not answer could (the attack presumption), else the model's answer stands; interaction_present is not required. An unclear counterfactual (off the security branch, also interaction_present) gives gate1 review. A security record that is in with multiplicity_role unreported gets instances I28 and I29 as presumed (instances_presumed). run.py derive also runs the review step: it reads any filled sheet, logs its decisions and writes the sheets again.",
+    byNote: "run.py derive applies pipeline/derive.py to the extracted facts. It also runs the review step, so filled sheets are read and logged.",
+    inp: "The facts.", out: "Gate 1's answer: in, out or unclear. Passed on to the evidence type.", prod: "mvp/state/verdicts.jsonl (gate1)",
     cmd: "python mvp/pipeline/run.py derive" },
-  { id: "gate2", status: derived, by: "rule", x: 270, y: 810, title: "Gate 2 · What failed?",
-    num: "rule", cap: "one of three, or none",
-    plain: "Picks the kind of failure, or none. Collusion: the agents worked together when they were not supposed to. Miscoordination: same goal, but they got in each other’s way. Conflict: partly shared goals, and everyone ended up worse off. It never throws an incident out; Gate 1 already decided that.",
-    tech: "cooperation_occurred AND unexpected → FM3; otherwise objective_relation: identical → FM1, mixed → FM2, opposing → none.",
-    byNote: "Applied to the extracted facts.",
-    inp: "The facts.", out: "A failure type, or none.", prod: "mvp/proposals/",
-    cmd: "mvp/docs/definitions.md § Gate 2" },
-  { id: "evtype", status: derived, by: "rule", x: 270, y: 940, title: "Evidence type",
-    num: "rule", cap: "where it happened",
-    plain: "Says what kind of evidence this is: it happened in the real world, in a simulation somebody built, in a narrow lab test, or only as an argument on paper.",
-    tech: "From setting, stakes and environment_controlled_by: real_world / synthetic / lab / theoretical.",
-    byNote: "Applied to the extracted facts.",
-    inp: "The facts.", out: "One of four labels.", prod: "mvp/proposals/",
-    cmd: "mvp/taxonomy/evidence_types.csv" },
-  { id: "instances", status: ran("instances"), by: "model", x: 520, y: 1000, title: "Name the pattern",
-    num: n(fl("instances").n), cap: "with a pattern proposed, of " + nIn("instances") + " in scope" + waiting("instances"),
-    plain: ["The finer description under a label. For an in-scope incident, a model says which of the paper's named patterns it shows, for example “Swarm Attacks”, and must quote the words that show each.",
-            "What it is for: later, to show which of the paper's named patterns have real incidents behind them and which have none. It does not decide whether an incident is in scope, nor its failure type. Nothing uses its output yet.",
-            "A side path: the records that come in here, in scope by the rules, by your decision on the scope sheet or by your dossier, also go on along the main path. They are counted there too, so this box is not part of any split. A record whose dossier already lists its patterns needs no proposal."],
-    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. No downstream consumer yet. An attack with unreported multiplicity gets I28 and I29 as presumed. In: every record in scope once Gate 1 is complete: verdict in_scope that no person decided out or unclear, a scope decision in on sheet 1 (promoted or not), and records of dossiers with multi_agent true and label source ours. The count: those with an assign_instances proposal; waiting: neither a proposal nor instances in the dossier (instances_due).",
+  { id: "evtype", status: ran("evtype"), by: "rule", x: 270, y: 810, title: "Evidence type",
+    num: n(fl("evtype").n), cap: "records given an evidence type · " + n(etNone) + " left with none",
+    plain: ["The second rule, run on every record right after Gate 1. It says what kind of evidence the incident is: it happened in the real world, in a simulation somebody built, in a narrow lab test, or only as an argument on paper.",
+            "A fixed rule reads it from the setting, what was at stake and who controlled the environment. It is never guessed: when the facts do not settle it, the answer is none, and an in-scope record then goes to a person."],
+    tech: "derive.py evidence_type(), on every record after Gate 1: setting none → theoretical; narrow_probe → lab; researcher_built → synthetic; deployed AND stakes real AND environment_controlled_by nobody or operator → real_world; anything else → none, which on an in-scope record adds the review reason “evidence type not derivable”. On a review row the value sits under labels_if_confirmed. Vocabulary: mvp/taxonomy/evidence_types.csv.",
+    byNote: "run.py derive applies it to the extracted facts, after Gate 1.",
+    inp: "A record Gate 1 has answered, and its facts.", out: "One of four labels, or none. Passed on to Gate 2.", prod: "mvp/state/verdicts.jsonl (evidence_type)",
+    cmd: "python mvp/pipeline/run.py derive" },
+  { id: "gate2", status: ran("gate2"), by: "rule", x: 270, y: 940, title: "Gate 2 · Propose failure mode",
+    num: n(fl("gate2").n), cap: "the rules' answers: " + n(sv("in_scope")) + " in · " + n(sv("out_of_scope")) + " out · " + n(sv("review")) + " need a person",
+    plain: ["The third and last rule. Gate 2 asks what kind of failure an in-scope incident shows, and picks one of three, or none. Collusion: the agents cooperated where cooperation was not expected. Miscoordination: same goal, but they got in each other’s way. Conflict: partly shared goals, and everyone ended up worse off.",
+            "It runs only on the " + n(fmAsked) + " records Gate 1 let in, or would let in once an unclear fact is confirmed; the others pass through unchanged. It never takes an incident out of scope. An in-scope incident that fits none of the three keeps its place, with no failure type.",
+            "Out of Gate 2 comes the rules' final answer: in, out, or “needs a person”. A record needs a person when the model was not highly confident, or a fact any of the three rules turns on is unclear. Today " + n(sv("review")) + " of " + n(fl("gate2").n) + " records need a person; open the box for the reasons. Every answer is only a suggestion: a person decides scope on the next sheet."],
+    tech: "derive.py failure_mode(), after the evidence type, only for records Gate 1 let in (labels multi_agent true, or added by hand): cooperation_occurred = yes AND cooperation_expected = unexpected → FM3; otherwise objective_relation identical → FM1, mixed → FM2, opposing or unclear → none. Review when cooperation_occurred is unclear, cooperation_expected is unclear where cooperation occurred, or objective_relation is unclear off the FM3 branch. Then the verdict: status review if any reason was found (confidence not high, a Gate 1 or Gate 2 field unclear, evidence type not derivable on an in-scope record), else in_scope or out_of_scope; labels, or labels_if_confirmed on a review row; written to mvp/state/verdicts.jsonl. Written rule: mvp/docs/definitions.md § Gate 2.",
+    byNote: "run.py derive applies it to the extracted facts, after the evidence type, and writes the verdict.",
+    inp: "A record with Gate 1's answer and its evidence type.", out: "A failure type, or none, and the rules' final answer.", prod: "mvp/state/verdicts.jsonl (failure_mode, status)",
+    cmd: "python mvp/pipeline/run.py derive" },
+  { id: "instances", status: ran("instances"), by: "model", x: 780, y: 680, title: "Propose risk instances",
+    num: n(fl("instances").n), cap: "with risk instances, of " + nIn("instances") + " decided in" + (row("instances", "Records a person decided in", "neither") ? " · " + n(row("instances", "Records a person decided in", "neither")) + " none yet" : ""),
+    plain: ["The finer description of an incident a person has put in scope. A model says which of the repo's risk instances it shows, for example “Swarm Attacks”, and must quote the words that show each. A proposal may also name none at all.",
+            "It comes after Decide scope, never before or beside it: only the records you decided in get a proposal. The rules' own answer is not enough.",
+            "Where it is used: the proposal is shown beside the decided record on the scope sheet, and when Claude fills a dossier it adopts the instances quoted with high or medium confidence; low ones only go in the notes. Through the dossiers they reach the index. It never changes scope, nor the failure type.",
+            "A dossier you put in scope that has no risk instances is proposed for too; the Dossiers box counts those."],
+    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. In: the records whose newest scope decision is in (review/scope_decisions.csv), promoted or not. instances_due() also lists dossiers with multi_agent true, label source ours and empty instances; a verdict in_scope with no person's decision is not due. Consumers: sheet 1, on decided rows (scope_sheet_rows reads proposal_rows('assign_instances')) and Claude-filled dossiers (high/medium adopted, low in the notes). The presumed I28/I29 pair comes from derive.py, not from this call. A proposal row can hold instances [] (considered and rejected only). The count: decided-in records with an assign_instances proposal or instances in their dossier.",
     byNote: "Instructions: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Run in Claude Code: /classify-incidents, call 2.",
-    inp: "An in-scope incident and the rulebook.", out: "Pattern names with quotes.", prod: "mvp/proposals/",
+    inp: "An incident a person decided in, and the Risk Instances Repo.", out: "Risk instances, each with a quote.", prod: "mvp/proposals/",
     cmd: "/classify-incidents  (call 2)" },
-  { id: "scope", kind: "hand", status: "run", by: "person", x: 520, y: 680, title: "Decide scope",
-    num: n(fl("scope").held), cap: "left to decide, of " + nIn("scope") + " · " + n(edgeN("scope", "review")) + " in · " + n(O((fl("scope").stop || [])[0]).n) + " out",
-    plain: ["A person decides, record by record, whether the incident is multi-agent: in, out, or unclear. The rules and the model have only made a suggestion, and the suggestion is shown beside each record. A rule never puts an incident in scope: only this decision does.",
-            "The records come as a spreadsheet, mvp/review/1_decide_scope.xlsx, one row each. Fill the yellow column “decision” with in, out or unclear and save it. The next run reads the sheet, keeps your answers in a log, and writes a new sheet with what is left.",
-            "A record you decide “in” goes on to Human review. “Out” and “unclear” end here: the answer stays in the log, no dossier is made. A record that already has a dossier goes straight on."],
-    tech: "run.py review (also the Review step of an update) writes mvp/review/1_decide_scope.xlsx from state/verdicts.jsonl: every record with a derived label, no scope decision yet, no dossier. Each record has a MIG key from the moment it reaches this sheet (mvp/registry/mig_keys.csv); the sheet names it by mig_key, source_id and source_key. Filled rows are validated and appended to mvp/review/scope_decisions.csv (mig_key, source_id, source_key, decision in | out | unclear, reason, decided_on, sheet_generated_on); the newest row per record wins. A hand-added record counts as decided in. run.py check validates the log.",
+  { id: "scope", kind: "hand", status: decided ? "run" : "waiting", by: "person", x: 520, y: 680, title: "Decide scope",
+    num: n(fl("scope").held), cap: "still to decide, of " + nIn("scope") + " · decided: " + n(edgeN("scope", "review")) + " in, " + n(O((fl("scope").stop || [])[0]).n) + " out, " + n(unclearN) + " unclear",
+    plain: ["A person decides, record by record, whether the incident is multi-agent. Three answers. In: two or more AI agents, and the harm came from them acting on each other. Out: one agent, or many doing what one could have done. Unclear: the source was read and does not say.",
+            "The rules' answer is shown beside each record, but it is only a suggestion. A rule never puts an incident in scope: only this decision does.",
+            "A record you decide “in” goes on to Human review. “Out” and “unclear” end here: the answer stays in the log and no dossier is made. A record that already has a dossier goes straight on.",
+            "How to do it: the records come as a spreadsheet, mvp/review/1_decide_scope.xlsx. Fill the yellow column “decision” and save. The next run reads the sheet, keeps your answers in a log, and writes the sheet again."],
+    tech: "run.py review (also the Review step of an update, and run.py derive) writes mvp/review/1_decide_scope.xlsx from state/verdicts.jsonl: every record with a verdict, decided or not, plus every record a dossier cites. Column ask = yes (the rules would put it in, or confidence is low) | check | decided | dossier; only rows with ask yes or check take a decision. Each record has a MIG key from the moment it reaches this sheet (mvp/registry/mig_keys.csv); the sheet names it by mig_key, source_id and source_key. Filled rows are validated and appended to mvp/review/scope_decisions.csv (mig_key, source_id, source_key, decision in | out | unclear, reason, decided_on, sheet_generated_on); the newest row per record wins. A hand-added record counts as decided in. run.py check validates the log.",
     byNote: "The sheet is written by a script; the decisions are a person’s.",
     inp: "Every record the rules labelled.", out: "A decision: in, out or unclear.", prod: "mvp/review/scope_decisions.csv",
     extra: scopeGuide, cmd: "python mvp/pipeline/run.py review" },
-  { id: "review", kind: "hand", status: "run", by: "person", x: 780, y: 680, title: "Human review",
-    num: n(fl("review").held), cap: "left to review, of " + nIn("review") + " decided in · " + n(edgeN("review", "dossiers")) + " promoted",
-    plain: ["A person has decided these records are in scope. Here they say which get a dossier. Only a person can put an incident into the index. A machine or somebody else’s tag can only nominate one.",
-            "The records come as a second spreadsheet, mvp/review/2_promote.xlsx. Fill the yellow column “promote” with yes or no. Yes makes a blank dossier on the next run; then fill the dossier in by hand, as before. No keeps the record out of the index; the answer stays in a log.",
-            "A record leaves when a dossier lists it; until then it waits on the sheet."],
+  { id: "review", kind: "hand", status: (edgeN("review", "dossiers") || fstop("review")) ? "run" : "waiting", by: "person", x: 1030, y: 680, title: "Human review",
+    num: n(fl("review").held), cap: "still to review, of " + nIn("review") + " decided in · " + n(edgeN("review", "dossiers")) + " promoted, " + n(fstop("review")) + " not",
+    plain: ["A person has decided these records are in scope. Here they say which get a dossier: to promote a record is to make a dossier for it. Only a person can put an incident into the index; a machine or somebody else’s tag can only nominate one.",
+            "Yes: a dossier is made. It is then filled in, by hand or by Claude when you ask, and the index lists it with the verdict the dossier holds. No: no dossier is made and the record never reaches the index; the answer stays in a log.",
+            "How to do it: the records come as a second spreadsheet, mvp/review/2_promote.xlsx. Fill the yellow column “promote” with yes or no and save. A record leaves when a dossier lists it; until then it waits on the sheet."],
     tech: "run.py review reads mvp/review/2_promote.xlsx: records with a newest scope decision in, no dossier, no promote decision no. A yes runs the promote logic (scaffolds the dossier; a record that is not ready is refused and stays on the sheet). Filled rows go to mvp/review/promote_decisions.csv (mig_key, source_id, source_key, decision yes | no, note, decided_on, sheet_generated_on). The dossier is mvp/incidents/<mig_key>.md. run.py promote <mig_key> still scaffolds one dossier by hand.",
     byNote: "The sheet and the blank file are made by a script; the person decides and fills the dossier in.",
-    inp: "A record a person decided in.", out: "A decision, written up as a dossier.", prod: "mvp/incidents/<ID>.md",
+    inp: "A record a person decided in.", out: "A decision, written up as a dossier.", prod: "mvp/incidents/<mig_key>.md",
     extra: reviewGuide, cmd: "python mvp/pipeline/run.py review" },
-  { id: "dossiers", kind: "doc", status: "run", by: "person", x: 1030, y: 680, title: "Dossiers",
-    num: n(fl("dossiers").n), cap: "records in " + n(M.dossiers) + " dossiers",
-    plain: ["One file per incident a person has judged: in scope, out of scope or unclear. It says what happened, how, which agents were involved, and how well it was checked against the original source.",
-            "The number counts records, not files: one dossier can list the same incident as told by two sources. Candidates that have only been read, not judged, have no dossier: their reading stays in mvp/context/."],
-    tech: "mvp/incidents/<ID>.md. YAML frontmatter plus seven fixed sections. Hand-edited. multi_agent_label_source: ours only by a human verdict. The count: records listed in a dossier's sources (dossier_source_refs ∩ records).",
-    byNote: "Written and edited by hand.",
-    inp: "A person’s decision.", out: "The curated record.", prod: "mvp/incidents/<ID>.md",
-    cmd: "mvp/incidents/" },
-  { id: "check", status: "run", by: "script", x: 1280, y: 680, title: "Check",
-    num: n(fl("check").n), cap: "records checked on the way to the index",
-    plain: "An automatic inspection that must pass before anything is saved. It fails if a file is malformed, if a verdict has no reading behind it, or if a machine’s tag was treated as a final answer.",
-    tech: "run.py check. Must exit 0. Validates dossiers, vocabularies, the context layer and label provenance.",
-    inp: "All the incident files.", out: "Pass, or a list of problems.", prod: "nothing: it only reports",
+  { id: "dossiers", kind: "doc", status: M.dossiers ? "run" : "waiting", by: "person", x: 1280, y: 680, title: "Dossiers",
+    num: n(fl("dossiers").n), cap: "records in " + n(M.dossiers) + " dossiers · " + n(verified) + " dossiers verified",
+    plain: ["A dossier is our own file on one incident. It says what happened, how, which agents were involved, the person's verdict (in scope, out of scope or unclear) and how well it was checked against the original source.",
+            "Every dossier is a row of the index, whatever its verdict: an “out of scope” dossier records that someone looked, and why it was turned away. Verified means a person checked it against the original source; " + n(verified) + " of " + n(M.dossiers) + " are verified so far, so most dossiers are not yet checked facts.",
+            "The number on the box counts records, not files: one dossier can list the same incident as told by several sources. Open the box for the counts per dossier."],
+    tech: "mvp/incidents/<mig_key>.md. YAML frontmatter plus seven fixed sections. Made blank by promote; filled by hand, or by Claude on the curator's request (always unverified, notes open “Written by Claude”). Fields are changed through sheet 3 (mvp/review/3_edit_dossiers.xlsx) via run.py review, which names them in set_by_person and logs them in mvp/review/dossier_edits.csv. multi_agent_label_source: ours only by a human verdict. The count: records listed in a dossier's sources (dossier_source_refs ∩ records).",
+    byNote: "Made blank by a script; filled in by a person, or by Claude when the curator asks; corrected through sheet 3.",
+    inp: "A person’s decision.", out: "The curated record.", prod: "mvp/incidents/<mig_key>.md",
+    cmd: "python mvp/pipeline/run.py review  (sheet 3: edit dossiers)" },
+  { id: "check", status: fl("check").n ? "run" : "waiting", by: "script", x: 1530, y: 680, title: "Check",
+    num: n(fl("check").n), cap: "records, in " + n(M.dossiers) + " dossiers, checked on the way to the index",
+    plain: ["An automatic inspection of the dossiers and the logs. In an update it must pass before the index is rebuilt; run by hand, run it before the index yourself.",
+            "It fails on a malformed dossier or log, a record that points at nothing, a machine’s tag used as a final answer, or a dossier marked verified on a reading that was only partial, secondary or the curator's own. It keeps no result file: the number shows what it checks, not that it passed."],
+    tech: "run.py check, exit 0 required. Validates dossiers (fields, vocabularies, label provenance, verification against read depth), the frozen list, the MIG key registry, record keys and hashes, the scope, promote and edit logs, and the context layer. It does not read verdicts.jsonl, proposals or the queue. It gates the index only inside an update run (step_check fails the run); run.py index does not call it.",
+    inp: "All the incident files and logs.", out: "Pass, or a list of problems.", prod: "nothing: it only reports",
     cmd: "python mvp/pipeline/run.py check" },
-  { id: "index", kind: "doc", status: "run", by: "script", x: 1530, y: 680, title: "Index",
-    num: n(fl("index").n), cap: "records in " + n(M.dossiers) + " rows of the finished table",
-    plain: "The finished table of incidents, rebuilt from the incident files every time. This is what the rest of the project reads.",
-    tech: "run.py index. mvp/out/incident_index.csv. Generated; never edited by hand.",
+  { id: "index", kind: "doc", status: kept("index"), by: "script", x: 1780, y: 680, title: "Index",
+    num: n(fl("index").n), cap: "records, shown as " + n(M.dossiers) + " rows: one per dossier",
+    plain: ["The finished table of incidents, rebuilt from the dossiers every time: one row per dossier, whatever its verdict. This is what the rest of the project reads.",
+            "The number counts records: " + n(fl("index").n) + " records sit behind the " + n(M.dossiers) + " rows, because one incident can be told by several sources."],
+    tech: "run.py index writes mvp/out/incident_index.csv and mvp/state/pipeline.json, the counts this page is drawn from; run.py viz renders this page; mvp/pipeline/index_report.py writes mvp/out/index_report.xlsx. Generated; never edited by hand.",
     inp: "All the incident files.", out: "One table.", prod: "mvp/out/incident_index.csv",
     cmd: "python mvp/pipeline/run.py index" },
-  { id: "gold", kind: "doc", status: "run", by: "person", x: 1280, y: 940, title: "Answer key",
+  { id: "gold", kind: "doc", status: gold.rows ? "run" : "waiting", by: "person", x: 1280, y: 940, title: "Answer key",
     num: n(gold.rows), cap: "records judged with care", unit: "A separate set of records, off the path",
     plain: "A small set of records that a person judged carefully from the original sources. It works like an exam answer key: the models’ suggestions are marked against it.",
     tech: "mvp/gold/multiagent_gold.csv. Four strata; ids are permanent (gold_ids.csv).",
@@ -850,17 +903,24 @@ function defs() {
     cmd: "python mvp/gold/build_review.py" },
   { id: "score", status: scored ? "run" : "waiting", by: "script", x: 1030, y: 940, title: "Score",
     num: pct(scored ? gold.classifier_precision : gold.ceiling),
-    cap: scored ? "of the rules’ “in scope” are right · " + pct(gold.classifier_recall) + " found" : "earlier hand work, for comparison",
+    cap: scored ? "precision, if a person confirms every review item · recall " + pct(gold.classifier_recall) + " · prompt " + (gold.classifier_prompt || "not recorded") : "earlier hand work, for comparison",
     unit: "Not a record count: a share",
     plain: scored
-      ? ["Marks the models’ suggestions against the answer key. Of the records the rules called multi-agent, this share really is; of the multi-agent records in the key, " + pct(gold.classifier_recall) + " were found. Scored on " + n(gold.classifier_n) + " records.",
-         "For comparison, the project’s own earlier hand-picked list scored " + pct(gold.ceiling) + " on the same question."]
-      : "Marks the models’ suggestions against the answer key. The models have not run yet, so the only score so far is for the project’s own earlier hand-picked list: of the incidents it called multi-agent, this share survived a careful second look.",
+      ? ["Marks the model and the rules together against the answer key. Precision: of the records they would call multi-agent, the share that really are. Recall: of the multi-agent records in the key, the share they found.",
+         "Read the number with care. The rules settle few records alone. In the last scored run, " + n(gold.classifier_review_items) + " of the " + n(gold.classifier_n) + " answer-key records needed a person, and they are scored on the answer the rules would give if a person confirmed the facts. On the " + n(gold.classifier_settled_n) + " records the rules settled alone, precision was " + pct(gold.classifier_settled_precision) + " and recall " + pct(gold.classifier_settled_recall) + ".",
+         "That run used the prompt " + (gold.classifier_prompt || "of an earlier version") + ". " + (gold.classifier_prompt && promptOf("extract", "").indexOf(gold.classifier_prompt) < 0 ? "The current prompt, " + promptOf("extract", "prompts/extract_gate.v4.md").replace(/^mvp\/prompts\//, "").replace(/\.md$/, "") + ", has not been scored yet. " : "") + "For comparison, the project’s own earlier hand-picked list scored " + pct(gold.ceiling) + " precision on the same question."]
+      : "Marks the model and the rules against the answer key. No classifier run has been scored yet, so the only score so far is for the project’s own earlier hand-picked list: of the incidents it called multi-agent, this share survived a careful second look.",
     tech: scored
-      ? "mvp/gold/score_gate1.py. Classifier precision " + pct(gold.classifier_precision) + ", recall " + pct(gold.classifier_recall) + " on " + n(gold.classifier_n) + " scorable gold rows; earlier curation precision " + pct(gold.ceiling) + " on " + n(gold.ceiling_n) + "."
-      : "mvp/gold/score_gate1.py. Precision of earlier curation on " + n(gold.ceiling_n) + " scorable rows. No classifier score exists.",
-    facts: scored ? [["Precision, the rules", pct(gold.classifier_precision)], ["Recall, the rules", pct(gold.classifier_recall)], ["Precision, earlier hand work", pct(gold.ceiling)]] : [],
-    inp: "Suggestions and the answer key.", out: "How often the models are right.", prod: "mvp/out/gate1_accuracy.json",
+      ? "mvp/gold/score_gate1.py → mvp/out/gate1_accuracy.json. Classifier = " + (gold.classifier_prompt || "?") + " (" + (gold.classifier_input || "input not recorded") + ") + rules " + (gold.classifier_rules || "?") + " on " + n(gold.classifier_n) + " scorable gold rows: precision " + pct(gold.classifier_precision) + ", recall " + pct(gold.classifier_recall) + ", counting the " + n(gold.classifier_review_items) + " review items by labels_if_confirmed. classifier_settled: n " + n(gold.classifier_settled_n) + ", precision " + pct(gold.classifier_settled_precision) + ", recall " + pct(gold.classifier_settled_recall) + ". Earlier hand curation: precision " + pct(gold.ceiling) + " on " + n(gold.ceiling_n) + "."
+      : "mvp/gold/score_gate1.py. Precision of earlier curation on " + n(gold.ceiling_n) + " scorable rows. No classifier run has been scored.",
+    facts: scored ? [["Prompt scored", gold.classifier_prompt || "not recorded"],
+                     ["Precision, model + rules, if a person confirms", pct(gold.classifier_precision)],
+                     ["Recall, model + rules, if a person confirms", pct(gold.classifier_recall)],
+                     ["Answer-key records that needed a person", n(gold.classifier_review_items) + " of " + n(gold.classifier_n)],
+                     ["Settled by the rules alone: records", gold.classifier_settled_n],
+                     ["Settled by the rules alone: precision", pct(gold.classifier_settled_precision)],
+                     ["Precision, earlier hand work", pct(gold.ceiling)]] : [],
+    inp: "Suggestions and the answer key.", out: "How often the model and the rules are right.", prod: "mvp/out/gate1_accuracy.json",
     cmd: "python mvp/gold/score_gate1.py" },
   ];
 }
@@ -929,7 +989,7 @@ function reviewGuide(box) {
   box.appendChild(el("h3", "", "How to fill in a dossier"));
   const ol = el("ol");
   [
-    ["Open the blank dossier in mvp/incidents/ that a promote “yes” made (", ["code", "python mvp/pipeline/run.py promote <source_id>:<record_id>"], " makes one by hand). Open it in a text editor."],
+    ["Open the blank dossier in mvp/incidents/ that a promote “yes” made (", ["code", "python mvp/pipeline/run.py promote MIG-0058"], " makes one by hand, from its MIG key). Open it in a text editor, or ask Claude to fill it from the pipeline's readings: a dossier Claude writes stays unverified until you check it, and its notes open “Written by Claude”."],
     ["Read the original source, not only the summary or the machine’s suggestion."],
     ["Decide the scope, and say it was you: ", ["code", "multi_agent_label_source: ours"], ", with one sentence of reasons in ", ["code", "multi_agent_basis"], "."],
   ].forEach(parts => ol.appendChild(line(parts, "li")));
@@ -943,8 +1003,9 @@ function reviewGuide(box) {
   box.appendChild(el("p", "note", "A blank dossier from promote starts at multi_agent: false with no label source. Set all three fields yourself, even when the answer is false."));
   const ol2 = el("ol"); ol2.start = 4;
   [
-    ["If in scope: check ", ["code", "failure_mode"], " and set ", ["code", "failure_mode_source: ours"], "; check ", ["code", "evidence_type"], " and ", ["code", "instances"], ". Keep only the patterns the source shows in its own words."],
+    ["If in scope: check ", ["code", "failure_mode"], " and set ", ["code", "failure_mode_source: ours"], "; check ", ["code", "evidence_type"], " and ", ["code", "instances"], ". Keep only the risk instances the source shows in its own words."],
     ["Say how well you checked it: ", ["code", "verification"], " is verified, partially_verified or unverified; ", ["code", "last_verified"], " is today’s date; under ", ["code", "## Verification notes"], " write what you read and what you found."],
+    ["To correct a dossier later, change its cells in ", ["code", "mvp/review/3_edit_dossiers.xlsx"], " and run ", ["code", "python mvp/pipeline/run.py review"], ": each field you change is named in the dossier's ", ["code", "set_by_person"], " and logged in mvp/review/dossier_edits.csv."],
     ["Run ", ["code", "python mvp/pipeline/run.py check"], ". It must pass."],
   ].forEach(parts => ol2.appendChild(line(parts, "li")));
   box.appendChild(ol2);
@@ -975,17 +1036,17 @@ function wireDefs() {
     c("readsrc", "outscope", "", "tr"),
     c("readsrc", "ready"),
     c("ready", "extract", "", "bt"),
-    ["taxonomy", "extract", "", "ref", "tb"],
-    c("extract", "gate1"), ["extract", "gate2", "", "ref"], ["extract", "evtype", "", "ref"],
-    c("gate1", "scope", "hand"),
-    c("scope", "review", "hand"),
+    ["taxonomy", "instances", "", "ref", "tb"],
+    // the three rules of run.py derive, in the order they run on each record
+    c("extract", "gate1"), c("gate1", "evtype", "", "bt"), c("evtype", "gate2", "", "bt"),
+    c("gate2", "scope", "hand"),
+    // risk instances come after the scope decision, before the promote sheet
+    c("scope", "instances", "hand"),
+    c("instances", "review"),
     c("scope", "dossiers", "hand", "tt"),
-    c("gate1", "instances", "branch"),
-    c("scope", "instances", "branch"),
     c("review", "dossiers", "hand"),
     c("dossiers", "check"), c("check", "index"),
-    c("dossiers", "instances", "branch", "bt"),
-    ["gate1", "score", "", "ref"], ["gold", "score", "", "ref", "lr"],
+    ["gate2", "score", "", "ref"], ["gold", "score", "", "ref", "lr"],
   ];
 }
 
@@ -993,8 +1054,8 @@ const GROUPS = [
   ["1 · Collect", ["sources", "discover", "orders", "fetch", "manual", "normalise", "prefilter"]],
   ["Discover · not built", ["discover", "orders"], "sub"],
   ["2 · Read", ["readrec", "readsrc", "outscope", "ready"]],
-  ["3 · Judge", ["taxonomy", "extract", "gate1", "scope", "gate2", "evtype", "instances"]],
-  ["4 · Record", ["review", "dossiers", "check", "index"]],
+  ["3 · Judge", ["extract", "gate1", "scope", "gate2", "evtype"]],
+  ["4 · Record", ["instances", "taxonomy", "review", "dossiers", "check", "index"]],
   ["Test", ["gold", "score"]],
 ];
 
@@ -1005,10 +1066,11 @@ const CONTENT = ["num", "cap", "plain", "tech", "byNote", "inp", "out", "prod", 
 const canvas = document.getElementById("canvas"), svg = document.getElementById("wires");
 const NS = "http://www.w3.org/2000/svg";
 const byId = {}, picked = new Set(); let wording = "plain", zoom = 1, selected = null, CW = 1560, CH = 1220;
-const STATUS = { run: "Works today", waiting: "Built, not yet run", unbuilt: "Not built yet: a placeholder" };
+const STATUS = { run: "Operational", waiting: "Built, no output yet", unbuilt: "Not built yet: a placeholder" };
 const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
                 set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const LAYOUT = "patch-layout-4", saved = store.get(LAYOUT) || {};
+// bumped when boxes change places, so an old saved layout does not undo the move
+const LAYOUT = "patch-layout-7", saved = store.get(LAYOUT) || {};
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
@@ -1246,6 +1308,27 @@ function fillSheet(nd) {
   const h = t => sbody.appendChild(el("h3", "", t));
   h("What it does");
   paras(wording === "plain" ? nd.plain : nd.tech).forEach(t => sbody.appendChild(el("p", "big", t)));
+  // right now comes first: the number, whether it adds up, what waits and who acts next
+  const live = runInfoFor(nd.id); if (live) sbody.appendChild(live);
+  h(testNums() ? "Right now in the test run" : "Right now");
+  if (testNums()) { const tn = el("p", "note"); tn.appendChild(el("span", "testmark", "Test run")); tn.appendChild(document.createTextNode(" Sample figures from the test run's scratch folder, not your project's.")); sbody.appendChild(tn); }
+  const tb = el("table"); const rows = [[nd.cap.charAt(0).toUpperCase() + nd.cap.slice(1), nd.num]].concat(nd.facts || []);
+  rows.forEach(([k, v]) => { const tr = el("tr"); tr.appendChild(el("td", "", String(k))); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v == null ? 0 : v))); tb.appendChild(tr); });
+  sbody.appendChild(tb);
+  if (nd.unit) sbody.appendChild(el("p", "note", nd.unit + ". It is not part of the record flow, so nothing here has to add up with the boxes around it."));
+  const f = flowOf(nd.id);
+  if (f) {
+    const s = addsUp(f); sbody.appendChild(el("p", "note" + (s.ok ? "" : " bad"), s.text));
+    if (f.held) {
+      const nx = el("p", "next");
+      nx.appendChild(el("b", "", n(f.held) + " wait here: " + (f.held_label || "not passed on yet") + ". "));
+      nx.appendChild(document.createTextNode("Next: " + NEXT[nd.by] + (isCmd(nd.cmd) ? ", with " : ".")));
+      if (isCmd(nd.cmd)) nx.appendChild(el("code", "", nd.cmd));
+      sbody.appendChild(nx);
+    }
+  }
+  breakdown(nd, h);
+  if (nd.extra) nd.extra(sbody);
   h("Run by");
   const by = el("p"); by.appendChild(el("span", "pill inv", BY[nd.by][0])); by.appendChild(document.createTextNode(" " + BY[nd.by][1] + ". "));
   by.appendChild(document.createTextNode(nd.byNote || BY[nd.by][2])); sbody.appendChild(by);
@@ -1257,15 +1340,6 @@ function fillSheet(nd) {
   if (nd.kind === "hand") { st.appendChild(document.createTextNode(" ")); st.appendChild(el("span", "pill", "Done by a person")); }
   if (nd.kind === "end") { st.appendChild(document.createTextNode(" ")); st.appendChild(el("span", "pill", "End point")); }
   sbody.appendChild(st);
-  const live = runInfoFor(nd.id); if (live) sbody.appendChild(live);
-  h(testNums() ? "Right now in the test run" : "Right now");
-  if (testNums()) { const tn = el("p", "note"); tn.appendChild(el("span", "testmark", "Test run")); tn.appendChild(document.createTextNode(" Sample figures from the test run's scratch folder, not your project's.")); sbody.appendChild(tn); }
-  const tb = el("table"); const rows = [[nd.cap.charAt(0).toUpperCase() + nd.cap.slice(1), nd.num]].concat(nd.facts || []);
-  rows.forEach(([k, v]) => { const tr = el("tr"); tr.appendChild(el("td", "", String(k))); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v == null ? 0 : v))); tb.appendChild(tr); });
-  sbody.appendChild(tb);
-  if (nd.unit) sbody.appendChild(el("p", "note", nd.unit + ". It is not part of the record flow, so nothing here has to add up with the boxes around it."));
-  breakdown(nd, h);
-  if (nd.extra) nd.extra(sbody);
   // where this step keeps what it makes: a link that opens the file or folder itself,
   // and, while a test run is on show, a second one that opens the test's scratch copy
   const kept = O(M.artifacts)[nd.id] || [], inTest = testShown() && location.protocol !== "file:";
@@ -1286,7 +1360,21 @@ function fillSheet(nd) {
       sbody.appendChild(row);
     });
   }
-  if (wording === "tech" && nd.cmd && !/^mvp\//.test(nd.cmd)) { h("Command"); sbody.appendChild(el("code", "", nd.cmd)); }
+  if (isCmd(nd.cmd)) { h(wording === "tech" ? "Command" : "How to run it"); sbody.appendChild(el("code", "", nd.cmd)); }
+  else if (wording === "tech" && nd.cmd) { h("File"); sbody.appendChild(el("code", "", nd.cmd)); }
+}
+// a box's `cmd` is a command to run, or only the file or folder a person edits
+const isCmd = c => !!c && !/^mvp\//.test(c);
+// who acts next on the records waiting at a box
+const NEXT = { person: "a person", model: "a model, run from Claude Code", script: "a script", rule: "a script applies the rule", doc: "a person" };
+// a box's conservation line: what comes in = what goes on + what ends here + what waits
+function addsUp(f) {
+  const outs = (f.out || []).filter(Boolean);
+  const main = outs.filter(e => !e.branch).reduce((a, e) => a + Number(e.n || 0), 0);
+  const stops = (f.stop || []).reduce((a, s) => a + Number(O(s).n || 0), 0);
+  const held = Number(f.held || 0), sum = main + stops + held, ok = sum === Number(f.in || 0);
+  return { ok, text: (ok ? "Adds up: " : "Does NOT add up: ") + n(f.in) + " in " + (ok ? "= " : "≠ ") +
+    n(main) + " passed on + " + n(stops) + " ended here + " + n(held) + " waiting." };
 }
 // A box's records, split: by source, by the groups that matter there, then where they
 // come from and where they go, and the files the number is counted from. All from
@@ -1319,13 +1407,9 @@ function breakdown(nd, h) {
   h("Goes to");
   const outs = (f.out || []).filter(Boolean);
   outs.forEach(e => sbody.appendChild(el("p", "flowline", "→ " + n(e.n) + " to " + titleOf(e.to) + ": " + (e.label || "") + (e.branch ? " (also: a side path, not part of the sum below)" : ""))));
-  (f.stop || []).forEach(s => sbody.appendChild(el("p", "flowline", "■ " + n(O(s).n) + " stop here: " + (O(s).label || ""))));
+  (f.stop || []).forEach(s => sbody.appendChild(el("p", "flowline", "■ " + n(O(s).n) + " end here: " + (O(s).label || ""))));
   if (f.held || f.held_label) sbody.appendChild(el("p", "flowline", "… " + n(f.held) + " wait here: " + (f.held_label || "not passed on yet")));
-  const main = outs.filter(e => !e.branch).reduce((a, e) => a + Number(e.n || 0), 0);
-  const stops = (f.stop || []).reduce((a, s) => a + Number(O(s).n || 0), 0);
-  const sum = main + stops + Number(f.held || 0), ok = sum === Number(f.in || 0);
-  sbody.appendChild(el("p", "note", (ok ? "Adds up: " : "Does NOT add up: ") + n(f.in) + " in " + (ok ? "= " : "≠ ") +
-    [main && n(main) + " on", stops && n(stops) + " stop", f.held && n(f.held) + " waiting"].filter(Boolean).join(" + ") + (sum ? "" : "0") + "."));
+  sbody.appendChild(el("p", "note", addsUp(f).text));
   h("Counted from");
   (Array.isArray(f.files) ? f.files : []).forEach(p => sbody.appendChild(el("code", "", "mvp/" + p)));
   if (tech && f.rule) sbody.appendChild(el("p", "note", "Rule: " + f.rule));
@@ -1334,10 +1418,26 @@ function breakdown(nd, h) {
 // the warning above the map: every conservation equation from run.py that fails
 function flowWarn() {
   const w = document.getElementById("flowwarn"); if (!w) return;
-  const bad = (Array.isArray(M.checks) ? M.checks : []).filter(c => c && c.ok === false);
+  const all = (Array.isArray(M.checks) ? M.checks : []).filter(Boolean);
+  const bad = all.filter(c => c.ok === false);
+  // the line above the map: when the numbers were counted, from which AIID copy, the
+  // last update run, and how many of the sums hold
+  const info = document.getElementById("mapinfo");
+  if (info) {
+    info.textContent = "";
+    const at = String((D && D.generated_at) || (D && D.generated) || "").replace("T", " ");
+    const snap = O(M.aiid_snapshot), lr = O(M.last_run);
+    info.appendChild(el("span", "", "Counted " + (at || "at an unrecorded time") + " by run.py index"));
+    if (snap.present) info.appendChild(el("span", "", "AIID copy fetched " + (snap.fetched || "on an unrecorded date")));
+    if (lr.id) info.appendChild(el("span", "", "Last " + (lr.test ? "test run" : "update run") + ": " + String(lr.ended || lr.id).replace("T", " ").slice(0, 16) + ", " + (lr.state || "state unknown")));
+    if (all.length) info.appendChild(el("span", bad.length ? "bad" : "ok", bad.length ? n(bad.length) + " of " + n(all.length) + " sums fail: see below" : "All " + n(all.length) + " sums hold"));
+    // served by run.py serve: its counting code was loaded at start and has changed since
+    const stale = Array.isArray(D && D.server_stale_code) ? D.server_stale_code : [];
+    if (stale.length) info.appendChild(el("span", "bad", "The server counts with old code: " + stale.join(", ") + " changed since it started. Restart python mvp/pipeline/run.py serve"));
+  }
   w.textContent = ""; w.hidden = !bad.length;
   if (!bad.length) return;
-  w.appendChild(document.createTextNode("These numbers do not add up (" + bad.length + "). A count on the map is wrong or out of date:"));
+  w.appendChild(document.createTextNode("These numbers do not add up (" + bad.length + "). A count on the map is wrong or out of date: do not rely on it. Run an update, or python mvp/pipeline/run.py index, and look again:"));
   const ul = el("ul");
   bad.forEach(c => ul.appendChild(el("li", "", String(c.eq) + ": " + n(c.lhs) + " ≠ " + n(c.rhs))));
   w.appendChild(ul);
@@ -1940,8 +2040,8 @@ function finish(run) {
 // headline numbers, all counts of records; dotted keys reach into flow_counts as the
 // run's trace writes them
 const HEAD = [["records", "Records"], ["flow_counts.queued", "Candidates queued"], ["flow_counts.read_record", "Records read"],
-              ["flow_counts.read_source", "Sources read"], ["flow_counts.out_of_scope", "Out of scope"], ["manual", "Added by hand"],
-              ["flow_counts.ready", "Ready to judge"], ["flow_counts.extracted", "Facts extracted"], ["flow_counts.dossier_records", "Records in dossiers"]];
+              ["flow_counts.read_source", "Sources read"], ["flow_counts.out_of_scope", "Screened out"], ["manual", "Added by hand"],
+              ["flow_counts.ready", "Ready for the model's questions"], ["flow_counts.extracted", "Facts extracted"], ["flow_counts.dossier_records", "Records in dossiers"]];
 // a value by dotted key, from a map or from the trace's flat numbers
 function getK(o, k) { o = O(o); if (k in o) return o[k]; return k.split(".").reduce((x, p) => x == null ? undefined : O(x)[p], o); }
 // the headline numbers that differ between two maps, or between flat numbers and a map

@@ -19,8 +19,8 @@ Stages, in the order an update runs them:
                says on sheet 2 which in-scope records get a dossier; this step reads
                the filled sheets, logs the decisions, scaffolds the dossiers, and writes
                fresh sheets (`review` alone does the same). `promote` still makes one
-               dossier by hand; `instances-due` lists the records in scope with no
-               instance proposal
+               dossier by hand; `instances-due` lists the records a person put in
+               scope with no risk-instance proposal
     check      validate the layer; exits non-zero on any problem
     index      regenerate mvp/out/incident_index.csv and mvp/state/pipeline.json
     viz        render the pages in mvp/out/
@@ -1297,20 +1297,18 @@ def read_verdicts():
 
 
 def instances_due():
-    """Records a person, or the rules, have put in scope that have no instance
-    proposal. One row per record:
+    """Records a person has put in scope that have no instance proposal. One row
+    per record:
 
       dossier  a dossier with multi_agent true and label source `ours`, an empty
                `instances` list, and no assign_instances proposal for any of its
                sources. The record named is its canonical source's.
-      verdict  a record derive settled in_scope that no person has decided out or
-               unclear on sheet 1, with no assign_instances proposal, and no dossier
-               that already lists instances.
       decided  a record a person decided `in` on sheet 1 (mvp/review/), whatever the
                rules said, with no assign_instances proposal and no dossier that
                already lists instances. It need not be promoted yet.
 
-    So once Gate 1 is complete, by the rules or by a person, an in-scope record is due.
+    Risk instances are proposed only after a person decides scope: a record the
+    rules settle in_scope is not due until a person decides it in.
     """
     have = set(proposal_rows("assign_instances"))
     records = latest_records()
@@ -1332,13 +1330,9 @@ def instances_due():
                     "source_record_id": key[1], "why": "dossier",
                     "dossier": meta.get("mig_key", path.stem)})
     for key, v in sorted(read_verdicts().items()):
-        said = person.get(record_key(*key))
-        if said == "in":
-            why = "decided"
-        elif v.get("status") == "in_scope" and said not in ("out", "unclear"):
-            why = "verdict"
-        else:
+        if person.get(record_key(*key)) != "in":
             continue
+        why = "decided"
         if key in have or key in seen or key in listed:
             continue
         out.append({"record_key": record_key(*key), "source_id": key[0],
@@ -1350,11 +1344,10 @@ def stage_instances_due():
     rows = instances_due()
     STATE.mkdir(parents=True, exist_ok=True)
     write_jsonl(STATE / INSTANCES_DUE, rows)
-    info(f"  ok    instances-due: {len(rows)} record(s) in scope with no instance "
-         f"proposal -> {(STATE / INSTANCES_DUE).relative_to(ROOT)}")
+    info(f"  ok    instances-due: {len(rows)} record(s) a person put in scope with no "
+         f"risk-instance proposal -> {(STATE / INSTANCES_DUE).relative_to(ROOT)}")
     for r in rows:
-        why = {"dossier": f"dossier {r['dossier']}", "decided": "decided in by a person",
-               "verdict": "derived in scope"}[r["why"]]
+        why = {"dossier": f"dossier {r['dossier']}", "decided": "decided in by a person"}[r["why"]]
         info(f"          {r['record_key']:28s} {why}")
     return rows
 
@@ -2757,6 +2750,7 @@ def pipeline_state(index_rows):
 
     return {
         "generated": TODAY,
+        "generated_at": datetime.now().isoformat(timespec="minutes"),
         "map": pipeline_map(reg, records, queue, proposals, index_rows),
         # The old workflow page draws `modes` as stage lists; the modes are gone, and
         # what an update visits depends only on --discover.
@@ -2828,9 +2822,9 @@ MAP_ARTIFACTS = {
                 ("The instructions the model follows", "prompts/enrich_context.v2.md")],
     "ready": [("The readiness report", "state/readiness.jsonl"),
               ("How the rule works", "docs/context_layer.md")],
-    "taxonomy": [("The definitions", "docs/definitions.md"),
-                 ("Risks, patterns and their links", "taxonomy/")],
-    "extract": [("The instructions the model follows", "prompts/extract_gate.v3.md"),
+    "taxonomy": [("The risk instances", "taxonomy/instances.csv"),
+                 ("Risks, risk instances and their links", "taxonomy/")],
+    "extract": [("The instructions the model follows", "prompts/extract_gate.v4.md"),
                 ("Where its output will be saved", "proposals/")],
     "gate1": [("The written rule", "docs/definitions.md"),
               ("The rule in code", "pipeline/derive.py"),
@@ -2982,29 +2976,35 @@ def map_flow(reg, records, queue, context, index_rows):
                 meta.get("mig_key", path.stem)
     in_dossiers = to_dossier | derived_att
     scope_word = {True: "in", False: "out"}
-    d_scope = {"in": 0, "out": 0, "unclear": 0}
-    d_ver = {}
+    d_scope = {"in": 0, "out": 0, "unclear": 0}   # per record, for the conservation check
     for k in in_dossiers:
         meta = dmeta.get(dossier_of.get(k), {})
         d_scope[scope_word.get(meta.get("multi_agent"), "unclear")] += 1
+    # the same facts counted per dossier file, the unit a person reads
+    f_scope, f_ver, f_claude = {"in": 0, "out": 0, "unclear": 0}, {}, 0
+    for path in all_dossiers():
+        meta, body = read_dossier(path)
+        f_scope[scope_word.get(meta.get("multi_agent"), "unclear")] += 1
         v = meta.get("verification") or "not set"
-        d_ver[v] = d_ver.get(v, 0) + 1
+        f_ver[v] = f_ver.get(v, 0) + 1
+        f_claude += "Written by Claude" in (body or "")
 
-    # instances: a branch, fed by records in scope, by the rules or by a person
+    # risk instances: proposed only after a person decides scope. On the main path
+    # they come between Decide scope and Human review, for the records decided in;
+    # a person's in-scope dossier with no instances is due too (the Dossiers box).
     inst = proposal_rows("assign_instances")
-    # in scope once Gate 1 is complete: by the rules (unless a person said out or
-    # unclear), by a person's decision on sheet 1, or by a person's dossier
-    by_rule = {k for k, s in status_of.items() if s == "in_scope"} - attested \
-        - {k for k in derived if decision(k) in ("in", "out", "unclear")}
-    by_decision = dec_in - attested
     by_person = {k for k in in_dossiers
                  if dmeta.get(dossier_of.get(k), {}).get("multi_agent") is True
                  and dmeta.get(dossier_of.get(k), {}).get("multi_agent_label_source") == "ours"}
-    in_scope = by_rule | by_decision | by_person
-    has_inst = {k for k in in_scope if k in inst}
-    listed = {k for k in in_scope - has_inst
-              if dmeta.get(dossier_of.get(k), {}).get("instances")}
-    due = in_scope - has_inst - listed
+    in_scope = dec_in | by_person
+
+    def inst_split(keys):
+        has = {k for k in keys if k in inst}
+        lst = {k for k in keys - has if dmeta.get(dossier_of.get(k), {}).get("instances")}
+        return has, lst, keys - has - lst
+    has_inst, listed, due = inst_split(in_scope)
+    dec_has, dec_listed, dec_due = inst_split(dec_in)
+    dos_has, dos_listed, dos_due = inst_split(by_person)
     due_rows = len(instances_due())
 
     def agent_count(k):
@@ -3014,7 +3014,7 @@ def map_flow(reg, records, queue, context, index_rows):
     for k in read_deeper:
         d = best_depth(context.get(k))
         depth_rows[d] = depth_rows.get(d, 0) + 1
-    DEPTH_WORDS = {"secondary": "an aggregator's page, read in full",
+    DEPTH_WORDS = {"secondary": "the database's own page, read in full; the article it cites not read",
                    "curator": "the curator's own write-up",
                    "primary_partial": "the original source, read in part",
                    "primary_full": "the original source, read in full"}
@@ -3029,11 +3029,59 @@ def map_flow(reg, records, queue, context, index_rows):
     for k in src_ready:
         lv = verdicts_r[k]["scope"]["level"]
         levels[lv] = levels.get(lv, 0) + 1
-    STATUS_WORDS = {"in_scope": "settled in scope by the rules",
-                    "out_of_scope": "settled out of scope by the rules",
-                    "review": "needs a person"}
+    STATUS_WORDS = {"in_scope": "The rules' answer: in (settled by the rules)",
+                    "out_of_scope": "The rules' answer: out (settled by the rules)",
+                    "review": "No answer from the rules: needs a person"}
     split = {s: sum(1 for k in derived if status_of[k] == s) for s in rules.STATUSES}
-    presumed = sum(1 for k in derived if verdicts[k].get("by_presumption"))
+    # the attack presumption: on a settled "in" it decided the answer; on a review row it
+    # only shapes the label the rules would give if a person confirmed the facts
+    presumed = {s: sum(1 for k in derived if status_of[k] == s
+                       and verdicts[k].get("by_presumption")) for s in rules.STATUSES}
+    prompts_used = {}
+    for k in derived:
+        p = verdicts[k].get("prompt") or "not recorded"
+        prompts_used[p] = prompts_used.get(p, 0) + 1
+
+    # derive.py runs three rules in turn on each record: Gate 1 (is it multi-agent?),
+    # then the evidence type (every record), then Gate 2 (only a record Gate 1 let in).
+    # The map draws them in that order; each box shows its own rule's answer, and the
+    # last one passes the rules' final answers to Decide scope.
+    lab = {k: rules.labels_of(verdicts[k]) for k in derived}
+    G1_WORDS = {"in": "In: more than one agent was needed",
+                "out": "Out: one agent could have done it, or the agents did not act on each other",
+                "review": "Unclear: a fact Gate 1 turns on is unclear",
+                "curator": "Added by hand: in on the curator's word"}
+    g1 = {}
+    for k in derived:
+        a = verdicts[k].get("gate1") or "not recorded"
+        g1[a] = g1.get(a, 0) + 1
+    ET_WORDS = {"real_world": "Real world", "synthetic": "Synthetic: a simulation somebody built",
+                "lab": "Lab: a narrow test", "theoretical": "Theoretical: an argument on paper",
+                "none": "None: the facts do not settle it"}
+    et = {}
+    for k in derived:
+        v = lab[k].get("evidence_type") or "none"
+        et[v] = et.get(v, 0) + 1
+    asked2 = {k for k in derived
+              if lab[k].get("multi_agent") is True or verdicts[k].get("gate1") == "curator"}
+    FM_WORDS = {"FM1": "FM1 Miscoordination", "FM2": "FM2 Conflict", "FM3": "FM3 Collusion",
+                "none": "None of the three"}
+    fm = {}
+    for k in asked2:
+        v = lab[k].get("failure_mode") or "none"
+        fm[v] = fm.get(v, 0) + 1
+    whys = {}
+    for k in derived:
+        for w in verdicts[k].get("review_why") or []:
+            w = "confidence not high" if w.startswith("confidence") else w
+            whys[w] = whys.get(w, 0) + 1
+    WHY_WORDS = {"confidence not high": "The model was not highly confident",
+                 "interaction_present": "Gate 1: unclear whether the agents acted on each other",
+                 "single_agent_counterfactual": "Gate 1: unclear whether one agent could have done it",
+                 "cooperation_occurred": "Gate 2: unclear whether they cooperated",
+                 "cooperation_expected": "Gate 2: unclear whether cooperation was expected",
+                 "objective_relation": "Gate 2: unclear how their goals relate",
+                 "evidence type not derivable": "Evidence type: the facts do not settle it"}
 
     def decided_as(k):
         if k in dec_in:
@@ -3132,7 +3180,7 @@ def map_flow(reg, records, queue, context, index_rows):
          "files": ["state/queue.jsonl", "registry/frozen_pre2024.csv", "incidents/"],
          "rule": "stage_prefilter(): queued = recent AIID, frozen pre-2024 or manual; flagged = an outside label or a keyword; records behind a dossier are left out"},
         {"id": "readrec", "n": len(read_any), "in": len(to_readrec),
-         "out": [E("outscope", oos_record, "out of scope: record text"),
+         "out": [E("outscope", oos_record, "screened out on the record text"),
                  E("readsrc", to_readsrc, "sent on to the source")],
          "stop": [], "held": len(unread), "held_label": "not read yet",
          "pop": to_readrec,
@@ -3147,8 +3195,8 @@ def map_flow(reg, records, queue, context, index_rows):
          "files": ["context/<source>.jsonl", "state/queue.jsonl"],
          "rule": "queued records, not added by hand; read = has a context row"},
         {"id": "readsrc", "n": len(read_deeper), "in": len(to_readsrc),
-         "out": [E("outscope", oos_source, "out of scope: confirmed"),
-                 E("ready", src_ready, "ready to judge")],
+         "out": [E("outscope", oos_source, "screened out on the source"),
+                 E("ready", src_ready, "ready for the questions")],
          "stop": [], "held": len(wait_source) + len(unresolved),
          "held_label": "waiting for a source reading",
          "pop": to_readsrc,
@@ -3164,7 +3212,7 @@ def map_flow(reg, records, queue, context, index_rows):
          "rule": "best_depth() above record: secondary, curator, primary_partial or primary_full"},
         {"id": "outscope", "n": len(oos_record) + len(oos_source),
          "in": len(oos_record) + len(oos_source), "out": [],
-         "stop": [{"label": "out of scope", "n": len(oos_record) + len(oos_source)}],
+         "stop": [{"label": "screened out: one agent or none", "n": len(oos_record) + len(oos_source)}],
          "held": 0, "pop": oos_record | oos_source,
          "groups": [{"title": "Why, and on what reading", "rows": rows(
              ("No agent, on the record text", sum(1 for k in oos_record if agent_count(k) == "none"),
@@ -3178,7 +3226,7 @@ def map_flow(reg, records, queue, context, index_rows):
          "files": ["context/<source>.jsonl", "state/readiness.jsonl"],
          "rule": "out_of_scope(readiness()): agents stated, agent_count one or none"},
         {"id": "ready", "n": len(ready), "in": len(ready),
-         "out": [E("extract", ready, "ready to judge")], "stop": [], "held": 0,
+         "out": [E("extract", ready, "ready for the questions")], "stop": [], "held": 0,
          "pop": ready,
          "groups": [{"title": "How firm", "rows": rows(
              ("Original source read in full", levels.get("ready", 0), "scope ready"),
@@ -3196,20 +3244,67 @@ def map_flow(reg, records, queue, context, index_rows):
          "files": ["proposals/extract_gate.<date>.jsonl"],
          "rule": "distinct ready records with an extract_gate proposal: proposal_rows('extract_gate')"},
         {"id": "gate1", "n": len(derived), "in": len(extracted),
-         "out": [E("scope", derived, "labels derived"),
-                 E("instances", by_rule, "in scope by the rules", True)],
+         "out": [E("evtype", derived, "Gate 1's answers")],
          "stop": [], "held": len(extracted - derived), "held_label": "derive not run on it yet",
          "pop": extracted,
-         "groups": [{"title": "What the rules settled", "rows": rows(
-             *[(STATUS_WORDS[s], split[s], f"status {s}") for s in rules.STATUSES])},
-             {"title": "Of which", "rows": rows(
-                 ("In scope by the attack presumption", presumed, "by_presumption true"))}],
+         "groups": [{"title": "Gate 1's answer",
+                     "note": "Gate 1 alone, before the evidence type and Gate 2. The rules' "
+                             "final answer, after all three, is on the Gate 2 box.",
+                     "rows": rows(
+             *[(G1_WORDS.get(a, a), n, f"gate1 {a}") for a, n in sorted(g1.items())])},
+             {"title": "The attack presumption",
+              "note": "An attack by many agents counts as in scope by default when the "
+                      "source does not say what the number of agents added. These rows "
+                      "rest on that default. A row that needs a person is not an answer: "
+                      "it shows what the rules would say if a person confirmed the facts.",
+              "rows": rows(
+                  ("Settled in by the presumption", presumed["in_scope"],
+                   "status in_scope, by_presumption true"),
+                  ("Needs a person; would be in by the presumption if confirmed",
+                   presumed["review"], "status review, by_presumption true"))},
+             {"title": "Which prompt extracted the facts",
+              "note": "Each answer rests on the facts of one extract_gate run. Older "
+                      "answers keep the prompt version they were made with.",
+              "rows": rows(*[(p, n, "verdict prompt") for p, n in sorted(prompts_used.items())])}],
          "files": ["state/verdicts.jsonl", "pipeline/derive.py"],
-         "rule": f"state/verdicts.jsonl, rules {rules.RULES_VERSION}"},
+         "rule": f"state/verdicts.jsonl field gate1, rules {rules.RULES_VERSION}"},
+        {"id": "evtype", "n": len(derived), "in": len(derived),
+         "out": [E("gate2", derived, "with an evidence type, or none")],
+         "stop": [], "held": 0, "pop": derived,
+         "groups": [{"title": "Evidence type, by the rules",
+                     "note": "Worked out for every record, in or out. On a record that "
+                             "needs a person it is what the rules would give if the facts "
+                             "were confirmed. None sends an in-scope record to a person.",
+                     "rows": rows(
+             *[(ET_WORDS.get(v, v), n, f"evidence_type {v}") for v, n in sorted(et.items())])}],
+         "files": ["state/verdicts.jsonl", "pipeline/derive.py"],
+         "rule": "labels_of(verdict).evidence_type over the records Gate 1 answered"},
+        {"id": "gate2", "n": len(derived), "in": len(derived),
+         "out": [E("scope", derived, "the rules' answers")],
+         "stop": [], "held": 0, "pop": derived,
+         "groups": [{"title": "Failure type, for the records Gate 1 let in",
+                     "note": "Gate 2 runs on a record Gate 1 let in, on one it would let in "
+                             "once an unclear fact is confirmed, and on one added by hand; "
+                             "the others pass through it unchanged.",
+                     "rows": rows(
+                         *[(FM_WORDS.get(v, v), n, f"failure_mode {v}") for v, n in sorted(fm.items())],
+                         ("Not asked: Gate 1 did not let it in", len(derived) - len(asked2),
+                          "multi_agent not true"))},
+                    {"title": "What the rules settled",
+                     "note": "The rules' final answer, after Gate 1, the evidence type and "
+                             "Gate 2. It goes to a person on the scope sheet as a suggestion.",
+                     "rows": rows(
+                         *[(STATUS_WORDS[s], split[s], f"status {s}") for s in rules.STATUSES])},
+                    {"title": "Why a person is needed",
+                     "note": "A record can have several reasons, so these can add up to more "
+                             "than the records that need a person.",
+                     "rows": rows(*[(WHY_WORDS.get(w, w), n, f"review_why {w}")
+                                    for w, n in sorted(whys.items(), key=lambda x: -x[1])])}],
+         "files": ["state/verdicts.jsonl", "pipeline/derive.py"],
+         "rule": f"labels_of(verdict).failure_mode and status, rules {rules.RULES_VERSION}"},
         {"id": "scope", "n": len(derived), "in": len(derived),
-         "out": [E("review", dec_in, "decided in"),
-                 E("dossiers", a_only, "already in a dossier"),
-                 E("instances", by_decision, "decided in by a person", True)],
+         "out": [E("instances", dec_in, "decided in"),
+                 E("dossiers", a_only, "already in a dossier")],
          "stop": [{"label": "decided out by a person", "n": len(dec_out)},
                   {"label": "can't tell: unclear", "n": len(dec_unc)}],
          "held": len(left), "held_label": "left to decide",
@@ -3249,21 +3344,42 @@ def map_flow(reg, records, queue, context, index_rows):
          "rule": "records a person decided in; promoted = a dossier lists the record; "
                  "run.py review reads the sheet and makes the dossier"},
         {"id": "dossiers", "n": len(in_dossiers), "in": len(in_dossiers),
-         "out": [E("check", in_dossiers, "checked"),
-                 E("instances", by_person, "in scope by a person", True)],
+         "out": [E("check", in_dossiers, "to the check")],
          "stop": [], "held": 0, "pop": in_dossiers,
-         "groups": [{"title": "The person's verdict", "rows": rows(
-             ("In scope", d_scope["in"], "multi_agent: true"),
-             ("Out of scope", d_scope["out"], "multi_agent: false"),
-             ("Unclear", d_scope["unclear"], "multi_agent: null"))},
-             {"title": "How well checked", "rows": rows(
-                 *[(v.replace("_", " "), n, f"verification {v}") for v, n in sorted(d_ver.items())])},
-             {"title": "Files", "rows": rows(
-                 ("Dossiers: one file can list several records", len(index_rows), "incidents/<ID>.md"))}],
+         "groups": [{"title": "Records and dossiers",
+                     "note": "A dossier is our file on one incident. One incident can be "
+                             "told by several sources, so one dossier can list several "
+                             "records. The tables below count dossiers.",
+                     "rows": rows(
+                         ("Records listed in a dossier", len(in_dossiers), "dossier sources ∩ records"),
+                         ("Dossiers", len(index_rows), "incidents/<mig_key>.md"))},
+             {"title": "Dossiers, by the person's verdict",
+              "note": "Every dossier is a row of the index, whatever the verdict: an "
+                      "\"out\" dossier records that someone looked, and why it was turned away.",
+              "rows": rows(
+                  ("In scope", f_scope["in"], "multi_agent: true"),
+                  ("Out of scope", f_scope["out"], "multi_agent: false"),
+                  ("Unclear", f_scope["unclear"], "multi_agent: null"))},
+             {"title": "Dossiers, by how well they were checked",
+              "note": "Verified means a person checked the dossier against the original "
+                      "source. Unverified dossiers are not yet checked facts.",
+              "rows": rows(
+                  *[(v.replace("_", " "), n, f"verification {v}") for v, n in sorted(f_ver.items())],
+                  ("Of all dossiers: written by Claude", f_claude,
+                   "## Verification notes open with \"Written by Claude\""))},
+             {"title": "Risk instances, for the records a person put in scope",
+              "note": "Counted per record. A dossier in scope with no instances is on "
+                      "the to-do list of /classify-incidents, call 2.",
+              "rows": rows(
+                  ("In scope in a person's dossier", len(by_person),
+                   "dossier multi_agent true, ours"),
+                  ("Risk instances proposed", len(dos_has), "assign_instances proposal"),
+                  ("The dossier already lists them", len(dos_listed), "dossier instances"),
+                  ("None yet", len(dos_due), "neither"))}],
          "files": ["incidents/"],
          "rule": "records listed in a dossier's sources"},
         {"id": "check", "n": len(in_dossiers), "in": len(in_dossiers),
-         "out": [E("index", in_dossiers, "passed on")], "stop": [], "held": 0,
+         "out": [E("index", in_dossiers, "passed the check")], "stop": [], "held": 0,
          "pop": in_dossiers, "groups": [],
          "files": ["pipeline/run.py"], "rule": "run.py check validates every dossier"},
         {"id": "index", "n": len(in_dossiers), "in": len(in_dossiers), "out": [],
@@ -3272,25 +3388,21 @@ def map_flow(reg, records, queue, context, index_rows):
          "groups": [{"title": "Table", "rows": rows(
              ("Rows: one per dossier", len(index_rows), "out/incident_index.csv"))}],
          "files": ["out/incident_index.csv"], "rule": "index_rows(): one row per dossier"},
-        {"id": "instances", "n": len(has_inst), "in": len(in_scope), "out": [],
-         "stop": [{"label": "patterns proposed", "n": len(has_inst)},
-                  {"label": "patterns already in the dossier", "n": len(listed)}],
-         "held": len(due), "held_label": "in scope, no pattern yet",
-         "pop": in_scope,
-         "groups": [{"title": "Records in scope", "rows": rows(
-             ("In scope by the rules, not yet decided by a person", len(by_rule),
-              "verdict in_scope, no row in review/scope_decisions.csv"),
-             ("Decided in by a person, no dossier yet", len(by_decision),
+        {"id": "instances", "n": len(dec_has | dec_listed), "in": len(dec_in),
+         "out": [E("review", dec_in, "to the promote sheet")],
+         "stop": [], "held": 0,
+         "pop": dec_in,
+         "groups": [{"title": "Records a person decided in", "rows": rows(
+             ("Decided in on the scope sheet", len(dec_in),
               "review/scope_decisions.csv decision in"),
-             ("In scope in a person's dossier", len(by_person), "dossier multi_agent true, ours"))},
-             {"title": "Of which", "rows": rows(
-                 ("A pattern was proposed", len(has_inst), "assign_instances proposal"),
-                 ("The dossier already lists patterns", len(listed), "dossier instances"),
-                 ("No pattern yet", len(due), "neither"),
-                 ("Rows in the to-do list (one per dossier, not per record)", due_rows,
-                  "state/instances_due.jsonl"))}],
+             ("Risk instances proposed", len(dec_has), "assign_instances proposal"),
+             ("The dossier already lists them", len(dec_listed), "dossier instances"),
+             ("None proposed yet", len(dec_due), "neither"))},
+             {"title": "The to-do list", "rows": rows(
+                 ("Rows in the to-do list, dossiers included (one per dossier, not per record)",
+                  due_rows, "state/instances_due.jsonl"))}],
          "files": ["proposals/assign_instances.<date>.jsonl", "state/instances_due.jsonl"],
-         "rule": "proposal_rows('assign_instances') over records in scope"},
+         "rule": "proposal_rows('assign_instances') over the records a person decided in"},
     ]
     for nd in nodes:
         nd["by_source"] = by_source(nd.pop("pop"))
@@ -3332,6 +3444,7 @@ def map_flow(reg, records, queue, context, index_rows):
     check("in scope = proposed + already listed + waiting", len(in_scope),
           len(has_inst) + len(listed) + len(due))
     check("dossier verdicts add up", len(in_dossiers), sum(d_scope.values()))
+    check("dossier files by verdict = dossiers", len(index_rows), sum(f_scope.values()))
     # fails when a queued record got a dossier before reaching review: rerun prefilter
     check("records behind a dossier = the Dossiers box", len(attested), len(in_dossiers))
 
@@ -3345,7 +3458,8 @@ def map_flow(reg, records, queue, context, index_rows):
               "scope_decided_in": len(dec_in), "scope_decided_out": len(dec_out),
               "scope_decided_unclear": len(dec_unc), "scope_left": len(left),
               "review_left": len(review_left), "review_promoted": len(promoted),
-              "review_not_promoted": len(promo_no)}
+              "review_not_promoted": len(promo_no),
+              "verdict_split": dict(split), "verdict_prompts": dict(sorted(prompts_used.items()))}
     return nodes, checks, counts
 
 
@@ -3355,10 +3469,10 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
     equations that must hold. See map_flow."""
     context = load_context()
     flow, checks, counts = map_flow(reg, records, queue, context, index_rows)
-    verdicts = {s: 0 for s in rules.STATUSES}
-    for v in read_verdicts().values():
-        if v.get("status") in verdicts:
-            verdicts[v["status"]] += 1
+    # the rules' answers over the records that reached Gate 1 (the gate1 box), not every
+    # row of verdicts.jsonl: a verdict can outlive a record's readiness
+    verdicts = dict(counts.get("verdict_split") or {s: 0 for s in rules.STATUSES})
+    verdict_rows_all = len(read_verdicts())
     scope = {"in": 0, "out": 0, "unclear": 0}
     verification, failure_modes = {}, {}
     for path in all_dossiers():
@@ -3383,10 +3497,23 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
         ceiling = predictors.get("ceiling_hand_curation") or {}
         gold["ceiling"] = ceiling.get("precision")
         gold["ceiling_n"] = ceiling.get("n")
+        # the classifier score: model + rules on the gold rows. Its headline counts the
+        # review items by the labels the rules would give if a person confirmed them;
+        # `settled` is the rows the rules decided alone. Say which prompt it measured.
         classifier = predictors.get("classifier") or {}
+        settled = predictors.get("classifier_settled") or {}
+        run = json.loads(acc.read_text(encoding="utf-8")).get("classifier_run") or {}
         gold["classifier_precision"] = classifier.get("precision")
         gold["classifier_recall"] = classifier.get("recall")
         gold["classifier_n"] = classifier.get("n")
+        gold["classifier_review_items"] = classifier.get("review_items", run.get("review_items"))
+        gold["classifier_settled_n"] = settled.get("n")
+        gold["classifier_settled_precision"] = settled.get("precision")
+        gold["classifier_settled_recall"] = settled.get("recall")
+        gold["classifier_rules"] = run.get("rules_version")
+        m = re.search(r"(extract_gate)_v(\d+)", run.get("input") or "")
+        gold["classifier_prompt"] = f"{m.group(1)}.v{m.group(2)}" if m else None
+        gold["classifier_input"] = run.get("input")
     per_source = {}
     for (sid, _rid) in records:
         per_source[sid] = per_source.get(sid, 0) + 1
@@ -3413,18 +3540,58 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
         "gate_proposals": len(proposal_rows("extract_gate")),
         "instance_proposals": len(proposal_rows("assign_instances")),
         "verdicts": verdicts,
+        "verdict_rows_all": verdict_rows_all,
+        "verdict_prompts": counts.get("verdict_prompts") or {},
         "verdicts_rules": rules.RULES_VERSION,
         "instances_due": len(instances_due()),
         "dossiers": len(all_dossiers()), "dossier_scope": scope,
         "dossier_verification": verification, "dossier_failure_modes": failure_modes,
         "risks": len(read_csv(TAXONOMY / "risks.csv")),
         "instances": len(read_csv(TAXONOMY / "instances.csv")),
+        "instances_by_provenance": count_by(read_csv(TAXONOMY / "instances.csv"), "provenance"),
+        "dossiers_by_canonical": count_by([read_dossier(p)[0] for p in all_dossiers()],
+                                          "canonical_source"),
         "gold": gold,
-        "artifacts": {node: [{"label": label, "path": path,
-                              "exists": (MVP / path).exists()}
+        "last_run": last_run_summary(),
+        "artifacts": {node: [{"label": label, "path": newest_prompt(path),
+                              "exists": (MVP / newest_prompt(path)).exists()}
                              for label, path in items]
                       for node, items in MAP_ARTIFACTS.items()},
     }
+
+
+def count_by(rows, field):
+    """How many rows hold each value of `field`; a missing value counts as "not set"."""
+    out = {}
+    for row in rows:
+        v = str(row.get(field) or "not set")
+        out[v] = out.get(v, 0) + 1
+    return dict(sorted(out.items()))
+
+
+def newest_prompt(path):
+    """A prompt path `prompts/<id>.vN.md` turned into the newest version of that prompt on
+    disk, so the map never names a version that has been replaced. Other paths as given."""
+    m = re.fullmatch(r"prompts/(.+)\.v\d+\.md", path)
+    if not m:
+        return path
+    found = [(int(re.search(r"\.v(\d+)\.md$", p.name).group(1)), p.name)
+             for p in (MVP / "prompts").glob(f"{m.group(1)}.v*.md")
+             if re.search(r"\.v(\d+)\.md$", p.name)]
+    return f"prompts/{max(found)[1]}" if found else path
+
+
+def last_run_summary():
+    """The newest retained update or test run log: its id, state and when it ended."""
+    logs = sorted(RUNS.glob("*.json")) if RUNS.exists() else []
+    for p in reversed(logs):
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        return {"id": d.get("id"), "state": d.get("state"), "test": bool(d.get("test")),
+                "ended": d.get("ended") or d.get("started")}
+    return None
 
 
 def aiid_snapshot():
@@ -4287,11 +4454,11 @@ class UpdateRun:
         self.count(step, "Left to promote", res["promote"]["left"])
         self.count(step, "Fields set on sheet 3 this run", REVIEW_DECIDED["edit"])
         self.count(step, "Hand-added incidents without a dossier", len(manual))
-        self.count(step, "In scope, no instance proposal", len(due))
+        self.count(step, "Put in scope by a person, no risk-instance proposal", len(due))
         info(f"  ok    review: {res['scope']['left']} record(s) left to decide scope, "
              f"{res['promote']['left']} left to promote, {len(manual)} hand-added "
-             f"incident(s) without a dossier; {len(due)} record(s) in scope have no "
-             f"instance proposal")
+             f"incident(s) without a dossier; {len(due)} record(s) a person put in "
+             f"scope have no risk-instance proposal")
         for sid, rid in manual:
             info(f"  todo  python mvp/pipeline/run.py promote "
                  f"{mig_key_of((sid, rid)) or record_key(sid, rid)}")
@@ -4318,7 +4485,8 @@ class UpdateRun:
                          "run `python mvp/pipeline/run.py review`, or this update again): "
                          "the filled sheets are read and fresh ones written. ")
             if due:
-                text += (f"{len(due)} record(s) in scope have no instance proposal "
+                text += (f"{len(due)} record(s) a person put in scope have no "
+                         f"risk-instance proposal "
                          f"(`python mvp/pipeline/run.py instances-due` lists them): run "
                          f"/classify-incidents, which assigns their instances. ")
             command = ("python mvp/pipeline/run.py review" if scope_left or promote_left
@@ -4498,8 +4666,8 @@ def main():
     sub.add_parser("readiness")
     sub.add_parser("derive", help="derive the labels from the extract_gate proposals, "
                                   "by rule, into state/verdicts.jsonl")
-    sub.add_parser("instances-due", help="list the records in scope that have no "
-                                         "instance proposal")
+    sub.add_parser("instances-due", help="list the records a person put in scope "
+                                         "that have no risk-instance proposal")
     sub.add_parser("review", help="read the filled review sheets in mvp/review/, log the "
                                   "decisions, make the dossiers a person said yes to, and "
                                   "write both sheets again")

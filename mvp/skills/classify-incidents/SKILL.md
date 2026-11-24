@@ -129,15 +129,13 @@ branch. An in-scope record whose evidence type cannot be derived is a review ite
 
 ## Call 2 — assign instances
 
-For two kinds of record, including those with no failure mode:
-
-- records `derive` settles `in_scope` in `mvp/state/verdicts.jsonl`, and manual records;
-- every record `python mvp/pipeline/run.py instances-due` lists. It lists the records a
-  person has put in scope — a scope decision `in` on sheet 1 (`mvp/review/`), promoted or
-  not, or a dossier with `multi_agent: true` and label source `ours` — that have no
-  instances and no instance proposal, and the in-scope verdicts no person has decided
-  `out` or `unclear`. In short: every record in scope once Gate 1 is complete. Run it
-  after `derive`.
+Only after a person has decided scope, never before or beside it. Call 2 runs on every
+record `python mvp/pipeline/run.py instances-due` lists, including those with no failure
+mode: the records a person has put in scope — a scope decision `in` on sheet 1
+(`mvp/review/`), promoted or not, or a dossier with `multi_agent: true` and label source
+`ours` — that have no instances and no instance proposal. A record `derive` settles
+`in_scope` that no person has decided in is not listed and gets no call 2. Run it after
+`run.py review` has read the scope sheet.
 
 An instance proposal for a record a person put in scope is a proposal like any other. It
 does not touch the dossier; a person copies what passes into it.

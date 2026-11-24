@@ -70,8 +70,9 @@ each change of state. `run.py runs` lists them; `run.py runs RUN` prints what ch
 Reading sources and judging are not in `run.py`. They are the `/classify-incidents` skill,
 run in Claude Code. The labels are not the model's: `run.py derive` applies the rules in
 `pipeline/derive.py` to the model's extracted facts and writes `state/verdicts.jsonl`; an
-`update` runs it right after the Judge step. `run.py instances-due` lists the records in
-scope, by the rules or by a person, that still need instances.
+`update` runs it right after the Judge step. `run.py instances-due` lists the records a
+person put in scope that still need instances: they are proposed only after the scope
+decision.
 
 A person decides in two spreadsheets, `review/1_decide_scope.xlsx` (is the record in scope:
 `in`, `out` or `unclear`) and `review/2_promote.xlsx` (which records decided in get a

@@ -236,9 +236,27 @@ class Runner:
             self.workspace = None
 
 
+def code_files(rm):
+    """The pipeline code the server loaded at start: run.py and the rules it imports."""
+    here = Path(rm.__file__).resolve().parent
+    return [here / "run.py", here / "derive.py", here / "serve.py"]
+
+
+def code_stamp(rm):
+    return {str(p.name): p.stat().st_mtime for p in code_files(rm) if p.exists()}
+
+
 def make_handler(rm, runner, port):
     hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     origins = {f"http://{h}" for h in hosts}
+    # The page template is read from disk on every request, but the counts come from
+    # the code loaded here at start. If that code has changed since, the numbers can
+    # disagree with the page: the page says so, and names the files.
+    started_with = code_stamp(rm)
+
+    def stale_code():
+        now = code_stamp(rm)
+        return sorted(name for name, t in now.items() if started_with.get(name) != t)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "mig-pipeline"
@@ -428,6 +446,7 @@ def make_handler(rm, runner, port):
 
         def _page(self):
             state = rm.pipeline_state(rm.index_rows())
+            state["server_stale_code"] = stale_code()
             payload = json.dumps(state, indent=2, sort_keys=True, ensure_ascii=False)
             html = rm.render_page("pipeline_patch.html", payload)
             if html is None:

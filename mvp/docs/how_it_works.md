@@ -194,13 +194,13 @@ characters), and the facts the gates need are usually missing from them.
   against all 36 definitions and quotes the text for each one it assigns. Instances are
   description only: they never set the failure mode, and the failure mode never constrains
   them.
-- **Which records:** those `derive` settles `in_scope`, manual records, and every record
-  listed by `python mvp/pipeline/run.py instances-due`, which writes
-  `mvp/state/instances_due.jsonl`: every record in scope once Gate 1 is complete, with no
-  instance proposal yet. That is the dossiers a person put in scope that have no instances,
-  the records you decided `in` on the scope sheet (promoted or not), and the in-scope
-  verdicts you have not decided `out` or `unclear`. On 2026-11-16 it
-  lists one record, `lesswrong:LW-03` (dossier MIG-0017).
+- **Which records:** only after a person decides scope. Every record listed by
+  `python mvp/pipeline/run.py instances-due`, which writes
+  `mvp/state/instances_due.jsonl`: the records a person put in scope with no instance
+  proposal yet. That is the dossiers a person put in scope that have no instances, and
+  the records you decided `in` on the scope sheet (promoted or not); a manual record
+  counts as decided `in`. An `in_scope` verdict you have not decided in is not listed.
+  On 2026-11-16 it listed one record, `lesswrong:LW-03` (dossier MIG-0017).
 - **Who:** model, following `mvp/prompts/assign_instances.v2.md`.
 - **Writes:** `mvp/proposals/assign_instances.<date>.jsonl`.
 - **1668** (2026-11-16): `I35 Defeating Oversight and Evaluation`, confidence `medium`,
@@ -298,11 +298,10 @@ flowchart TD
   RDY -->|"one agent or none, confirmed"| GONE["Finished: out of scope"]
   RDY -->|"ready or provisional"| C1["Call 1: extract facts<br/>proposals/extract_gate.DATE.jsonl"]
   C1 --> DER["Derive by rule<br/>state/verdicts.jsonl"]
-  DER --> DUE["instances-due<br/>state/instances_due.jsonl"]
-  DUE --> C2["Call 2: instances<br/>proposals/assign_instances.DATE.jsonl"]
-  DER --> REV["Review by a person"]
-  C2 --> REV
-  REV --> PROM["Promote and write up<br/>incidents/ID.md"]
+  DER --> REV["Decide scope, by a person"]
+  REV -->|"decided in"| DUE["instances-due<br/>state/instances_due.jsonl"]
+  DUE --> C2["Call 2: risk instances<br/>proposals/assign_instances.DATE.jsonl"]
+  C2 --> PROM["Promote and write up<br/>incidents/ID.md"]
   PROM --> CHK{"Check<br/>must exit 0"}
   CHK --> IDX["Index and pages<br/>out/incident_index.csv"]
   classDef script fill:#e8eef7,stroke:#4a6fa5

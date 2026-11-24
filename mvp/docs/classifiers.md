@@ -90,7 +90,7 @@ about the design assumes the in-session runner.
 
 ## Call 1 — extraction and gates
 
-Prompt: `mvp/prompts/extract_gate.v3.md`. Output, one JSON object per record:
+Prompt: `mvp/prompts/extract_gate.v4.md`. Older verdicts keep the version they were made with; the dataflow map counts them. Output, one JSON object per record:
 
 ```json
 {
@@ -108,7 +108,7 @@ Prompt: `mvp/prompts/extract_gate.v3.md`. Output, one JSON object per record:
   "confidence": "high",
   "uncertainty_reason": "",
   "quotes": {"interaction_present": "bots reverted each other's edits in a loop"},
-  "prompt_id": "extract_gate", "prompt_version": "v3",
+  "prompt_id": "extract_gate", "prompt_version": "v4",
   "model": "...", "run_date": "2026-11-12"
 }
 ```
@@ -184,15 +184,14 @@ call it, so the pipeline and the gold measurement apply the same rules. In words
 
 ## Call 2 — instance assignment
 
-Prompt: `mvp/prompts/assign_instances.v2.md`. Runs only on records in scope, of two kinds:
-records `run.py derive` settles `in_scope`, and records a person has put in scope. The
-second kind is listed by `python mvp/pipeline/run.py instances-due`, which writes
-`mvp/state/instances_due.jsonl`: every dossier with `multi_agent: true` and label source
-`ours` whose `instances` list is empty and none of whose sources has an instance proposal,
-every record a person decided `in` on the scope sheet (`mvp/review/`), promoted or not,
-plus every `in_scope` verdict that no person decided `out` or `unclear` — each with no
-instance proposal. Every record in scope once Gate 1 is complete, by the rules or by a
-person, gets one. Instances follow the human's
+Prompt: `mvp/prompts/assign_instances.v2.md`. Runs only after a person has decided scope,
+on the records a person has put in scope. They are listed by
+`python mvp/pipeline/run.py instances-due`, which writes `mvp/state/instances_due.jsonl`:
+every dossier with `multi_agent: true` and label source `ours` whose `instances` list is
+empty and none of whose sources has an instance proposal, and every record a person
+decided `in` on the scope sheet (`mvp/review/`), promoted or not — each with no instance
+proposal. A hand-added record counts as decided `in`. A verdict `run.py derive` settles
+`in_scope` gets no call 2 until a person decides it in. Instances follow the human's
 scope decision, not only the model's. An instance proposal for a human-confirmed record is
 a proposal like any other: it never edits the dossier. The update run's Review step shows
 the count.

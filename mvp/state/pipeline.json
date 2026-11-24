@@ -1,5 +1,6 @@
 {
   "generated": "2026-11-24",
+  "generated_at": "2026-11-24T11:31",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -1143,7 +1144,7 @@
         {
           "exists": true,
           "label": "The instructions the model follows",
-          "path": "prompts/extract_gate.v3.md"
+          "path": "prompts/extract_gate.v4.md"
         },
         {
           "exists": true,
@@ -1382,12 +1383,12 @@
       "taxonomy": [
         {
           "exists": true,
-          "label": "The definitions",
-          "path": "docs/definitions.md"
+          "label": "The risk instances",
+          "path": "taxonomy/instances.csv"
         },
         {
           "exists": true,
-          "label": "Risks, patterns and their links",
+          "label": "Risks, risk instances and their links",
           "path": "taxonomy/"
         }
       ]
@@ -1562,6 +1563,42 @@
         "rhs": 422
       },
       {
+        "eq": "evtype: in = sum of the edges into it",
+        "lhs": 422,
+        "ok": true,
+        "rhs": 422
+      },
+      {
+        "eq": "evtype: in = out + ends here + waiting",
+        "lhs": 422,
+        "ok": true,
+        "rhs": 422
+      },
+      {
+        "eq": "evtype: by source adds up",
+        "lhs": 422,
+        "ok": true,
+        "rhs": 422
+      },
+      {
+        "eq": "gate2: in = sum of the edges into it",
+        "lhs": 422,
+        "ok": true,
+        "rhs": 422
+      },
+      {
+        "eq": "gate2: in = out + ends here + waiting",
+        "lhs": 422,
+        "ok": true,
+        "rhs": 422
+      },
+      {
+        "eq": "gate2: by source adds up",
+        "lhs": 422,
+        "ok": true,
+        "rhs": 422
+      },
+      {
         "eq": "scope: in = sum of the edges into it",
         "lhs": 422,
         "ok": true,
@@ -1653,21 +1690,21 @@
       },
       {
         "eq": "instances: in = sum of the edges into it",
-        "lhs": 55,
+        "lhs": 35,
         "ok": true,
-        "rhs": 55
+        "rhs": 35
       },
       {
         "eq": "instances: in = out + ends here + waiting",
-        "lhs": 55,
+        "lhs": 35,
         "ok": true,
-        "rhs": 55
+        "rhs": 35
       },
       {
         "eq": "instances: by source adds up",
-        "lhs": 55,
+        "lhs": 35,
         "ok": true,
-        "rhs": 55
+        "rhs": 35
       },
       {
         "eq": "records = already in a dossier + queued + not queued",
@@ -1724,6 +1761,12 @@
         "rhs": 59
       },
       {
+        "eq": "dossier files by verdict = dossiers",
+        "lhs": 52,
+        "ok": true,
+        "rhs": 52
+      },
+      {
         "eq": "records behind a dossier = the Dossiers box",
         "lhs": 59,
         "ok": true,
@@ -1747,6 +1790,12 @@
       "verified": 7
     },
     "dossiers": 52,
+    "dossiers_by_canonical": {
+      "aiid": 31,
+      "air_enkrypt": 12,
+      "aivillage": 7,
+      "lesswrong": 2
+    },
     "flow": [
       {
         "by_source": {
@@ -2062,7 +2111,7 @@
         "out": [
           {
             "branch": false,
-            "label": "out of scope: record text",
+            "label": "screened out on the record text",
             "n": 624,
             "to": "outscope"
           },
@@ -2087,7 +2136,7 @@
           {
             "rows": [
               {
-                "label": "an aggregator's page, read in full",
+                "label": "the database's own page, read in full; the article it cites not read",
                 "n": 385,
                 "tech": "secondary"
               },
@@ -2128,13 +2177,13 @@
         "out": [
           {
             "branch": false,
-            "label": "out of scope: confirmed",
+            "label": "screened out on the source",
             "n": 87,
             "to": "outscope"
           },
           {
             "branch": false,
-            "label": "ready to judge",
+            "label": "ready for the questions",
             "n": 422,
             "to": "ready"
           }
@@ -2186,7 +2235,7 @@
         "rule": "out_of_scope(readiness()): agents stated, agent_count one or none",
         "stop": [
           {
-            "label": "out of scope",
+            "label": "screened out: one agent or none",
             "n": 711
           }
         ]
@@ -2228,7 +2277,7 @@
         "out": [
           {
             "branch": false,
-            "label": "ready to judge",
+            "label": "ready for the questions",
             "n": 422,
             "to": "extract"
           }
@@ -2291,34 +2340,57 @@
         ],
         "groups": [
           {
+            "note": "Gate 1 alone, before the evidence type and Gate 2. The rules' final answer, after all three, is on the Gate 2 box.",
             "rows": [
               {
-                "label": "settled in scope by the rules",
-                "n": 1,
-                "tech": "status in_scope"
+                "label": "In: more than one agent was needed",
+                "n": 41,
+                "tech": "gate1 in"
               },
               {
-                "label": "settled out of scope by the rules",
-                "n": 103,
-                "tech": "status out_of_scope"
+                "label": "Out: one agent could have done it, or the agents did not act on each other",
+                "n": 279,
+                "tech": "gate1 out"
               },
               {
-                "label": "needs a person",
-                "n": 318,
-                "tech": "status review"
+                "label": "Unclear: a fact Gate 1 turns on is unclear",
+                "n": 102,
+                "tech": "gate1 review"
               }
             ],
-            "title": "What the rules settled"
+            "title": "Gate 1's answer"
           },
           {
+            "note": "An attack by many agents counts as in scope by default when the source does not say what the number of agents added. These rows rest on that default. A row that needs a person is not an answer: it shows what the rules would say if a person confirmed the facts.",
             "rows": [
               {
-                "label": "In scope by the attack presumption",
+                "label": "Settled in by the presumption",
+                "n": 0,
+                "tech": "status in_scope, by_presumption true"
+              },
+              {
+                "label": "Needs a person; would be in by the presumption if confirmed",
                 "n": 33,
-                "tech": "by_presumption true"
+                "tech": "status review, by_presumption true"
               }
             ],
-            "title": "Of which"
+            "title": "The attack presumption"
+          },
+          {
+            "note": "Each answer rests on the facts of one extract_gate run. Older answers keep the prompt version they were made with.",
+            "rows": [
+              {
+                "label": "extract_gate@v3",
+                "n": 78,
+                "tech": "verdict prompt"
+              },
+              {
+                "label": "extract_gate@v4",
+                "n": 344,
+                "tech": "verdict prompt"
+              }
+            ],
+            "title": "Which prompt extracted the facts"
           }
         ],
         "held": 0,
@@ -2329,18 +2401,178 @@
         "out": [
           {
             "branch": false,
-            "label": "labels derived",
+            "label": "Gate 1's answers",
             "n": 422,
-            "to": "scope"
-          },
-          {
-            "branch": true,
-            "label": "in scope by the rules",
-            "n": 0,
-            "to": "instances"
+            "to": "evtype"
           }
         ],
-        "rule": "state/verdicts.jsonl, rules 2026-11-16",
+        "rule": "state/verdicts.jsonl field gate1, rules 2026-11-16",
+        "stop": []
+      },
+      {
+        "by_source": {
+          "aiid": 422
+        },
+        "files": [
+          "state/verdicts.jsonl",
+          "pipeline/derive.py"
+        ],
+        "groups": [
+          {
+            "note": "Worked out for every record, in or out. On a record that needs a person it is what the rules would give if the facts were confirmed. None sends an in-scope record to a person.",
+            "rows": [
+              {
+                "label": "Lab: a narrow test",
+                "n": 5,
+                "tech": "evidence_type lab"
+              },
+              {
+                "label": "None: the facts do not settle it",
+                "n": 12,
+                "tech": "evidence_type none"
+              },
+              {
+                "label": "Real world",
+                "n": 400,
+                "tech": "evidence_type real_world"
+              },
+              {
+                "label": "Synthetic: a simulation somebody built",
+                "n": 5,
+                "tech": "evidence_type synthetic"
+              }
+            ],
+            "title": "Evidence type, by the rules"
+          }
+        ],
+        "held": 0,
+        "held_label": "",
+        "id": "evtype",
+        "in": 422,
+        "n": 422,
+        "out": [
+          {
+            "branch": false,
+            "label": "with an evidence type, or none",
+            "n": 422,
+            "to": "gate2"
+          }
+        ],
+        "rule": "labels_of(verdict).evidence_type over the records Gate 1 answered",
+        "stop": []
+      },
+      {
+        "by_source": {
+          "aiid": 422
+        },
+        "files": [
+          "state/verdicts.jsonl",
+          "pipeline/derive.py"
+        ],
+        "groups": [
+          {
+            "note": "Gate 2 runs on a record Gate 1 let in, on one it would let in once an unclear fact is confirmed, and on one added by hand; the others pass through it unchanged.",
+            "rows": [
+              {
+                "label": "FM1 Miscoordination",
+                "n": 6,
+                "tech": "failure_mode FM1"
+              },
+              {
+                "label": "FM2 Conflict",
+                "n": 2,
+                "tech": "failure_mode FM2"
+              },
+              {
+                "label": "FM3 Collusion",
+                "n": 2,
+                "tech": "failure_mode FM3"
+              },
+              {
+                "label": "None of the three",
+                "n": 34,
+                "tech": "failure_mode none"
+              },
+              {
+                "label": "Not asked: Gate 1 did not let it in",
+                "n": 378,
+                "tech": "multi_agent not true"
+              }
+            ],
+            "title": "Failure type, for the records Gate 1 let in"
+          },
+          {
+            "note": "The rules' final answer, after Gate 1, the evidence type and Gate 2. It goes to a person on the scope sheet as a suggestion.",
+            "rows": [
+              {
+                "label": "The rules' answer: in (settled by the rules)",
+                "n": 1,
+                "tech": "status in_scope"
+              },
+              {
+                "label": "The rules' answer: out (settled by the rules)",
+                "n": 103,
+                "tech": "status out_of_scope"
+              },
+              {
+                "label": "No answer from the rules: needs a person",
+                "n": 318,
+                "tech": "status review"
+              }
+            ],
+            "title": "What the rules settled"
+          },
+          {
+            "note": "A record can have several reasons, so these can add up to more than the records that need a person.",
+            "rows": [
+              {
+                "label": "The model was not highly confident",
+                "n": 313,
+                "tech": "review_why confidence not high"
+              },
+              {
+                "label": "Gate 1: unclear whether the agents acted on each other",
+                "n": 94,
+                "tech": "review_why interaction_present"
+              },
+              {
+                "label": "Gate 1: unclear whether one agent could have done it",
+                "n": 43,
+                "tech": "review_why single_agent_counterfactual"
+              },
+              {
+                "label": "Gate 2: unclear whether they cooperated",
+                "n": 28,
+                "tech": "review_why cooperation_occurred"
+              },
+              {
+                "label": "Gate 2: unclear how their goals relate",
+                "n": 21,
+                "tech": "review_why objective_relation"
+              },
+              {
+                "label": "Evidence type: the facts do not settle it",
+                "n": 1,
+                "tech": "review_why evidence type not derivable"
+              }
+            ],
+            "title": "Why a person is needed"
+          }
+        ],
+        "held": 0,
+        "held_label": "",
+        "id": "gate2",
+        "in": 422,
+        "n": 422,
+        "out": [
+          {
+            "branch": false,
+            "label": "the rules' answers",
+            "n": 422,
+            "to": "scope"
+          }
+        ],
+        "rule": "labels_of(verdict).failure_mode and status, rules 2026-11-16",
         "stop": []
       },
       {
@@ -2392,17 +2624,17 @@
           {
             "rows": [
               {
-                "label": "settled in scope by the rules",
+                "label": "The rules' answer: in (settled by the rules)",
                 "n": 1,
                 "tech": "status in_scope"
               },
               {
-                "label": "settled out of scope by the rules",
+                "label": "The rules' answer: out (settled by the rules)",
                 "n": 103,
                 "tech": "status out_of_scope"
               },
               {
-                "label": "needs a person",
+                "label": "No answer from the rules: needs a person",
                 "n": 318,
                 "tech": "status review"
               }
@@ -2440,19 +2672,13 @@
             "branch": false,
             "label": "decided in",
             "n": 35,
-            "to": "review"
+            "to": "instances"
           },
           {
             "branch": false,
             "label": "already in a dossier",
             "n": 0,
             "to": "dossiers"
-          },
-          {
-            "branch": true,
-            "label": "decided in by a person",
-            "n": 3,
-            "to": "instances"
           }
         ],
         "rule": "records with a derived label; decided = the newest row of review/scope_decisions.csv (a hand-added record counts as decided in); run.py review reads the sheet",
@@ -2536,10 +2762,27 @@
         ],
         "groups": [
           {
+            "note": "A dossier is our file on one incident. One incident can be told by several sources, so one dossier can list several records. The tables below count dossiers.",
+            "rows": [
+              {
+                "label": "Records listed in a dossier",
+                "n": 59,
+                "tech": "dossier sources ∩ records"
+              },
+              {
+                "label": "Dossiers",
+                "n": 52,
+                "tech": "incidents/<mig_key>.md"
+              }
+            ],
+            "title": "Records and dossiers"
+          },
+          {
+            "note": "Every dossier is a row of the index, whatever the verdict: an \"out\" dossier records that someone looked, and why it was turned away.",
             "rows": [
               {
                 "label": "In scope",
-                "n": 52,
+                "n": 45,
                 "tech": "multi_agent: true"
               },
               {
@@ -2553,37 +2796,59 @@
                 "tech": "multi_agent: null"
               }
             ],
-            "title": "The person's verdict"
+            "title": "Dossiers, by the person's verdict"
           },
           {
+            "note": "Verified means a person checked the dossier against the original source. Unverified dossiers are not yet checked facts.",
             "rows": [
               {
                 "label": "partially verified",
-                "n": 11,
+                "n": 6,
                 "tech": "verification partially_verified"
               },
               {
                 "label": "unverified",
-                "n": 40,
+                "n": 39,
                 "tech": "verification unverified"
               },
               {
                 "label": "verified",
-                "n": 8,
+                "n": 7,
                 "tech": "verification verified"
+              },
+              {
+                "label": "Of all dossiers: written by Claude",
+                "n": 26,
+                "tech": "## Verification notes open with \"Written by Claude\""
               }
             ],
-            "title": "How well checked"
+            "title": "Dossiers, by how well they were checked"
           },
           {
+            "note": "Counted per record. A dossier in scope with no instances is on the to-do list of /classify-incidents, call 2.",
             "rows": [
               {
-                "label": "Dossiers: one file can list several records",
+                "label": "In scope in a person's dossier",
                 "n": 52,
-                "tech": "incidents/<ID>.md"
+                "tech": "dossier multi_agent true, ours"
+              },
+              {
+                "label": "Risk instances proposed",
+                "n": 52,
+                "tech": "assign_instances proposal"
+              },
+              {
+                "label": "The dossier already lists them",
+                "n": 0,
+                "tech": "dossier instances"
+              },
+              {
+                "label": "None yet",
+                "n": 0,
+                "tech": "neither"
               }
             ],
-            "title": "Files"
+            "title": "Risk instances, for the records a person put in scope"
           }
         ],
         "held": 0,
@@ -2594,15 +2859,9 @@
         "out": [
           {
             "branch": false,
-            "label": "checked",
+            "label": "to the check",
             "n": 59,
             "to": "check"
-          },
-          {
-            "branch": true,
-            "label": "in scope by a person",
-            "n": 52,
-            "to": "instances"
           }
         ],
         "rule": "records listed in a dossier's sources",
@@ -2627,7 +2886,7 @@
         "out": [
           {
             "branch": false,
-            "label": "passed on",
+            "label": "passed the check",
             "n": 59,
             "to": "index"
           }
@@ -2673,10 +2932,7 @@
       },
       {
         "by_source": {
-          "aiid": 35,
-          "air_enkrypt": 11,
-          "aivillage": 5,
-          "lesswrong": 4
+          "aiid": 35
         },
         "files": [
           "proposals/assign_instances.<date>.jsonl",
@@ -2686,66 +2942,54 @@
           {
             "rows": [
               {
-                "label": "In scope by the rules, not yet decided by a person",
-                "n": 0,
-                "tech": "verdict in_scope, no row in review/scope_decisions.csv"
-              },
-              {
-                "label": "Decided in by a person, no dossier yet",
-                "n": 3,
+                "label": "Decided in on the scope sheet",
+                "n": 35,
                 "tech": "review/scope_decisions.csv decision in"
               },
               {
-                "label": "In scope in a person's dossier",
-                "n": 52,
-                "tech": "dossier multi_agent true, ours"
-              }
-            ],
-            "title": "Records in scope"
-          },
-          {
-            "rows": [
-              {
-                "label": "A pattern was proposed",
-                "n": 55,
+                "label": "Risk instances proposed",
+                "n": 35,
                 "tech": "assign_instances proposal"
               },
               {
-                "label": "The dossier already lists patterns",
+                "label": "The dossier already lists them",
                 "n": 0,
                 "tech": "dossier instances"
               },
               {
-                "label": "No pattern yet",
+                "label": "None proposed yet",
                 "n": 0,
                 "tech": "neither"
-              },
+              }
+            ],
+            "title": "Records a person decided in"
+          },
+          {
+            "rows": [
               {
-                "label": "Rows in the to-do list (one per dossier, not per record)",
+                "label": "Rows in the to-do list, dossiers included (one per dossier, not per record)",
                 "n": 0,
                 "tech": "state/instances_due.jsonl"
               }
             ],
-            "title": "Of which"
+            "title": "The to-do list"
           }
         ],
         "held": 0,
-        "held_label": "in scope, no pattern yet",
+        "held_label": "",
         "id": "instances",
-        "in": 55,
-        "n": 55,
-        "out": [],
-        "rule": "proposal_rows('assign_instances') over records in scope",
-        "stop": [
+        "in": 35,
+        "n": 35,
+        "out": [
           {
-            "label": "patterns proposed",
-            "n": 55
-          },
-          {
-            "label": "patterns already in the dossier",
-            "n": 0
+            "branch": false,
+            "label": "to the promote sheet",
+            "n": 35,
+            "to": "review"
           }
-        ]
+        ],
+        "rule": "proposal_rows('assign_instances') over the records a person decided in",
+        "stop": []
       }
     ],
     "flow_counts": {
@@ -2769,15 +3013,31 @@
       "scope_decided_in": 35,
       "scope_decided_out": 61,
       "scope_decided_unclear": 7,
-      "scope_left": 319
+      "scope_left": 319,
+      "verdict_prompts": {
+        "extract_gate@v3": 78,
+        "extract_gate@v4": 344
+      },
+      "verdict_split": {
+        "in_scope": 1,
+        "out_of_scope": 103,
+        "review": 318
+      }
     },
     "gate_proposals": 442,
     "gold": {
       "ceiling": 0.8260869565217391,
       "ceiling_n": 23,
+      "classifier_input": "mvp/out/calibration/extract_gate_v3_gold_20261115.jsonl",
       "classifier_n": 55,
       "classifier_precision": 0.8695652173913043,
+      "classifier_prompt": "extract_gate.v3",
       "classifier_recall": 0.9090909090909091,
+      "classifier_review_items": 49,
+      "classifier_rules": "2026-11-16",
+      "classifier_settled_n": 6,
+      "classifier_settled_precision": 1.0,
+      "classifier_settled_recall": 1.0,
       "in": 22,
       "out": 33,
       "rows": 58,
@@ -2785,7 +3045,17 @@
     },
     "instance_proposals": 55,
     "instances": 36,
+    "instances_by_provenance": {
+      "hammond_table_1": 33,
+      "ours": 3
+    },
     "instances_due": 0,
+    "last_run": {
+      "ended": "2026-11-16T22:52:10",
+      "id": "2026-11-16T22:52:08",
+      "state": "done",
+      "test": false
+    },
     "manual": 0,
     "prefilter_rules": {
       "keywords": [
@@ -2832,10 +3102,15 @@
     "sources_reference": 10,
     "sources_unbuilt": 4,
     "sources_with_records": 4,
+    "verdict_prompts": {
+      "extract_gate@v3": 78,
+      "extract_gate@v4": 344
+    },
+    "verdict_rows_all": 442,
     "verdicts": {
       "in_scope": 1,
       "out_of_scope": 103,
-      "review": 338
+      "review": 318
     },
     "verdicts_rules": "2026-11-16"
   },
