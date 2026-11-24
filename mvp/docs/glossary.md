@@ -221,7 +221,10 @@ no taxonomy had asked the multi-agent question. Retired on 2026-11-17: every AII
 decision recorded in a dossier; only it puts an incident in scope.
 
 **Verification.** A dossier field: `verified`, `partially_verified` or `unverified`.
-`verified` needs the primary source read in full.
+`verified` needs the primary source read in full. `partially_verified`: the primary source
+was read, and at least one claim in the dossier is not confirmed by it: the source is silent,
+hedged, or the claim rests on a secondary source. `## Verification notes` names each such
+claim.
 
 **Work order.** A note per source, in `mvp/state/work_orders.md`, saying what a person must
 search and paste back for a source no script can reach.
