@@ -1,0 +1,133 @@
+mig_key,label,proposed,decision,final,reason,decided_on,sheet_generated_on
+MIG-0028,scope,,in,in,clear case of emerging multiagent conflict,2026-11-23,2026-11-23
+MIG-0029,scope,,in,in,included in hammond et al as an example,2026-11-23,2026-11-23
+MIG-0030,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0031,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0032,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0090,scope,,out,out,not enough evidence to decide on failure mode or risk factor,2026-11-23,2026-11-23
+MIG-0033,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0034,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0035,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0157,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0160,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0168,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0036,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0187,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0037,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0003,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0038,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0283,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0312,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0313,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0353,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0360,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0396,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0399,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0404,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0410,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0020,scope,,in,in,"OpenAI postmortem: >1k agents coordinated through self-built infrastructure, emergent goals, unsanctioned access to HF",2026-11-23,2026-11-23
+MIG-0040,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0019,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0421,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0016,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0428,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0041,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0043,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0045,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0046,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0047,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0048,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0049,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0050,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0051,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0017,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0052,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0016,scope,,in,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0441,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0053,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0055,scope,,unclear,unclear,,2026-11-23,2026-11-23
+MIG-0056,scope,,unclear,unclear,,2026-11-23,2026-11-23
+MIG-0057,scope,,unclear,unclear,,2026-11-23,2026-11-23
+MIG-0060,scope,,unclear,unclear,,2026-11-23,2026-11-23
+MIG-0061,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0092,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0106,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0107,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0116,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0127,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0133,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0141,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0151,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0197,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0199,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0205,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0207,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0210,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0218,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0221,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0258,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0262,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0271,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0039,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0349,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0371,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0380,scope,,unclear,unclear,,2026-11-23,2026-11-23
+MIG-0385,scope,,unclear,unclear,,2026-11-23,2026-11-23
+MIG-0386,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0388,scope,,unclear,unclear,,2026-11-23,2026-11-23
+MIG-0394,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0400,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0408,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0411,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0414,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0415,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0418,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0423,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0427,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0430,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0431,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0432,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0434,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0435,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0042,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0044,scope,,in,in,,2026-11-23,2026-11-23
+MIG-0054,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0064,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0179,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0200,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0201,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0301,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0405,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0115,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0118,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0174,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0265,scope,,out,out,,2026-11-23,2026-11-23
+MIG-0028,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0029,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0030,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0031,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0032,duplicate_of,,new,new,"Twitter bot network amplifying Russian disinformation about Ukraine war, researcher says - ABC News",2026-11-23,2026-11-23
+MIG-0033,duplicate_of,,new,new,"purportedly creating hundreds of thousands of songs and employing bots to artificially inflate streams, Smith reportedly circumvented fraud detection systems.",2026-11-23,2026-11-23
+MIG-0034,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0035,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0157,dossier,,no,no,No clear evidence of multi-agent setting,2026-11-23,2026-11-23
+MIG-0168,dossier,,no,no,No clear evidence of multi-agent setting,2026-11-23,2026-11-23
+MIG-0036,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0037,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0038,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0312,dossier,,no,no,No clear evidence of multi-agent setting,2026-11-23,2026-11-23
+MIG-0039,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0040,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0041,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0042,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0043,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0044,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0045,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0046,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0047,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0048,duplicate_of,,new,new,No clear evidence of multi-agent setting,2026-11-23,2026-11-23
+MIG-0049,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0050,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0051,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0052,duplicate_of,,new,new,,2026-11-23,2026-11-23
+MIG-0053,duplicate_of,,new,new,,2026-11-23,2026-11-23

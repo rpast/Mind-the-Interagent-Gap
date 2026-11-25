@@ -2,7 +2,15 @@
 
 Approved by the curator 2026-11-25. Worked on branch `development/pipeline-0.2`.
 
-Status: P0, P1, P2, P3a and P4 done (2026-11-25).
+Status: P0 to P5, with P3b, done (2026-11-25). Left: P6 (stage and reason from the
+ledger, the map, the report, index_report.xlsx removed) and P7 (docs; remove the 0.1
+review code still in run.py, `stage_review_until_0_2` and the sheet 2 and 3 functions).
+
+P5 notes: the 0.1 logs were carried over by `pipeline/migrate_logs_20261125.py` (132 record
+decisions; 0.1's three promote `no` kept as label `dossier` `no`, as written). Not built:
+the `proposal changed` flag on a decided label (3.5); a decided label whose proposal
+changes keeps its decision silently. A system name holding `;` (six PoC dossiers) is kept
+whole while unchanged, since the ledger splits lists on `;`.
 
 P4 result (`run.py dedupe --measure`): on the curator's merges (5 incidents, 12 records)
 every record is found; of 64 records not merged, 10 are proposed as duplicates. Run over

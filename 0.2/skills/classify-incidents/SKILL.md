@@ -176,19 +176,19 @@ When the run finishes, report:
 - how many records carry presumed instances, and how many had the pair replaced by a quote
 - the strongest few candidates, with the quote that carried them
 
-Then say what to do next, which is normally: fill in `0.2/review/1_decide_scope.xlsx`
-(`run.py derive` has just written it; the column `decision` takes in, out or unclear), then
-run `python 0.2/pipeline/run.py review`, which writes `0.2/review/2_promote.xlsx` for the
-records decided in. A `yes` there makes the blank dossier a human writes up. Do not decide
-scope yourself, and never fill in either sheet.
+Then say what to do next, which is normally: fill in `0.2/review/1_records.xlsx`
+(`run.py derive` has just written it): `scope_decision` (ok, in, out or unclear) and, for
+every record decided in, `duplicate_of_decision` (ok, new, or the MIG key of the incident it
+already is); then run `python 0.2/pipeline/run.py review`. Do not decide scope yourself,
+and never fill in either sheet.
 
-Before the person fills sheet 2, list the likely duplicates: candidates whose event already
-has a dossier in `0.2/incidents/`, judged by title, date and actors, and any that `OPEN.md`
-names against a dossier. Say which dossier each matches. A duplicate is linked as a source
-of that dossier, not promoted; linking is the curator's call, not this skill's.
+The pipeline proposes `duplicate_of` itself (`run.py dedupe`). Point out any candidate whose
+event `OPEN.md` names against a dossier and the proposal missed; linking stays the
+curator's call, not this skill's.
 
-Filling the dossiers is not part of this skill. If the curator asks Claude to fill them,
-that is a separate step under the Claude-written dossiers rule in `CLAUDE.md`.
+Writing a dossier's prose is not part of this skill. If the curator asks Claude to write
+it, that is a separate step under the Claude-written dossiers rule in `CLAUDE.md`; the
+labels and facts are never written by hand.
 
 When the commands below say `python`, use `.venv/bin/python` where system Python lacks
 openpyxl.

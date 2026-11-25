@@ -44,6 +44,10 @@ OWNERS = {
                "scope_proposed", "scope_why"],
     # whether the record reports an incident the index already holds (dedupe.py)
     "dedupe": ["duplicate_of_proposed", "duplicate_of_why"],
+    # a person's newest decision on the records sheet, per label (decide.py); the full
+    # history is review/record_decisions_log.csv
+    "decisions": [f"{label}_{part}" for label in ("scope", "duplicate_of", "dossier")
+                  for part in ("decision", "final", "decided_on")],
     # mig_key: the record's own key (as the sheets show it); incident_key: the incident
     # (dossier) the record belongs to; canonical: the record that carries the incident's
     # columns. The rest are incident level, on the canonical row only.

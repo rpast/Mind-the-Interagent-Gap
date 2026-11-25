@@ -1,6 +1,6 @@
 {
   "generated": "2026-11-25",
-  "generated_at": "2026-11-25T20:31",
+  "generated_at": "2026-11-25T21:03",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -1334,7 +1334,7 @@
           "path": "review/2_promote.xlsx"
         },
         {
-          "exists": true,
+          "exists": false,
           "label": "The decisions so far",
           "path": "review/promote_decisions_log.csv"
         },
@@ -1351,7 +1351,7 @@
           "path": "review/1_decide_scope.xlsx"
         },
         {
-          "exists": true,
+          "exists": false,
           "label": "The decisions so far",
           "path": "review/scope_decisions_log.csv"
         },
@@ -2646,7 +2646,7 @@
               },
               {
                 "label": "Decisions in the log, newest per record",
-                "n": 103,
+                "n": 102,
                 "tech": "review/scope_decisions_log.csv"
               }
             ],
@@ -3095,7 +3095,7 @@
         "yes"
       ],
       "recent_from": "2024-01-01",
-      "where": "0.2/pipeline/run.py:1291"
+      "where": "0.2/pipeline/run.py:1307"
     },
     "queue": 1101,
     "queue_basis": {

@@ -47,13 +47,19 @@ Project-level files stay at the root: `resources/` (source documents),
   `0.2/records/manual.jsonl` holds the incidents added by hand.
 - `0.2/context/<source>.jsonl` is what each source says about the facts the gates need: a
   reading, with quotes and the depth read. Machine-written. See `0.2/docs/context_layer.md`.
-- `0.2/review/` holds the three sheets a person fills in (`1_decide_scope.xlsx`,
-  `2_promote.xlsx`, `3_edit_dossiers.xlsx`; generated, gitignored) and their logs
-  (`scope_decisions_log.csv`, `promote_decisions_log.csv`, `dossier_edits_log.csv`; data, committed,
-  written only by `run.py review` when it reads a filled sheet). See `0.2/review/README.md`.
-- `0.2/incidents/<ID>.md` is the curated record: one dossier per incident a person
-  promotes. Scope decisions that are not promoted live in `0.2/review/scope_decisions_log.csv`.
-  Hand-edited, or filled by Claude when the curator asks (see Rules).
+- `0.2/review/` holds the two sheets a person fills in (`1_records.xlsx`: scope and
+  duplicate_of per record; `2_incidents.xlsx`: each incident's labels and facts;
+  generated, gitignored) and their logs (`record_decisions_log.csv`,
+  `incident_decisions_log.csv`; data, committed, append-only, written only by
+  `run.py review` when it reads a filled sheet). Every label has a proposal and a
+  decision: `ok` agrees, any other value replaces it, blank is never agreement. See
+  `0.2/review/README.md`.
+- `0.2/incidents/<ID>.md` is the incident's dossier: one per incident. Its prose (the
+  sections, `multi_agent_basis`, `sources`) is written by hand, or by Claude when the
+  curator asks (see Rules). Its labels and facts (scope, failure mode, instances,
+  evidence type, title, date, actors, systems, verification) are a copy written from the
+  ledger by `run.py review`: never edit them in the dossier, change them on sheet 2.
+  `check` fails on a dossier whose labels differ from the ledger.
 - `0.2/proposals/` holds classifier output. It is never authoritative; a human promotes.
 - `0.2/out/` is generated. Never edit it by hand. `0.2/out/index_report.xlsx` is the index
   report: every incident in the index, and every record that is not, with the reason.
@@ -75,20 +81,16 @@ with `.venv/bin/python` instead of `python`.
    runs `python 0.2/pipeline/run.py derive`, which derives the labels by rule
    (`0.2/pipeline/derive.py`) into the ledger, and assigns instances to the
    records `python 0.2/pipeline/run.py instances-due` lists.
-3. Decide on the sheets in `0.2/review/` (`python 0.2/pipeline/run.py review` writes
-   them): fill `decision` in `1_decide_scope.xlsx` (in, out, unclear), run `review`, then
-   fill `promote` in `2_promote.xlsx` (yes makes the blank dossier). Check against
-   `0.2/proposals/` and the ledger's derive columns; promote what passes the
-   inclusion test. Before promoting, check each record against the existing dossiers and
-   `OPEN.md` for duplicates: a record that is already an incident is added to that
-   dossier's `sources`, not promoted. The dossier keeps its `mig_key`; if AIID becomes
-   the canonical source, `source_key` changes to AIID's key.
-4. Fill each new dossier by hand, or ask Claude to fill it from the readings (see Rules).
-   To set or correct a dossier's labels, scope, verification or facts, change the cells
-   of `3_edit_dossiers.xlsx` and run `review`: each field changed there is named in the
-   dossier's `set_by_person` and logged in `0.2/review/dossier_edits_log.csv`. Never remove
-   a field from `set_by_person`, and never overwrite a field it names without the
-   curator's say.
+3. Decide records on `0.2/review/1_records.xlsx` (`python 0.2/pipeline/run.py review`
+   writes it): `scope_decision` (ok, in, out, unclear) and, for every record decided in,
+   `duplicate_of_decision` (ok, `new`, or the MIG key of the incident it already is; the
+   pipeline proposes one from `pipeline/dedupe.py`, and `OPEN.md` lists known overlaps).
+   Run `review`: `in` + `new` makes the dossier, with its labels proposed from the
+   record; `in` + a MIG key adds the record to that incident's sources.
+4. Write each new dossier's prose by hand, or ask Claude to (see Rules). Decide each
+   incident's labels and facts on `0.2/review/2_incidents.xlsx` (ok or your value) and
+   run `review`: they go into the ledger and the incident log, and the dossier's
+   frontmatter is written from the ledger.
 5. `python 0.2/pipeline/run.py check` — must exit 0.
 6. `python 0.2/pipeline/run.py index`, `viz`, then `python 0.2/pipeline/index_report.py`
    for `0.2/out/index_report.xlsx`.
@@ -120,15 +122,13 @@ with `.venv/bin/python` instead of `python`.
 - **Manual incidents**, added with `update --manual DIR`, are in scope on the curator's word, which is a
   human verdict. Their failure mode, evidence type and instances are still judged, and a
   dossier resting only on the write-up is never `verified`.
-- **Claude-written dossiers.** Claude fills a promoted dossier only when the curator asks,
-  and only from what the pipeline holds: the scope and promote decisions, the verdict, the
-  `extract_gate` facts, the context reading and the `assign_instances` proposal. Such a
-  dossier is always `unverified` until a person checks it against the primary source, and
-  its `## Verification notes` open with "Written by Claude". Scope stays the person's
-  decision. A failure mode derived by rule carries `failure_mode_source:
-  classifier:<prompt>@<version>`, never `ours`. Instances quoted at `high` or `medium` are
-  adopted; `low` ones are listed in the notes only. An evidence type that cannot be derived
-  is not guessed: the setting is read first.
+- **Claude-written dossiers.** Claude writes a dossier's prose only when the curator asks,
+  and only from what the pipeline holds: the record decisions, the ledger, the
+  `extract_gate` facts, the context reading and the `assign_instances` proposal. Claude
+  never writes a dossier's labels or facts: they come from the ledger, proposed by the
+  pipeline and decided by a person on sheet 2. Its `## Verification notes` open with
+  "Written by Claude", and it stays `unverified` until a person checks it against the
+  primary source.
 - For file changes, use the Edit tool, not python/sed/heredoc scripts. If you need a script,
   write it to a file first, then run it.
 - One fact per field. Never encode information in parentheses.

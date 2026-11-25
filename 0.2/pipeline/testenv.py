@@ -174,116 +174,90 @@ def standin_judge(rm, run):
             rm.info(f"  test  left out {left}: their records cannot be judged yet")
 
 
-def fill_sheet(rm, kind, answers):
-    """Fill in a generated review sheet the way a person would: open the workbook the
-    run wrote, type into the decision and note columns of the rows the answers name,
-    save it. Returns the keys filled in."""
-    cfg = rm.SHEETS[kind]
+def fill_book(rm, cfg, answers):
+    """Type into a generated review sheet the way a person would: open the workbook the
+    run wrote, set the cells the answers name, save it. `answers` is a list of
+    {"record_key", "set": {column: text}}; the sheets show a record or an incident by
+    its MIG key. Returns the keys filled in."""
     path = rm.REVIEW / cfg["file"]
     if not path.exists():
         return []
     wb = rm.openpyxl.load_workbook(path)
     ws = wb[cfg["title"]]
     head = {c.value: i for i, c in enumerate(ws[1], 1)}
-    # The answers name records by record_key; the sheet shows each by its MIG key.
     by_pair, _ = rm.mig_index()
-    by_key = {by_pair.get(rm.split_key(a["record_key"])): a for a in answers}
+    by_mig = {by_pair.get(rm.split_key(a["record_key"])): a for a in answers}
     done = []
     for r in range(2, ws.max_row + 1):
-        a = by_key.get(str(ws.cell(r, head["mig_key"]).value))
+        a = by_mig.get(str(ws.cell(r, head["mig_key"]).value))
         if a is None:
             continue
-        ws.cell(r, head[cfg["field"]]).value = a["decision"]
-        ws.cell(r, head[cfg["text"]]).value = a.get("reason") or a.get("note") or ""
+        for col, value in a["set"].items():
+            ws.cell(r, head[col]).value = value
         done.append(f"{a['record_key']} ({ws.cell(r, head['mig_key']).value})")
     wb.save(path)
     return done
 
 
+def put_prose(rm, folder):
+    """Fill the made dossiers' sections from the sample: the prose only. Labels and
+    facts come from the ledger, so the frontmatter is left as the run wrote it."""
+    put = left = 0
+    for src in sorted(folder.glob("*.md")):
+        dest = rm.INCIDENTS / src.name
+        meta, body = rm.read_dossier(src)
+        # only over the dossier of the same record: the MIG key a record gets depends
+        # on which records the run reached, so a name alone is not enough
+        if not dest.exists() or rm.canonical_pair(meta) is None \
+                or rm.canonical_pair(rm.read_dossier(dest)[0]) != rm.canonical_pair(meta):
+            left += 1
+            continue
+        dmeta, dbody = rm.read_dossier(dest)
+        if dbody == body:
+            continue
+        rm.write_dossier_body(dest, dmeta, body)
+        put += 1
+        rm.info(f"  test  wrote the sections of {dest.relative_to(rm.ROOT)} from the "
+                f"sample, as a person filling in the prose would have")
+    return put, left
+
+
 def standin_review(rm, run):
-    """A person at the review step, with the real sheets: fill sheet 1, let the run read
-    it (which writes sheet 2), fill sheet 2, let the run read that (which makes the
-    dossiers), then fill in each blank dossier from the sample."""
+    """A person at the review step, with the real sheets: fill sheet 1 (scope and
+    duplicate_of), let the run read it (which makes the dossiers), write the prose of
+    each new dossier, then decide the incidents on sheet 2, one round per run."""
     if rm.openpyxl is None:
         rm.info(f"  test  {rm.OPENPYXL_HINT}: the sheets cannot be filled in, so no "
                 f"decision is made")
         return
     answers = json.loads((STANDINS / "review" / "decisions.json").read_text(encoding="utf-8"))
-    for kind, after in (("scope", "decide scope: read sheet 1, write sheet 2"),
-                        ("promote", "promote: read sheet 2, make the dossiers")):
-        done = fill_sheet(rm, kind, answers[kind])
-        rm.info(f"  test  filled in {rm.SHEETS[kind]['file']} for {len(done)} record(s), "
-                f"as a person would have: {', '.join(done) or 'none listed'}")
-        rm.info(f"  test  now the run reads it ({after})")
-        rm.stage_review()
-    put = left = 0
-    for src in sorted((STANDINS / "review" / "incidents").glob("*.md")):
-        dest = rm.INCIDENTS / src.name
-        meta, _ = rm.read_dossier(src)
-        # only over the blank dossier of the same record: the MIG key a record gets
-        # depends on which records the run reached, so a name alone is not enough
-        if not dest.exists() or rm.canonical_pair(meta) is None \
-                or rm.canonical_pair(rm.read_dossier(dest)[0]) != rm.canonical_pair(meta):
-            left += 1
-            continue
-        shutil.copyfile(src, dest)
-        put += 1
-        rm.info(f"  test  put the filled-in {dest.relative_to(rm.ROOT)} over the blank "
-                f"dossier the promote step made, as a person filling it in would have")
+    done = fill_book(rm, rm.decide.RECORDS, answers["records"])
+    rm.info(f"  test  filled in {rm.decide.RECORDS['file']} for {len(done)} record(s), as a "
+            f"person would have: {', '.join(done) or 'none listed'}")
+    rm.info("  test  now the run reads it (scope and duplicate_of; the dossiers of the "
+            "records decided in and new are made)")
+    rm.stage_review()
+    put, left = put_prose(rm, STANDINS / "review" / "incidents")
     if not put:
-        rm.info("  test  no blank dossier was made, so none was filled in")
+        rm.info("  test  no new dossier was made, so no prose was written")
     if left:
-        rm.info(f"  test  left out {left} sample dossier(s): no promote decision made them")
-    if put and answers.get("edit"):
-        rm.info("  test  now the run writes sheet 3 again, from the filled-in dossiers")
+        rm.info(f"  test  left out {left} sample dossier(s): no decision made them")
+    for n, round_ in enumerate(answers.get("incidents") or [], 1):
+        done = fill_book(rm, rm.decide.INCIDENTS, round_)
+        rm.info(f"  test  incidents round {n}: changed {rm.decide.INCIDENTS['file']} for "
+                f"{len(done)} incident(s), as a person would have: "
+                f"{', '.join(done) or 'none listed'}")
+        rm.info("  test  now the run reads it (labels and facts into the ledger, the "
+                "dossier written from it)")
         rm.stage_review()
-        # one round per run of the review step: a person edits, the run reads it
-        for n, round_ in enumerate(answers["edit"], 1):
-            done = fill_edit_sheet(rm, round_)
-            rm.info(f"  test  edit round {n}: changed {rm.EDIT['file']} for "
-                    f"{len(done)} dossier(s), as a person would have: "
-                    f"{', '.join(done) or 'none listed'}")
-            rm.info("  test  now the run reads it (edit dossiers: write the changed "
-                    "fields)")
-            rm.stage_review()
-
-
-def fill_edit_sheet(rm, answers):
-    """Change cells of sheet 3 the way a person would. `answers` is a list of
-    {"id", "set": {column: text}}. Returns the dossier ids changed."""
-    path = rm.REVIEW / rm.EDIT["file"]
-    if not path.exists():
-        return []
-    wb = rm.openpyxl.load_workbook(path)
-    ws = wb[rm.EDIT["title"]]
-    head = {c.value: i for i, c in enumerate(ws[1], 1)}
-    by_id = {a["mig_key"]: a["set"] for a in answers}
-    done = []
-    for r in range(2, ws.max_row + 1):
-        cells = by_id.get(str(ws.cell(r, head["mig_key"]).value))
-        if cells is None:
-            continue
-        for col, text in cells.items():
-            ws.cell(r, head[col]).value = text
-        done.append(str(ws.cell(r, head["mig_key"]).value))
-    wb.save(path)
-    return done
 
 
 def standin_check(rm, run):
-    fixed = 0
-    for src in sorted((STANDINS / "check" / "incidents").glob("*.md")):
-        dest = rm.INCIDENTS / src.name
-        if not dest.exists():
-            continue
-        if dest.read_bytes() == src.read_bytes():
-            continue
-        shutil.copyfile(src, dest)
-        fixed += 1
-        rm.info(f"  test  put the corrected {dest.relative_to(rm.ROOT)} in place, as a "
-                f"person fixing it would have")
-    if not fixed:
-        rm.info("  test  no corrected dossier applies; the check runs again as it is")
+    put, _ = put_prose(rm, STANDINS / "check" / "incidents")
+    rm.stage_review()
+    if not put:
+        rm.info("  test  no corrected dossier applies; the dossiers were written from the "
+                "ledger again and the check runs again")
 
 
 STANDIN = {("read", "continue"): standin_read, ("judge", "continue"): standin_judge,

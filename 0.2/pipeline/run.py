@@ -79,6 +79,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import derive as rules  # noqa: E402
 # The ledger, one row per record, holds every step's output: ledger.py.
 import ledger  # noqa: E402
+# The two review sheets and their logs: decide.py. It works on this module instance.
+import decide  # noqa: E402
+
+
+class _Here:
+    """This module instance, as decide.py sees it: every name looked up in this
+    instance's globals, so a test instance pointed elsewhere by set_paths is seen as it
+    is now. (A test instance is not in sys.modules, so it cannot be named there.)"""
+    def __getattr__(self, name):
+        try:
+            return globals()[name]
+        except KeyError:
+            raise AttributeError(name) from None
+
+
+THIS = _Here()
 
 # Every path the stages read or write. They live in module globals, set in one place.
 # The test run (testenv.py) loads a second instance of this module and points that
@@ -1779,17 +1795,28 @@ def natural(key):
 
 
 def read_log(kind):
-    """The rows of a decision log, each with its record_key added: the log names a
-    record by its MIG key, the pipeline joins its files on the source pair."""
-    path = REVIEW / SHEETS[kind]["log"]
-    if not path.exists():
-        return []
+    """A person's record decisions, in the shape the scope and promote logs had until
+    0.2 (decide.py holds the real log, review/record_decisions_log.csv):
+
+      scope    one row per scope decision: decision is in, out or unclear
+      promote  one row per duplicate_of or dossier decision: decision `yes` when the
+               record was given an incident (new or an existing one), `no` when a
+               person said it gets no dossier
+
+    Each row carries record_key, from its MIG key."""
     _, by_key = mig_index()
-    rows = read_csv(path)
-    for r in rows:
-        pair = keyed_pair(r, by_key)
-        r["record_key"] = record_key(*pair) if pair else ""
-    return rows
+    out = []
+    for r in decide.read_log(THIS, "record"):
+        if kind == "scope" and r["label"] == "scope":
+            decision = r["final"]
+        elif kind == "promote" and r["label"] in ("duplicate_of", "dossier"):
+            decision = "no" if r["label"] == "dossier" else "yes"
+        else:
+            continue
+        pair = by_key.get(r["mig_key"])
+        out.append({**r, "decision": decision, "note": r.get("reason", ""),
+                    "record_key": record_key(*pair) if pair else ""})
+    return out
 
 
 def newest_by_key(rows):
@@ -1980,6 +2007,7 @@ def scope_sheet_rows(state, records):
             "instances_proposed": instances_cell(prop.get("instances")),
             "instances_rejected": instances_cell(prop.get("considered_and_rejected")),
             "instances_note": prop.get("uncertainty_reason", ""),
+            "_pair": pair,
             "_order": ({"yes": 0, "check": 1, "decided": 2, "dossier": 3}[ask],
                        0 if say == "in" else 1 if v.get("status") == "review" else 2,
                        natural(key))})
@@ -2361,10 +2389,69 @@ def ingest_sheet(kind, listed):
 
 
 def stage_review():
-    """The review step's work, in order: read the filled sheets and log the decisions,
-    scaffold the dossiers a person said yes to, write both sheets again from the
-    current state, and say what is left. Without openpyxl it says so and skips the
-    sheets."""
+    """The review step (decide.py), in order: read sheet 1 (scope, duplicate_of), make
+    the dossiers of the records decided in and new, join the duplicates to their
+    incident; place the incidents in the ledger; read sheet 2 (the incidents' labels and
+    facts); write every dossier's frontmatter from the ledger; propose duplicates; write
+    both sheets again; say what is left. Without openpyxl the sheets are skipped."""
+    decide.ensure_logs(THIS)
+    records = latest_records()
+    new_keys = assign_mig_keys(set(read_verdicts()) | {p for p in records if p[0] == MANUAL})
+    if new_keys:
+        info(f"  ok    gave {len(new_keys)} record(s) a MIG key "
+             f"({min(new_keys.values())} to {max(new_keys.values())}) in "
+             f"{MIG_KEYS.relative_to(ROOT)}")
+    decided, fresh, unreadable = {"records": 0, "incidents": 0}, {}, set()
+    sheets = {"records": decide.RECORDS, "incidents": decide.INCIDENTS}
+    if openpyxl is None:
+        info(f"  warn  {OPENPYXL_HINT}. The review sheets are skipped; the run goes on.")
+    else:
+        try:
+            decided["records"], fresh = decide.read_records_sheet(THIS, records)
+        except ValueError as e:
+            unreadable.add("records")
+            info(f"  FAIL  {decide.RECORDS['file']} cannot be read ({e}). It is left as it "
+                 f"is and not rewritten; fix or delete it.")
+    n = decide.place_incidents(THIS, fresh)
+    decide.write_decision_columns(THIS)
+    if openpyxl is not None:
+        try:
+            decided["incidents"] = decide.read_incidents_sheet(THIS)
+        except ValueError as e:
+            unreadable.add("incidents")
+            info(f"  FAIL  {decide.INCIDENTS['file']} cannot be read ({e}). It is left as "
+                 f"it is and not rewritten; fix or delete it.")
+    rendered = decide.render(THIS)
+    if rendered:
+        info(f"  ok    wrote the labels and facts of {rendered} dossier(s) from the ledger")
+    stage_dedupe()
+    if openpyxl is not None:
+        if "records" not in unreadable:
+            decide.write_records_sheet(THIS, records)
+        if "incidents" not in unreadable:
+            decide.write_incidents_sheet(THIS)
+    state = decide.records_state(THIS, records)
+    open_labels = sum(1 for r in decide.canonical_rows(THIS).values()
+                      if any(not r[f"{l}_decision"] for l in decide.LABELS))
+    for kind, k in (("records", "scope"), ("incidents", "edit")):
+        REVIEW_DECIDED[k] += decided[kind]
+    result = {"openpyxl": openpyxl is not None, "incidents_total": n}
+    for kind, left in (("records", len(state)), ("incidents", open_labels)):
+        result[kind] = {"decided": decided[kind], "left": left,
+                        "path": str((REVIEW / sheets[kind]["file"]).relative_to(ROOT))}
+    result["records"]["asked"] = sum(1 for v in state.values() if v in ("yes", "duplicate"))
+    where = lambda kind: result[kind]["path"] if openpyxl is not None \
+        else "no sheet: openpyxl missing"
+    info(f"  ok    records    decided this run {decided['records']:4d}   left "
+         f"{len(state):4d} (asking you {result['records']['asked']})   {where('records')}")
+    info(f"  ok    incidents  decided this run {decided['incidents']:4d}   with labels to "
+         f"decide {open_labels:4d} of {n}   {where('incidents')}")
+    return result
+
+
+def stage_review_until_0_2():
+    """The review step until 0.2 (sheets 1_decide_scope, 2_promote, 3_edit_dossiers).
+    No longer called; kept until the clean-up of P7."""
     ensure_logs()
     records = latest_records()
     # Every record that reaches the decide-scope sheet has a MIG key from then on; a
@@ -2982,7 +3069,7 @@ def check_edit_log(problems, warnings):
 
 def stage_index():
     if LEDGER.exists():
-        write_incident_columns()
+        decide.place_incidents(THIS)
     rows = index_rows()
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / "incident_index.csv"
@@ -4073,14 +4160,31 @@ def check_ledger(records, problems, warnings):
     read = {record_key(*p) for p in load_context()} & set(rows)
     if read != {k for k, r in rows.items() if r["read_depth"]}:
         warnings.append(f"{rel}: reading columns lag the context rows; run readiness")
-    want = incident_updates(rows)
-    own = ledger.OWNERS["incidents"]
+    # The incidents: the ledger is the source of their labels and facts, the dossier's
+    # frontmatter a copy written by review. A copy that differs was edited by hand.
+    canon = decide.canonical_rows(THIS)
+    for path in all_dossiers():
+        meta, _ = read_dossier(path)
+        inc = meta.get("mig_key")
+        row = canon.get(inc)
+        if row is None:
+            problems.append(f"{rel}: no canonical row for incident {inc}; run review")
+            continue
+        if canonical_pair(meta) and record_key(*canonical_pair(meta)) != row["record_key"]:
+            warnings.append(f"{rel}: {inc} is carried by {row['record_key']}, not its "
+                            f"canonical record; run review")
+        moved = decide.drift(THIS, meta, row)
+        if moved:
+            problems.append(f"{path.relative_to(ROOT)}: {', '.join(moved)} differ from the "
+                            f"ledger. Labels and facts are changed on sheet 2 "
+                            f"({decide.INCIDENTS['file']}), not in the dossier; run review "
+                            f"to write the dossier from the ledger again")
     for k, r in rows.items():
-        expect = want.get(k, {})
-        if any(r[c] != ledger.cell(expect.get(c, "")) for c in own):
-            warnings.append(f"{rel}: incident columns lag the dossiers (first: {k}); "
-                            f"run index")
+        if r["canonical"] != "true" and any(r[c] for c in ledger.INCIDENT_COLUMNS):
+            problems.append(f"{rel}: {k} holds incident columns but is not a canonical "
+                            f"record")
             break
+    decide.check_logs(THIS, problems)
 
 
 def check_env(records=None, reg=None, context=None):
@@ -4881,27 +4985,26 @@ class UpdateRun:
         # yes to, and writes both sheets again
         res = stage_review()
         attested = dossier_source_refs()
-        on_sheets = set(review_state()["promote"])
+        on_sheets = set(decide.records_state(THIS))
         context = load_context()
         manual = sorted(k for k, c in context.items()
                         if c.get("manual") is True and k not in attested
                         and record_key(*k) not in on_sheets)
         due = stage_instances_due()
         sheets = res["openpyxl"]
-        scope_left = res["scope"]["left"] if sheets else 0
-        promote_left = res["promote"]["left"] if sheets else 0
+        scope_left = res["records"]["asked"] if sheets else 0
+        promote_left = 0
         self.count(step, "Decided on sheet 1 this run", REVIEW_DECIDED["scope"])
-        self.count(step, "Left to decide scope", res["scope"]["left"])
-        self.count(step, "Of those, asking for your judgement", res["scope"].get("asked", 0))
-        self.count(step, "Decided on sheet 2 this run", REVIEW_DECIDED["promote"])
-        self.count(step, "Left to promote", res["promote"]["left"])
-        self.count(step, "Fields set on sheet 3 this run", REVIEW_DECIDED["edit"])
+        self.count(step, "Records on sheet 1", res["records"]["left"])
+        self.count(step, "Of those, asking for your judgement", res["records"]["asked"])
+        self.count(step, "Decided on sheet 2 this run", REVIEW_DECIDED["edit"])
+        self.count(step, "Incidents with labels to decide", res["incidents"]["left"])
         self.count(step, "Hand-added incidents without a dossier", len(manual))
         self.count(step, "Put in scope by a person, no risk-instance proposal", len(due))
-        info(f"  ok    review: {res['scope']['left']} record(s) left to decide scope, "
-             f"{res['promote']['left']} left to promote, {len(manual)} hand-added "
-             f"incident(s) without a dossier; {len(due)} record(s) a person put in "
-             f"scope have no risk-instance proposal")
+        info(f"  ok    review: {res['records']['asked']} record(s) ask for a decision, "
+             f"{res['incidents']['left']} incident(s) have labels to decide, {len(manual)} "
+             f"hand-added incident(s) without a dossier; {len(due)} record(s) a person put "
+             f"in scope have no risk-instance proposal")
         for sid, rid in manual:
             info(f"  todo  python 0.2/pipeline/run.py promote "
                  f"{mig_key_of((sid, rid)) or record_key(sid, rid)}")
@@ -4911,14 +5014,10 @@ class UpdateRun:
         if (scope_left or promote_left or manual or due) and override != "recheck":
             parts = []
             if scope_left:
-                parts.append(f"{scope_left} record(s) wait for a scope decision: fill "
-                             f"the `decision` column of 0.2/review/"
-                             f"{SHEETS['scope']['file']} (in, out or unclear)")
-            if promote_left:
-                parts.append(f"{promote_left} record(s) you decided in wait for a "
-                             f"promote decision: fill the `promote` column of "
-                             f"0.2/review/{SHEETS['promote']['file']}; yes makes the "
-                             f"blank dossier, which you then fill in by hand")
+                parts.append(f"{scope_left} record(s) wait for a decision: fill "
+                             f"scope_decision (ok, in, out, unclear) and, for in, "
+                             f"duplicate_of_decision (ok, new, or a MIG key) in 0.2/review/"
+                             f"{decide.RECORDS['file']}")
             if manual:
                 parts.append(f"{len(manual)} hand-added incident(s) have no dossier: "
                              f"`python 0.2/pipeline/run.py promote <mig_key>` makes it")

@@ -1,22 +1,27 @@
 {
-  "scope": [
-    {"record_key": "aiid:9901", "decision": "in",
-     "reason": "Test: two interacting bots, the harm needed both."},
-    {"record_key": "aiid:9906", "decision": "out",
-     "reason": "Test: a swarm doing what one agent with the same map would have done."},
-    {"record_key": "aiid:9904", "decision": "maybe",
-     "reason": "Test: not one of in, out, unclear. It is reported, not logged, and the record comes back on the next sheet."}
+  "records": [
+    {"record_key": "aiid:9901", "set": {
+      "scope_decision": "in", "duplicate_of_decision": "new",
+      "reason": "Test: two interacting bots, the harm needed both."}},
+    {"record_key": "aiid:9906", "set": {
+      "scope_decision": "out",
+      "reason": "Test: a swarm doing what one agent with the same map would have done."}},
+    {"record_key": "aiid:9904", "set": {
+      "scope_decision": "maybe",
+      "reason": "Test: not ok, in, out or unclear. It is reported, not logged, and the record comes back on the next sheet."}},
+    {"record_key": "manual:test-case-relay-agents", "set": {
+      "duplicate_of_decision": "new",
+      "reason": "Test: a hand-added record is in on the curator's word; it needs only duplicate_of."}}
   ],
-  "promote": [
-    {"record_key": "aiid:9901", "decision": "yes", "note": "Test: make the dossier."},
-    {"record_key": "manual:test-case-relay-agents", "decision": "yes",
-     "note": "Test: a hand-added record is decided in on the curator's word."}
-  ],
-  "edit": [
-    [{"mig_key": "MIG-0001", "set": {"evidence_type": "bogus",
-      "verification_note": "Test: not one of the evidence types, so nothing in this row is written."}}],
-    [{"mig_key": "MIG-0001", "set": {
-      "instances": "I01; I02",
+  "incidents": [
+    [{"record_key": "aiid:9901", "set": {
+      "evidence_type_decision": "bogus",
+      "verification_note": "Test: not an evidence type, so nothing in this row is written."}}],
+    [{"record_key": "aiid:9901", "set": {
+      "incident_scope_decision": "ok",
+      "failure_mode_decision": "ok",
+      "instances_decision": "I01; I02",
+      "evidence_type_decision": "real_world",
       "verification": "partially_verified",
       "verification_note": "Test: checked the two bots against the source."}}]
   ]

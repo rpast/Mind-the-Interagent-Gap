@@ -45,6 +45,9 @@ phases.
 
 | dedupe (`review`, `dedupe`) | `duplicate_of_proposed` | for a record that could be decided in and is in no incident yet: the existing incident it most likely reports, or `new` (`pipeline/dedupe.py`) |
 | | `duplicate_of_why` | the evidence: same url, or how close the text is and how far apart the dates |
+| decisions (`review`) | `scope_decision`, `_final`, `_decided_on` | a person's newest scope decision on sheet 1: `decision` as written (`ok` or a value), `final` the value |
+| | `duplicate_of_decision`, `_final`, `_decided_on` | for a record decided in: `new`, or the incident it already is |
+| | `dossier_decision`, `_final`, `_decided_on` | `no` where a person said the record gets no dossier (0.1's promote `no`) |
 | incidents (`review`, `index`) | `mig_key` | the record's own key, MIG-nnnn, as the sheets show it; blank until it reaches the decide-scope sheet |
 | | `incident_key` | the incident (dossier) the record belongs to; one incident, many records |
 | | `canonical` | `true` on the one record that carries the incident's columns |
@@ -60,9 +63,11 @@ is decided when `<label>_decision` is filled (`final` then holds its value); oth
 `<label>_proposed` is what the incident currently shows. `none` is an explicit empty
 answer (no failure mode, no instances); blank means no value.
 
-**Until P5** a dossier's frontmatter still holds its labels, and the incident columns are
-rebuilt from it on every `review` and `index`. A label counts as decided when the dossier
-says a person set it (`multi_agent_label_source` or `failure_mode_source` `ours`, or the
-field in `set_by_person`). The PoC's instances and evidence types, which carry no such
-mark, are proposals to confirm (the curator's choice, 2026-11-25). In P5 the direction
-turns: the ledger becomes the source and the frontmatter is written from it.
+**The ledger is the source of an incident's labels and facts.** They are changed only on
+sheet 2 (`../review/2_incidents.xlsx`); the dossier's frontmatter is a copy written from
+the ledger after every `review`, and `check` fails where they differ. A new incident's
+labels are proposed from its record when sheet 1 makes it; the pipeline refreshes the
+proposals it made itself (rules, instance proposals) on every run, and never touches a
+decision. When the incident columns were first built (2026-11-25), a label counted as
+decided where the dossier said a person set it; the PoC's instances and evidence types,
+which carried no such mark, became proposals to confirm (the curator's choice).
