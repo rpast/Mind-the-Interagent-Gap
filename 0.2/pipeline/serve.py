@@ -216,13 +216,13 @@ class Runner:
             self.thread.join(timeout=2.0)
         return 200, self.run.snapshot()
 
-    def test_mvp(self):
+    def test_tree(self):
         """The current test workspace's 0.2/, or None."""
         with self.lock:
             if self.workspace is None:
                 return None
-            mvp = (Path(self.workspace) / "mvp").resolve()
-            return mvp if mvp.is_dir() else None
+            tree = (Path(self.workspace) / "0.2").resolve()
+            return tree if tree.is_dir() else None
 
     def close(self):
         """On shutdown: stop the run, remove the last test workspace."""
@@ -412,22 +412,22 @@ def make_handler(rm, runner, port):
             if not isinstance(test, bool):
                 return self._send(400, {"error": "test is true or false"})
             if test:
-                mvp = runner.test_mvp()
-                if mvp is None:
+                tree = runner.test_tree()
+                if tree is None:
                     return self._send(409, {"error": "there is no test run workspace; "
                                                      "start a test run first"})
                 where = "in the test workspace"
             else:
-                mvp, where = rm.MVP.resolve(), ""
+                tree, where = rm.TREE.resolve(), ""
             parts = [p for p in rel.split("/") if p]
             if test and parts == ["."]:
-                parts, target = [], mvp
+                parts, target = [], tree
             else:
-                target = mvp.joinpath(*parts).resolve()
+                target = tree.joinpath(*parts).resolve()
                 if not parts:
                     target = None
             if (target is None or any(p.startswith(".") for p in parts)
-                    or not target.is_relative_to(mvp) or not target.exists()):
+                    or not target.is_relative_to(tree) or not target.exists()):
                 return self._send(404, {"error": f"nothing at 0.2/{rel} {where}".rstrip()
                                         + (" yet" if test else "")})
             if not target.is_dir() and target.suffix.lower() not in OPEN_SUFFIXES:
@@ -439,9 +439,9 @@ def make_handler(rm, runner, port):
             subprocess.Popen([opener, str(target)], stdin=subprocess.DEVNULL,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                              start_new_session=True)
-            body = {"opened": str(target.relative_to(mvp))}
+            body = {"opened": str(target.relative_to(tree))}
             if test:
-                body["workspace"] = str(mvp.parent)
+                body["workspace"] = str(tree.parent)
             return self._send(200, body)
 
         def _page(self):

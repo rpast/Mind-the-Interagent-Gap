@@ -29,15 +29,15 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REAL_MVP = HERE.parent
-FIXTURES = REAL_MVP / "testenv"
+REAL_TREE = HERE.parent
+FIXTURES = REAL_TREE / "testenv"
 STANDINS = FIXTURES / "standins"
 PREFIX = "mig-testrun-"
 # What the stages read besides the fixtures: the live taxonomy, so every id the
 # fixtures use is checked against the one real list, and the docs and prompts the map
 # links to. Copied, never linked: the workspace may be written to.
 LIVE_COPIES = ("taxonomy", "docs", "prompts")
-NEEDED = ("cases.json", "mvp/registry/sources.csv", "aiid/incidents.jsonl",
+NEEDED = ("cases.json", "0.2/registry/sources.csv", "aiid/incidents.jsonl",
           "aiid/classifications.jsonl", "manual", "standins")
 
 _names = itertools.count(1)
@@ -66,18 +66,18 @@ def sample_size():
 # ----------------------------------------------------------------- workspace
 
 def make_workspace():
-    """A fresh scratch folder holding <ws>/mvp, the curator's write-ups beside it."""
+    """A fresh scratch folder holding <ws>/0.2, the curator's write-ups beside it."""
     ok, why = available()
     if not ok:
         raise RuntimeError(why)
     ws = Path(tempfile.mkdtemp(prefix=PREFIX)).resolve()
     skip = shutil.ignore_patterns("__pycache__", "*.pyc")
-    shutil.copytree(FIXTURES / "mvp", ws / "mvp", ignore=skip)
+    shutil.copytree(FIXTURES / "0.2", ws / "0.2", ignore=skip)
     for name in LIVE_COPIES:
-        shutil.copytree(REAL_MVP / name, ws / "mvp" / name, ignore=skip,
+        shutil.copytree(REAL_TREE / name, ws / "0.2" / name, ignore=skip,
                         dirs_exist_ok=True)
     # the saved snapshot a real tree keeps in raw/aiid/, here the made-up sample
-    shutil.copytree(FIXTURES / "aiid", ws / "mvp" / "raw" / "aiid", ignore=skip)
+    shutil.copytree(FIXTURES / "aiid", ws / "0.2" / "raw" / "aiid", ignore=skip)
     shutil.copytree(FIXTURES / "manual", ws / "writeups", ignore=skip)
     return ws
 
@@ -86,7 +86,7 @@ def is_workspace(path):
     """A folder this module made: named mig-testrun-*, in the temp dir, not the repo."""
     p = Path(path).resolve()
     return (p.name.startswith(PREFIX) and p.parent == Path(tempfile.gettempdir()).resolve()
-            and not p.is_relative_to(REAL_MVP.parent))
+            and not p.is_relative_to(REAL_TREE.parent))
 
 
 def remove_workspace(path):
@@ -95,13 +95,13 @@ def remove_workspace(path):
 
 
 def load_instance(real_rm, ws):
-    """A second, private instance of run.py, pointed at <ws>/mvp. Not put in
+    """A second, private instance of run.py, pointed at <ws>/0.2. Not put in
     sys.modules: nothing else can import it, and it is dropped with its run."""
     spec = importlib.util.spec_from_file_location(f"mig_testrun_{next(_names)}",
                                                   real_rm.__file__)
     rm = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(rm)
-    rm.set_paths(Path(ws) / "mvp")
+    rm.set_paths(Path(ws) / "0.2")
     guard(rm, ws)
     return rm
 
@@ -111,7 +111,7 @@ def guard(rm, ws):
     ws = Path(ws).resolve()
     if not is_workspace(ws):
         raise RuntimeError(f"refusing to run a test in {ws}: not a scratch workspace")
-    if Path(rm.MVP).resolve() == REAL_MVP:
+    if Path(rm.TREE).resolve() == REAL_TREE:
         raise RuntimeError("refusing to run a test on the real 0.2/ tree")
     for name in rm.PATH_NAMES:
         p = Path(getattr(rm, name)).resolve()
@@ -342,7 +342,7 @@ def testrun_class(rm):
             peek = TEST_PEEK.get((step["id"], outcome.state))
             if peek and (STANDINS / peek).exists():
                 prompt["test_peek"] = {"label": "See the sample work",
-                                       "path": str((STANDINS / peek).relative_to(REAL_MVP))}
+                                       "path": str((STANDINS / peek).relative_to(REAL_TREE))}
             return prompt
 
         def answered(self, step, action):

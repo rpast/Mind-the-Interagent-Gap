@@ -7,7 +7,7 @@
     "G-031"
   ],
   "classifier_run": {
-    "input": "mvp/out/calibration/extract_gate_v3_gold_sonnet_20261117.jsonl",
+    "input": "0.2/out/calibration/extract_gate_v3_gold_sonnet_20261117.jsonl",
     "rules_version": "2026-11-16",
     "rows": 55,
     "review_items": 51,

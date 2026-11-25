@@ -7,7 +7,7 @@
 - Multi-agent label: yes at behaviour facet (UI only, not in the API export)
 - Caveat: Self-declared research prototype, 'preliminary and not yet validated'; asks that its visualizations not be redistributed. Measured 33% false-negative rate against our own incidents. JS app in a cross-origin iframe that frame-busts, so it needs a real browser.
 
-**To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/mit_navigator/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise mit_navigator`.
+**To do:** open the URL, find incidents involving two or more AI agents that are not already in `0.2/records/`, and save what you find to `0.2/raw/mit_navigator/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python 0.2/pipeline/run.py normalise mit_navigator`.
 
 ## Agent Incident Registry (Enkrypt AI) (`air_enkrypt`)
 
@@ -18,7 +18,7 @@
 - Multi-agent label: yes at multi_agent_system attack surface
 - Caveat: Contact Enkrypt before reusing the data. Tagging is incomplete: the Hugging Face swarm is missing from the multi_agent_system view. JS-rendered.
 
-**To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/air_enkrypt/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise air_enkrypt`.
+**To do:** open the URL, find incidents involving two or more AI agents that are not already in `0.2/records/`, and save what you find to `0.2/raw/air_enkrypt/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python 0.2/pipeline/run.py normalise air_enkrypt`.
 
 ## AI Village operator write-ups (`aivillage`)
 
@@ -29,7 +29,7 @@
 - Multi-agent label: no
 - Caveat: The Substack copies are reachable where theaidigest.org and X are not. All 7 of our AI Village incidents are absent from AIID entirely.
 
-**To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/aivillage/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise aivillage`.
+**To do:** open the URL, find incidents involving two or more AI agents that are not already in `0.2/records/`, and save what you find to `0.2/raw/aivillage/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python 0.2/pipeline/run.py normalise aivillage`.
 
 ## Antimemetics Multi-Agent Databank (`antimemetics`)
 
@@ -40,7 +40,7 @@
 - Multi-agent label: no
 - Caveat: Screened in but not yet recorded: GovSim replication, algorithmic collusion in an LLM duopoly, Prompt Infection.
 
-**To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/antimemetics/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise antimemetics`.
+**To do:** open the URL, find incidents involving two or more AI agents that are not already in `0.2/records/`, and save what you find to `0.2/raw/antimemetics/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python 0.2/pipeline/run.py normalise antimemetics`.
 
 ## OECD AI Incidents Monitor (`oecd_aim`)
 
@@ -51,7 +51,7 @@
 - Multi-agent label: no
 - Caveat: Broad news-based coverage, keyword search only.
 
-**To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/oecd_aim/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise oecd_aim`.
+**To do:** open the URL, find incidents involving two or more AI agents that are not already in `0.2/records/`, and save what you find to `0.2/raw/oecd_aim/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python 0.2/pipeline/run.py normalise oecd_aim`.
 
 ## AIAAIC Repository (`aiaaic`)
 
@@ -62,7 +62,7 @@
 - Multi-agent label: no
 - Caveat: Broad news-based coverage, keyword search only.
 
-**To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/aiaaic/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise aiaaic`.
+**To do:** open the URL, find incidents involving two or more AI agents that are not already in `0.2/records/`, and save what you find to `0.2/raw/aiaaic/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python 0.2/pipeline/run.py normalise aiaaic`.
 
 ## Moltbook data repository (`moltbook`)
 
@@ -73,4 +73,4 @@
 - Multi-agent label: no
 - Caveat: Data from the AI-agent social network.
 
-**To do:** open the URL, find incidents involving two or more AI agents that are not already in `mvp/records/`, and save what you find to `mvp/raw/moltbook/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python mvp/pipeline/run.py normalise moltbook`.
+**To do:** open the URL, find incidents involving two or more AI agents that are not already in `0.2/records/`, and save what you find to `0.2/raw/moltbook/` as JSON lines with at least `source_record_id`, `title`, `text`, `date` and `url`. Then run `python 0.2/pipeline/run.py normalise moltbook`.

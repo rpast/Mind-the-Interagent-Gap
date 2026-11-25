@@ -13,7 +13,7 @@ Three things were wrong with the store, and this puts the files right once:
      `record_key`, "<source_id>:<source_record_id>".
   3. A record did not say which raw row it came from. Each record row gains `raw_ref`:
      the raw file, the source's own id field and value, and the fetch date. For AIID
-     the id is the incident's `_id`, looked up in mvp/raw/aiid/incidents.jsonl.
+     the id is the incident's `_id`, looked up in 0.2/raw/aiid/incidents.jsonl.
 
 context/ and proposals/ are append-only. Here they gain `record_key` and nothing
 else: the script checks that every row, read back, equals the row before less that
@@ -27,7 +27,7 @@ prefilter and readiness, and compared with what was there.
 
 Idempotent: a second run finds nothing to do and writes nothing. Run from anywhere:
 
-    python mvp/pipeline/migrate_keys_20261116.py
+    python 0.2/pipeline/migrate_keys_20261116.py
 """
 import json
 import sys
@@ -58,17 +58,17 @@ def raw_ref_for(row, mongo):
     fetched = row.get("fetched_at") or ""
     if sid == "aiid":
         if rid not in mongo:
-            sys.exit(f"aiid:{rid} is not in mvp/raw/aiid/incidents.jsonl; cannot find its _id")
-        return {"path": "mvp/raw/aiid/incidents.jsonl", "id_field": "_id",
+            sys.exit(f"aiid:{rid} is not in 0.2/raw/aiid/incidents.jsonl; cannot find its _id")
+        return {"path": "0.2/raw/aiid/incidents.jsonl", "id_field": "_id",
                 "id": mongo[rid], "fetched_at": fetched}
     if meta.get("poc_event_id"):
         # carried over by migrate_poc.py from the frozen PoC inventory
         return {"path": "poc/data/incidents.csv", "id_field": "event_id",
                 "id": meta["poc_event_id"], "fetched_at": fetched}
     if sid == pipeline.MANUAL and meta.get("raw_file"):
-        return {"path": f"mvp/raw/manual/{meta['raw_file']}", "id_field": "source_record_id",
+        return {"path": f"0.2/raw/manual/{meta['raw_file']}", "id_field": "source_record_id",
                 "id": rid, "fetched_at": fetched}
-    return {"path": f"mvp/raw/{sid}/", "id_field": "source_record_id", "id": rid,
+    return {"path": f"0.2/raw/{sid}/", "id_field": "source_record_id", "id": rid,
             "fetched_at": fetched}
 
 

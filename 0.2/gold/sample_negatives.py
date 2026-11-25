@@ -28,10 +28,10 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-MVP = Path(__file__).resolve().parents[1]
-QUEUE = MVP / "state" / "queue.jsonl"
-RECORDS = MVP / "records" / "aiid.jsonl"
-OUT = MVP / "gold" / "negative_sample.csv"
+TREE = Path(__file__).resolve().parents[1]
+QUEUE = TREE / "state" / "queue.jsonl"
+RECORDS = TREE / "records" / "aiid.jsonl"
+OUT = TREE / "gold" / "negative_sample.csv"
 
 YEARS = ("2025", "2026")
 
@@ -86,7 +86,7 @@ def main():
     print(f"pool: {len(pool)} queued candidates dated 2025-2026 that AIID does not "
           f"mark multi-agent")
     print(f"      {len(hard)} carry the keyword flag, {len(soft)} are queued without a flag")
-    print(f"drew {len(picked)} with seed {args.seed} -> {OUT.relative_to(MVP.parent)}")
+    print(f"drew {len(picked)} with seed {args.seed} -> {OUT.relative_to(TREE.parent)}")
     print(f"  {n_hard:3d}  boundary   (keyword flag: something looked multi-agent)")
     print(f"  {n_soft:3d}  base_rate  (no signal at all; a control)")
     print(f"\nby year: {dict(sorted(Counter(r['date'][:4] for r in picked).items()))}")

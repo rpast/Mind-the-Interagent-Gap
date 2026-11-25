@@ -21,16 +21,16 @@ import json
 import sys
 from pathlib import Path
 
-MVP = Path(__file__).resolve().parents[1]
-GOLD = MVP / "gold" / "multiagent_gold.csv"
-ARCHIVE = MVP / "gold" / "archive" / "ceiling_input_multiagent_gold_20261113.csv"
-ARCHIVE_DROPPED = MVP / "gold" / "archive" / "ceiling_input_dropped_20261113.csv"
-QUEUE = MVP / "state" / "queue.jsonl"
+TREE = Path(__file__).resolve().parents[1]
+GOLD = TREE / "gold" / "multiagent_gold.csv"
+ARCHIVE = TREE / "gold" / "archive" / "ceiling_input_multiagent_gold_20261113.csv"
+ARCHIVE_DROPPED = TREE / "gold" / "archive" / "ceiling_input_dropped_20261113.csv"
+QUEUE = TREE / "state" / "queue.jsonl"
 # A blind extract_gate run over the gold rows, keyed by gold_id. Its labels are derived
 # by the same rules the pipeline uses (0.2/pipeline/derive.py), never by hand.
-GATE_RUN = MVP / "out" / "calibration" / "extract_gate_v3_gold_20261115.jsonl"
+GATE_RUN = TREE / "out" / "calibration" / "extract_gate_v3_gold_20261115.jsonl"
 
-sys.path.insert(0, str(MVP / "pipeline"))
+sys.path.insert(0, str(TREE / "pipeline"))
 import derive  # noqa: E402
 
 
@@ -66,7 +66,7 @@ def score(pairs, name, note="", only_precision=False):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=str(MVP / "out" / "gate1_accuracy.json"))
+    ap.add_argument("--json", default=str(TREE / "out" / "gate1_accuracy.json"))
     ap.add_argument("--run", default=str(GATE_RUN),
                     help="extract_gate run over the gold rows to score as the classifier")
     args = ap.parse_args()
@@ -144,7 +144,7 @@ def main():
                  + (" by presumption" if v["by_presumption"] else "")
                  for g, v in verdicts if (derive.labels_of(v)["multi_agent"] is True)
                  != truth[g]]
-        rel = (gate_run.relative_to(MVP.parent) if gate_run.is_relative_to(MVP.parent)
+        rel = (gate_run.relative_to(TREE.parent) if gate_run.is_relative_to(TREE.parent)
                else gate_run)
         out["classifier"] = score(
             pairs, f"4. CLASSIFIER - extract_gate.v3 on gold, labels by derive.py "

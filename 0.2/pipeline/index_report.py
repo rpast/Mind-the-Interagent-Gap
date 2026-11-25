@@ -28,7 +28,7 @@ OUT_FILE = run.OUT / "index_report.xlsx"
 
 
 def taxonomy(name, key, label):
-    with open(run.MVP / "taxonomy" / name, encoding="utf-8") as fh:
+    with open(run.TREE / "taxonomy" / name, encoding="utf-8") as fh:
         return {r[key]: r for r in csv.DictReader(fh)}, label
 
 

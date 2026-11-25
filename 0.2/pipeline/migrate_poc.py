@@ -4,9 +4,9 @@
 Their narratives and verification verdicts are real research effort, so they
 are migrated rather than rebuilt. Two things are written:
 
-  mvp/records/<source>.jsonl   the PoC row as a source record, so every dossier
+  0.2/records/<source>.jsonl   the PoC row as a source record, so every dossier
                                has a provenance chain the pipeline can check
-  mvp/incidents/MIG-nnnn.md    the curated dossier
+  0.2/incidents/MIG-nnnn.md    the curated dossier
 
 Nothing is invented. Fields the PoC never captured - the mechanism, the
 response, how many agents, what kind of interaction - are written as pending or
@@ -117,7 +117,7 @@ def main():
         doc_id = f"MIG-{n:04d}"
         path = pipeline.dossier_path(doc_id)
         if path.exists():
-            sys.exit(f"{path} exists; delete mvp/incidents/ if you mean to re-migrate")
+            sys.exit(f"{path} exists; delete 0.2/incidents/ if you mean to re-migrate")
 
         sources = [{"source_id": source_id, "record_id": event_id,
                     "url": row["source_url"], "first_seen": row["retrieved_on"]}]

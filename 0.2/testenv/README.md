@@ -19,7 +19,7 @@ AIID ids are 9901 to 9906, far above any AIID incident id, and the sources cited
 ## How a test run works
 
 `0.2/pipeline/testenv.py` makes a fresh folder with `tempfile.mkdtemp`, named
-`mig-testrun-*`, and loads a second instance of `run.py` pointed at `<workspace>/mvp`. The
+`mig-testrun-*`, and loads a second instance of `run.py` pointed at `<workspace>/0.2`. The
 real instance is never re-pointed. The test run refuses to start unless every path of its
 instance is inside the workspace.
 
@@ -27,7 +27,7 @@ The workspace holds:
 
 | path | from |
 |---|---|
-| `0.2/registry/sources.csv` | `testenv/mvp/registry/`: aiid, one fictional discovery source, manual, one reference. There is no `registry/labels/`, so the test world has no Navigator labels |
+| `0.2/registry/sources.csv` | `testenv/0.2/registry/`: aiid, one fictional discovery source, manual, one reference. There is no `registry/labels/`, so the test world has no Navigator labels |
 | `0.2/taxonomy/`, `0.2/docs/`, `0.2/prompts/` | copies of the live tree, so every id is checked against the real taxonomy |
 | `0.2/raw/aiid/` | `testenv/aiid/`: the saved snapshot, in the format `fetch_aiid.py` writes |
 | `writeups/` | `testenv/manual/`: the curator's directory, ingested only with `--manual` |

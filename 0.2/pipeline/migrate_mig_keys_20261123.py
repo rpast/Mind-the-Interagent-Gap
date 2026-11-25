@@ -7,7 +7,7 @@ which mixes the source with its key. From now on:
 
   - `mig_key`, MIG-nnnn, is our key. Every record that reaches the decide-scope sheet
     gets one, once, and its dossier keeps it. The registry is
-    mvp/registry/mig_keys.csv: one row per key, the record it was given to.
+    0.2/registry/mig_keys.csv: one row per key, the record it was given to.
   - `source_key` is the key the source itself uses (AIID's 794), blank when the source
     has none (a hand-added record).
 
@@ -30,7 +30,7 @@ What this script does, once:
 Idempotent: once no dossier has `id`, it says so and writes nothing. Then run
 `run.py check`, `index`, `viz` and `index_report.py`.
 
-    python mvp/pipeline/migrate_mig_keys_20261123.py
+    python 0.2/pipeline/migrate_mig_keys_20261123.py
 """
 import csv
 import re
@@ -152,7 +152,7 @@ def main():
         print(f"  ok    {path.relative_to(pipeline.ROOT)}: {len(rows)} rows rekeyed")
 
     # 5. the gold set
-    gold = pipeline.MVP / "gold" / "multiagent_gold.csv"
+    gold = pipeline.TREE / "gold" / "multiagent_gold.csv"
     eol = "\r\n" if b"\r\n" in gold.read_bytes() else "\n"   # keep the file's own
     with open(gold, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)

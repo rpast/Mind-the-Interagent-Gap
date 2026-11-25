@@ -81,29 +81,29 @@ import derive as rules  # noqa: E402
 # Every path the stages read or write. They live in module globals, set in one place.
 # The test run (testenv.py) loads a second instance of this module and points that
 # one at a scratch workspace; this instance is set once, here, and never re-pointed.
-PATH_NAMES = ("MVP", "ROOT", "REGISTRY", "MIG_KEYS", "TAXONOMY", "RAW", "RECORDS",
+PATH_NAMES = ("TREE", "ROOT", "REGISTRY", "MIG_KEYS", "TAXONOMY", "RAW", "RECORDS",
               "INCIDENTS", "PROPOSALS", "CONTEXT", "STATE", "OUT", "RUN_FILE", "RUNS",
               "REVIEW")
 
 
-def set_paths(mvp_dir):
-    global MVP, ROOT, REGISTRY, MIG_KEYS, TAXONOMY, RAW, RECORDS, INCIDENTS, PROPOSALS, \
+def set_paths(tree_dir):
+    global TREE, ROOT, REGISTRY, MIG_KEYS, TAXONOMY, RAW, RECORDS, INCIDENTS, PROPOSALS, \
         CONTEXT, STATE, OUT, RUN_FILE, RUNS, REVIEW
-    MVP = Path(mvp_dir).resolve()
-    ROOT = MVP.parent
-    REGISTRY = MVP / "registry" / "sources.csv"
-    MIG_KEYS = MVP / "registry" / "mig_keys.csv"   # our key, MIG-nnnn, per record
-    TAXONOMY = MVP / "taxonomy"
-    RAW = MVP / "raw"
-    RECORDS = MVP / "records"
-    INCIDENTS = MVP / "incidents"
-    PROPOSALS = MVP / "proposals"
-    CONTEXT = MVP / "context"
-    STATE = MVP / "state"
-    OUT = MVP / "out"
+    TREE = Path(tree_dir).resolve()
+    ROOT = TREE.parent
+    REGISTRY = TREE / "registry" / "sources.csv"
+    MIG_KEYS = TREE / "registry" / "mig_keys.csv"   # our key, MIG-nnnn, per record
+    TAXONOMY = TREE / "taxonomy"
+    RAW = TREE / "raw"
+    RECORDS = TREE / "records"
+    INCIDENTS = TREE / "incidents"
+    PROPOSALS = TREE / "proposals"
+    CONTEXT = TREE / "context"
+    STATE = TREE / "state"
+    OUT = TREE / "out"
     RUN_FILE = STATE / "run.json"
     RUNS = STATE / "runs"           # one retained log per run: <run id>.json
-    REVIEW = MVP / "review"         # the two sheets a person fills in, and their logs
+    REVIEW = TREE / "review"         # the two sheets a person fills in, and their logs
 
 
 set_paths(Path(__file__).resolve().parents[1])
@@ -725,7 +725,7 @@ def decode_value(value_json):
 
 def navigator_path():
     """Hand-made, so it lives in the registry, not in raw/ (verbatim fetch output)."""
-    return MVP / "registry" / "labels" / "navigator_multiagent.tsv"
+    return TREE / "registry" / "labels" / "navigator_multiagent.tsv"
 
 
 def read_navigator():
@@ -971,7 +971,7 @@ def stage_discover(source_ids):
 # ---------------------------------------------------------------- prefilter
 
 def frozen_path():
-    return MVP / "registry" / "frozen_pre2024.csv"
+    return TREE / "registry" / "frozen_pre2024.csv"
 
 
 def read_frozen():
@@ -3506,7 +3506,7 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
         if key == "in":
             failure_modes[fm] = failure_modes.get(fm, 0) + 1
     gold = {"rows": 0, "in": 0, "out": 0, "unclear": 0, "ceiling": None}
-    gold_path = MVP / "gold" / "multiagent_gold.csv"
+    gold_path = TREE / "gold" / "multiagent_gold.csv"
     if gold_path.exists():
         for row in read_csv(gold_path):
             gold["rows"] += 1
@@ -3575,7 +3575,7 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
         "gold": gold,
         "last_run": last_run_summary(),
         "artifacts": {node: [{"label": label, "path": newest_prompt(path),
-                              "exists": (MVP / newest_prompt(path)).exists()}
+                              "exists": (TREE / newest_prompt(path)).exists()}
                              for label, path in items]
                       for node, items in MAP_ARTIFACTS.items()},
     }
@@ -3597,7 +3597,7 @@ def newest_prompt(path):
     if not m:
         return path
     found = [(int(re.search(r"\.v(\d+)\.md$", p.name).group(1)), p.name)
-             for p in (MVP / "prompts").glob(f"{m.group(1)}.v*.md")
+             for p in (TREE / "prompts").glob(f"{m.group(1)}.v*.md")
              if re.search(r"\.v(\d+)\.md$", p.name)]
     return f"prompts/{max(found)[1]}" if found else path
 

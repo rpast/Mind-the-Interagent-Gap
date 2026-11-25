@@ -25,7 +25,7 @@ Truth: {'in': 22, 'out': 33, 'unclear': 3}
   precision  11.1%   recall  66.7%   accuracy  46.9%   F1  19.0%
 
 4. CLASSIFIER - extract_gate.v3 on gold, labels by derive.py (rules 2026-11-16)
-  mvp/out/calibration/extract_gate_v4_gold_20261119.jsonl. All rows, review items scored on the labels the rules would give if a person confirmed the facts. Wrong: G-002 FP by presumption, G-011 FN, G-012 FN, G-014 FP.
+  0.2/out/calibration/extract_gate_v4_gold_20261119.jsonl. All rows, review items scored on the labels the rules would give if a person confirmed the facts. Wrong: G-002 FP by presumption, G-011 FN, G-012 FN, G-014 FP.
   n= 55   TP= 20 FP=  2 FN=  2 TN= 31
   precision  90.9%   recall  90.9%   accuracy  92.7%   F1  90.9%
 
@@ -35,5 +35,5 @@ Truth: {'in': 22, 'out': 33, 'unclear': 3}
   precision 100.0%   recall 100.0%   accuracy 100.0%   F1 100.0%
 
 ========================================================================
-Read mvp/docs/gold_set.md before quoting any of these.
-wrote mvp/out/calibration/gate1_accuracy_v4_20261119.json
+Read 0.2/docs/gold_set.md before quoting any of these.
+wrote 0.2/out/calibration/gate1_accuracy_v4_20261119.json

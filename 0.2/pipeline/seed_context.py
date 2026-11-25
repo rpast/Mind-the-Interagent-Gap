@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Seed mvp/context/ from the gold-set source context. One-off, kept for provenance.
+"""Seed 0.2/context/ from the gold-set source context. One-off, kept for provenance.
 
-mvp/gold/context/ holds what the gold reviewer judged from: 41 rows of source
+0.2/gold/context/ holds what the gold reviewer judged from: 41 rows of source
 facts written on 2026-11-13. It stays frozen as that audit record. This script
-copies those rows into the live context layer, mvp/context/<source_id>.jsonl, in
+copies those rows into the live context layer, 0.2/context/<source_id>.jsonl, in
 the schema `run.py readiness` reads, so the layer does not start empty.
 
 Three things are set here by hand rather than derived, and are listed below so
 they can be checked: how many AI agents each source describes, how deeply each
 source was read, and whether the record describes an attack.
 
-See mvp/docs/context_layer.md.
+See 0.2/docs/context_layer.md.
 """
 import json
 import re
@@ -20,8 +20,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run as pipeline  # noqa: E402
 
-MVP = Path(__file__).resolve().parents[1]
-SRC = MVP / "gold" / "context"
+TREE = Path(__file__).resolve().parents[1]
+SRC = TREE / "gold" / "context"
 
 # gold field -> context fact
 FACT_KEYS = {"agents": "agents", "interaction": "interaction",

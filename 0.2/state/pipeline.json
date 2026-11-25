@@ -1,6 +1,6 @@
 {
   "generated": "2026-11-25",
-  "generated_at": "2026-11-25T19:46",
+  "generated_at": "2026-11-25T20:00",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -3062,7 +3062,7 @@
     "gold": {
       "ceiling": 0.8260869565217391,
       "ceiling_n": 23,
-      "classifier_input": "mvp/out/calibration/extract_gate_v3_gold_20261115.jsonl",
+      "classifier_input": "0.2/out/calibration/extract_gate_v3_gold_20261115.jsonl",
       "classifier_n": 55,
       "classifier_precision": 0.8695652173913043,
       "classifier_prompt": "extract_gate.v3",

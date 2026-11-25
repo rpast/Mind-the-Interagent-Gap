@@ -30,14 +30,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "pipeline"))
 import run as pipeline  # noqa: E402
 
-MVP = Path(__file__).resolve().parents[1]
-ROOT = MVP.parent
-GOLD = MVP / "gold" / "multiagent_gold.csv"
+TREE = Path(__file__).resolve().parents[1]
+ROOT = TREE.parent
+GOLD = TREE / "gold" / "multiagent_gold.csv"
 # The id registry: every gold id ever issued, including rows since dropped, so a
 # row restored or a dossier merged never changes anyone's id.
-GOLD_IDS = MVP / "gold" / "gold_ids.csv"
-TEMPLATE = MVP / "gold" / "gold_review_template.html"
-OUT = MVP / "out" / "gold_review.html"
+GOLD_IDS = TREE / "gold" / "gold_ids.csv"
+TEMPLATE = TREE / "gold" / "gold_review_template.html"
+OUT = TREE / "out" / "gold_review.html"
 
 FIELDS = ["gold_id", "stratum", "source_id", "source_record_id", "dossier",
           "date", "title", "draw_note",
@@ -143,7 +143,7 @@ def main():
         })
 
     # --- strata 3 and 4: the drawn, unscreened candidates -----------------
-    sample = MVP / "gold" / "negative_sample.csv"
+    sample = TREE / "gold" / "negative_sample.csv"
     if not sample.exists():
         sys.exit(f"no {sample.relative_to(ROOT)}; run sample_negatives.py first")
     for s in csv.DictReader(sample.open(encoding="utf-8")):
@@ -172,7 +172,7 @@ def main():
     # rows whose only source cannot be read). They are regenerated from the
     # dossiers on every run, so they have to be filtered out again here or they
     # would silently return to the set.
-    dropped_path = MVP / "gold" / "dropped.csv"
+    dropped_path = TREE / "gold" / "dropped.csv"
     if dropped_path.exists():
         retired = {(r["source_id"], r["source_record_id"])
                    for r in csv.DictReader(dropped_path.open(encoding="utf-8"))}
@@ -234,7 +234,7 @@ def main():
         "instances": [
             {"instance_id": i["instance_id"], "instance": i["instance"],
              "risk_id": i["risk_id"], "definition": i["definition"]}
-            for i in pipeline.read_csv(MVP / "taxonomy" / "instances.csv")],
+            for i in pipeline.read_csv(TREE / "taxonomy" / "instances.csv")],
         "rows": [{k: v for k, v in r.items()
                   if not k.startswith("_") or k in
                   ("_narrative", "_sources", "_external", "_url", "_mit")}
