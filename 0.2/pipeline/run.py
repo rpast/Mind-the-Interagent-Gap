@@ -731,6 +731,118 @@ def verdict_of(key, r):
             ("labels" if r["labels_settled"] == "true" else "labels_if_confirmed"): labels}
 
 
+# The incident columns (0.2/docs/plan.md, P3). Until the incidents sheet replaces sheet 3
+# (P5), a dossier's frontmatter still holds its labels, and these columns are built from
+# it on every review and index run: each label as proposal and decision. A label counts
+# as decided when the dossier says a person set it: multi_agent_label_source `ours`,
+# failure_mode_source `ours`, or the field in set_by_person. Every other label is a
+# proposal, waiting for a person's `ok` (the curator's choice of 2026-11-25).
+
+def label_token(label, meta):
+    """A dossier label as ledger text. `none` is an explicit empty answer (no failure
+    mode, no instances); blank means no value at all."""
+    if label == "incident_scope":
+        return {True: "in", False: "out"}.get(meta.get("multi_agent"),
+                                              str(meta.get("multi_agent") or ""))
+    if label == "failure_mode":
+        return meta.get("failure_mode") or "none"
+    if label == "instances":
+        return meta.get("instances") or "none"
+    if label == "evidence_type":
+        return meta.get("evidence_type") or ""
+    return ""
+
+
+def label_decided(label, meta):
+    by_person = set(meta.get(SET_BY_PERSON) or [])
+    return {"incident_scope": meta.get("multi_agent_label_source") == "ours"
+            or "multi_agent" in by_person,
+            "failure_mode": meta.get("failure_mode_source") == "ours"
+            or "failure_mode" in by_person,
+            "instances": "instances" in by_person,
+            "evidence_type": "evidence_type" in by_person}.get(label, False)
+
+
+def adoptable_instances(prop):
+    """An assign_instances proposal's high and medium instances: ids, and a short why."""
+    keep = [i for i in (prop or {}).get("instances") or []
+            if i.get("confidence") in ("high", "medium")]
+    return ([i.get("instance_id") for i in keep],
+            "; ".join(f"{i.get('instance_id')} {i.get('confidence')}" for i in keep))
+
+
+def incident_columns(meta, body, row, inst_prop):
+    """One dossier as the ledger's incident columns. `row` is its canonical record's
+    ledger row (the rules' proposals), `inst_prop` that record's instance proposal."""
+    origin = ("written by Claude from the readings" if "Written by Claude" in body
+              else "carried over from the PoC")
+    ids, ids_why = adoptable_instances(inst_prop)
+    rules_prop = {
+        "incident_scope": (row.get("scope_proposed", ""), row.get("scope_why", "")),
+        "failure_mode": ((row.get("rules_failure_mode") or "none") if row.get("rules_status")
+                         else "", f"rules {row.get('rules_version')} from "
+                                  f"{row.get('gate_prompt')}" if row.get("rules_status") else ""),
+        "instances": (ids or ("none" if inst_prop else ""),
+                      f"assign_instances: {ids_why}" if inst_prop else ""),
+        "evidence_type": (row.get("rules_evidence_type", ""),
+                          f"rules {row.get('rules_version')} from {row.get('gate_prompt')}"
+                          if row.get("rules_status") else ""),
+    }
+    out = {"incident_title": meta.get("title", ""),
+           "occurrence_date": str(meta.get("occurrence_date") or ""),
+           "occurrence_date_precision": meta.get("occurrence_date_precision", ""),
+           "actor_count": str(meta.get("actor_count") or ""),
+           "interaction_kind": meta.get("interaction_kind", ""),
+           "systems": meta.get("systems") or [],
+           "instances_presumed": meta.get("instances_presumed") or [],
+           "verification": meta.get("verification", ""),
+           "last_verified": str(meta.get("last_verified") or "")}
+    for label in ledger.INCIDENT_LABELS:
+        value = label_token(label, meta)
+        if label_decided(label, meta):
+            proposed, why = rules_prop.get(label, ("", ""))
+            out.update({f"{label}_proposed": proposed, f"{label}_why": why,
+                        f"{label}_decision": value, f"{label}_final": value})
+        else:
+            source = meta.get("failure_mode_source") or ""
+            why = source if label == "failure_mode" and source.startswith("classifier:") \
+                else origin if value else ""
+            out.update({f"{label}_proposed": value, f"{label}_why": why})
+    return out
+
+
+def write_incident_columns():
+    """The incident columns of every record, from the registry and the dossiers."""
+    updates = incident_updates(ledger.read(LEDGER))
+    ledger.write(LEDGER, "incidents", updates)
+    return sum(1 for u in updates.values() if u.get("canonical"))
+
+
+def incident_updates(rows):
+    """What write_incident_columns writes: record_key -> incident columns."""
+    index = mig_index()
+    inst = proposal_rows("assign_instances")
+    updates = {}
+    for key in rows:
+        mig = mig_key_of(split_key(key), index)
+        if mig:
+            updates[key] = {"mig_key": mig}
+    for path in all_dossiers():
+        meta, body = read_dossier(path)
+        canon = canonical_pair(meta)
+        for s in meta.get("sources") or []:
+            key = record_key(s.get("source_id"), str(s.get("record_id")))
+            updates.setdefault(key, {}).update(
+                {"mig_key": mig_key_of(split_key(key), index) or meta.get("mig_key"),
+                 "incident_key": meta.get("mig_key"),
+                 "canonical": (s.get("source_id"), str(s.get("record_id"))) == canon})
+        if canon:
+            ck = record_key(*canon)
+            updates.setdefault(ck, {}).update(
+                incident_columns(meta, body, rows.get(ck, {}), inst.get(canon)))
+    return updates
+
+
 def proposal_files(prompt_id):
     """(source_id, source_record_id) -> the proposals file its newest row is in."""
     out = {}
@@ -2305,6 +2417,8 @@ def stage_review():
         where = result[kind]["path"] if openpyxl is not None else "no sheet: openpyxl missing"
         info(f"  ok    {label:13s} decided this run {decided[kind]:4d}   "
              f"left {left:4d}{asked}   {where}")
+    n = write_incident_columns()
+    info(f"  ok    ledger: incident columns of {n} incidents -> {LEDGER.relative_to(ROOT)}")
     return result
 
 
@@ -2823,6 +2937,8 @@ def check_edit_log(problems, warnings):
 # -------------------------------------------------------------------- index
 
 def stage_index():
+    if LEDGER.exists():
+        write_incident_columns()
     rows = index_rows()
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / "incident_index.csv"
@@ -3913,6 +4029,14 @@ def check_ledger(records, problems, warnings):
     read = {record_key(*p) for p in load_context()} & set(rows)
     if read != {k for k, r in rows.items() if r["read_depth"]}:
         warnings.append(f"{rel}: reading columns lag the context rows; run readiness")
+    want = incident_updates(rows)
+    own = ledger.OWNERS["incidents"]
+    for k, r in rows.items():
+        expect = want.get(k, {})
+        if any(r[c] != ledger.cell(expect.get(c, "")) for c in own):
+            warnings.append(f"{rel}: incident columns lag the dossiers (first: {k}); "
+                            f"run index")
+            break
 
 
 def check_env(records=None, reg=None, context=None):

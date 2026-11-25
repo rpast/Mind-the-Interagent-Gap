@@ -42,7 +42,22 @@ OWNERS = {
                "labels_settled", "rules_multi_agent", "rules_evidence_type",
                "rules_failure_mode", "rules_instances_presumed",
                "scope_proposed", "scope_why"],
+    # mig_key: the record's own key (as the sheets show it); incident_key: the incident
+    # (dossier) the record belongs to; canonical: the record that carries the incident's
+    # columns. The rest are incident level, on the canonical row only.
+    "incidents": ["mig_key", "incident_key", "canonical", "incident_title",
+                  "occurrence_date", "occurrence_date_precision", "actor_count",
+                  "interaction_kind", "systems"]
+                 + [f"{label}_{part}" for label in ("incident_scope", "failure_mode",
+                                                    "instances", "evidence_type",
+                                                    "risk_factors")
+                    for part in ("proposed", "why", "decision", "final")]
+                 + ["instances_presumed", "verification", "last_verified"],
 }
+INCIDENT_LABELS = ["incident_scope", "failure_mode", "instances", "evidence_type",
+                   "risk_factors"]
+INCIDENT_COLUMNS = [c for c in OWNERS["incidents"]
+                    if c not in ("mig_key", "incident_key", "canonical")]
 COLUMNS = [c for cols in OWNERS.values() for c in cols]
 OWNER_OF = {c: o for o, cols in OWNERS.items() for c in cols}
 KEY = "record_key"
@@ -82,9 +97,11 @@ def read(path: Path) -> dict[str, dict[str, str]]:
         return {}
     with open(path, encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
-        missing = [c for c in COLUMNS if c not in (reader.fieldnames or [])]
-        if missing:
-            raise LedgerError(f"{path}: missing columns {', '.join(missing)}")
+        # A column the file lacks is a column added since it was written: blank until
+        # its owner writes it. A column the schema lacks is an error.
+        alien = [c for c in reader.fieldnames or [] if c not in OWNER_OF]
+        if alien:
+            raise LedgerError(f"{path}: unknown columns {', '.join(alien)}")
         return {r[KEY]: {c: r.get(c) or "" for c in COLUMNS} for r in reader}
 
 

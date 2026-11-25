@@ -2,8 +2,15 @@
 
 Approved by the curator 2026-11-25. Worked on branch `development/pipeline-0.2`.
 
-Status: P0, P1 and P2 done (2026-11-25). The columns built so far are listed in
+Status: P0, P1, P2 and P3a done (2026-11-25). The columns built so far are listed in
 `0.2/ledger/README.md`.
+
+Change to P3, 2026-11-25: turning the direction (the dossier written from the ledger)
+cannot come before sheet 2, since today a person or Claude fills a new dossier's
+frontmatter by hand and the test run is built on that. P3 is split: **P3a** (done) puts
+the incident columns in the ledger, built from the dossiers, with each label as proposal
+and decision; **P3b**, the turn, moves into P5. Column changes against 3.3: `mig_key` is
+the record's own key and `incident_key` names its incident.
 
 ## 1. Why
 

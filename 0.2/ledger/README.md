@@ -43,5 +43,24 @@ phases.
 | | `rules_multi_agent`, `rules_evidence_type`, `rules_failure_mode`, `rules_instances_presumed` | the labels the rules derive |
 | | `scope_proposed`, `scope_why` | the scope the rules propose (`in`, `out`, `unclear`) and why |
 
+| incidents (`review`, `index`) | `mig_key` | the record's own key, MIG-nnnn, as the sheets show it; blank until it reaches the decide-scope sheet |
+| | `incident_key` | the incident (dossier) the record belongs to; one incident, many records |
+| | `canonical` | `true` on the one record that carries the incident's columns |
+| *incident level, canonical row only* | `incident_title`, `occurrence_date`, `occurrence_date_precision`, `actor_count`, `interaction_kind`, `systems` | the incident's facts |
+| | `<label>_proposed`, `_why`, `_decision`, `_final` | for `incident_scope`, `failure_mode`, `instances`, `evidence_type`, `risk_factors` (reserved): the proposal and its reason, the person's decision, and the value it settles on |
+| | `instances_presumed`, `verification`, `last_verified` | as in the dossier |
+
 `rules_*` and `scope_proposed` are proposals. Only a person's decision puts a record in
 scope.
+
+**Counting incidents**: filter `canonical = true`; each incident is counted once. A label
+is decided when `<label>_decision` is filled (`final` then holds its value); otherwise
+`<label>_proposed` is what the incident currently shows. `none` is an explicit empty
+answer (no failure mode, no instances); blank means no value.
+
+**Until P5** a dossier's frontmatter still holds its labels, and the incident columns are
+rebuilt from it on every `review` and `index`. A label counts as decided when the dossier
+says a person set it (`multi_agent_label_source` or `failure_mode_source` `ours`, or the
+field in `set_by_person`). The PoC's instances and evidence types, which carry no such
+mark, are proposals to confirm (the curator's choice, 2026-11-25). In P5 the direction
+turns: the ledger becomes the source and the frontmatter is written from it.
