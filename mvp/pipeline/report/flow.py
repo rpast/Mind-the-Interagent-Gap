@@ -17,7 +17,7 @@ spine = [
   ("dec", "person", "Decide scope", "in, out or unclear, with a reason"),
   ("c2", "model", "Assign instances", "each match quoted from the source")]),
  ("RECORD", [
-  ("prom", "person", "Promote and write the dossier", "unverified until checked by a person"),
+  ("prom", "person", "Promote and write the dossier", "unverified until checked by a human analyst"),
   ("idx", "script", "Check, index, report", "the build fails on any broken rule")]),
 ]
 edge_lab = {("fetch","norm"):"raw copy, never edited", ("norm","pre"):"records", ("pre","read"):"queued, some flagged",
@@ -66,7 +66,7 @@ lx = SX - 22
 out.append(f'<path class="fc-e" d="M{SX} {yr+H_N//2} H{lx} V{yread+H_N//2} H{SX-2}" marker-end="url(#fc-a)"/>')
 out.append(f'<text class="fc-el" x="{lx-4}" y="{(yr+yread)//2+H_N//2+4}" text-anchor="end">read more</text>')
 # legend
-leg = [("script", "script"), ("model", "model, quotes its source"), ("rule", "fixed rule"), ("person", "person")]
+leg = [("script", "script"), ("model", "model, quotes its source"), ("rule", "fixed rule"), ("person", "human analyst")]
 lx0 = 0
 for kind, lab in leg:
     out.append(f'<g class="fc-{kind}"><rect x="{lx0}" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="{lx0+30}" y="25">{lab}</text>')
@@ -76,7 +76,7 @@ defs = ('<defs><marker id="fc-a" viewBox="0 0 10 10" refX="9" refY="5" markerWid
         '<marker id="fc-ax" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
         '<path d="M0 0 L10 5 L0 10 z" class="fc-ahx"/></marker></defs>')
 svg = (f'<svg class="fc" viewBox="0 0 {W} {H}" role="img" aria-label="How a record becomes an indexed incident: '
-       'fetch and normalise, queue and read the sources, extract facts, derive labels by rule, a person decides scope, '
-       'instances are assigned, a person promotes the dossier, then check and index.">' + defs + "".join(out) + '</svg>')
+       'fetch and normalise, queue and read the sources, extract facts, derive labels by rule, a human analyst decides scope, '
+       'instances are assigned, a human analyst promotes the dossier, then check and index.">' + defs + "".join(out) + '</svg>')
 open('flow.svg', 'w').write(svg)
 print(W, H)

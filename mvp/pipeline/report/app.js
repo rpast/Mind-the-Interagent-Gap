@@ -53,6 +53,10 @@ const srcIds = [...new Set(inc.flatMap(x => x.s))];
 const srcRows = srcIds.map(s => ({s, canon: inc.filter(x => x.c === s).length, also: inc.filter(x => x.c !== s && x.s.includes(s)).length}))
   .sort((a, b) => b.canon + b.also - a.canon - a.also);
 const smax = Math.max(...srcRows.map(r => r.canon + r.also));
+document.getElementById("ver").textContent = `v${D.version}`;
+document.getElementById("dates").textContent = [`Version ${D.version}`,
+  D.refreshed && `Sources last refreshed ${D.refreshed}`, `index as of ${D.asof}`].filter(Boolean).join(" · ");
+document.getElementById("ninst").textContent = D.inst.length;
 document.getElementById("srckey").innerHTML = `<span><i class="sw t-real_world"></i>Canonical source</span><span><i class="sw t-lab"></i>Also reported here</span>`;
 document.getElementById("srcs").innerHTML = srcRows.map(r => `
   <div>${hit("src:" + r.s, esc(srcName(r.s)))} <a class="ext" href="${esc(src[r.s]?.u || "#")}" title="Open ${esc(srcName(r.s))}">↗</a></div>
@@ -90,11 +94,11 @@ const cmax = Math.max(...inst.flatMap(i => cols.map(c => inc.filter(x => inCol(x
 const dens = n => n === 0 ? "" : n >= Math.ceil(cmax * 2 / 3) ? "d3" : n >= Math.ceil(cmax / 3) ? "d2" : "d1";
 let mx = `<thead><tr><th colspan="2">Instance</th>${cols.map(c => `<th class="num">${hit("fm:" + c.id, c.id === "none" ? "None" : c.id)}</th>`).join("")}<th class="num">All</th></tr></thead>`;
 // one flat list in id order: grouping rows by the paper's FM/RF placement would cross RF blocks with FM columns
-const placed = i => i.p === "ours" ? `Authored by this project, placed under ${i.r} ${riskOf[i.r].n}` : `Discussed under ${i.r} ${riskOf[i.r].n} in the paper`;
+const placed = i => i.p === "ours" ? `Proposed: not in the paper. Added by this index, placed under ${i.r} ${riskOf[i.r].n}` : `Discussed under ${i.r} ${riskOf[i.r].n} in the paper`;
 mx += `<tbody>`;
 for (const i of inst) {
   const tot = nInst(i.id);
-  mx += `<tr class="${tot ? "" : "z"}"><td class="id">${i.id}</td><td class="nm" title="${esc(placed(i))}">${tot ? hit("inst:" + i.id, esc(i.n)) : esc(i.n)}${i.p === "ours" ? `<span class="ours">ours</span>` : ""}</td>` +
+  mx += `<tr class="${tot ? "" : "z"}"><td class="id">${i.id}</td><td class="nm" title="${esc(placed(i))}">${tot ? hit("inst:" + i.id, esc(i.n)) : esc(i.n)}${i.p === "ours" ? `<span class="ours">proposed</span>` : ""}</td>` +
     cols.map(c => { const n = inc.filter(x => inCol(x, c) && x.i.includes(i.id)).length;
       return `<td class="num${n ? "" : " zero"}">${n ? hit(`inst:${i.id};fm:${c.id}`, n, dens(n)) : "<span>·</span>"}</td>`; }).join("") +
     `<td class="num tot">${tot ? hit("inst:" + i.id, tot) : "<span>0</span>"}</td></tr>`;
@@ -233,4 +237,17 @@ document.getElementById("defs").innerHTML =
   group("Evidence type", TIERS.map(([t]) => dd(`${tierMark(t)}${t}`, TIERDEF[t]))) +
   group("Failure modes · Hammond et al. 2025", FMs.map(r => dd(r.id, `${esc(r.n)}. <span style="color:var(--ink-2)">${esc(r.d)}</span>`))) +
   group("Risk factors · Hammond et al. 2025 · not yet classified", RFs.map(r => dd(r.id, `${esc(r.n)}. <span style="color:var(--ink-2)">${esc(r.d)}</span>`))) +
-  group("Instances", inst.map(i => dd(i.id, `${esc(i.n)} <span class="mono" style="font-size:11px">· ${i.r}${i.p === "ours" ? " · ours" : ""}</span>`)));
+  group("Instances", inst.map(i => dd(i.id, `${esc(i.n)} <span class="mono" style="font-size:11px">· ${i.r}${i.p === "ours" ? " · proposed" : ""}</span>`)));
+
+// Folded report sections: a link to a section, or into one, opens it first.
+const openFor = hash => {
+  const t = hash && hash.length > 1 && document.getElementById(decodeURIComponent(hash.slice(1)));
+  const f = t && (t.querySelector(":scope > details.fold") || t.closest("details.fold"));
+  if (f && !f.open) f.open = true;
+};
+document.addEventListener("click", e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (a) openFor(a.getAttribute("href"));
+}, true);
+window.addEventListener("hashchange", () => openFor(location.hash));
+openFor(location.hash);

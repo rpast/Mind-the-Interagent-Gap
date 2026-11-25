@@ -25,6 +25,9 @@ Stages, in the order an update runs them:
     index      regenerate mvp/out/incident_index.csv and mvp/state/pipeline.json
     viz        render the pages in mvp/out/
 
+    report     the published report, mvp/out/interagent_gap_index.html, built from what
+               the last `index` wrote. Not part of `update`: run it on its own
+
     update [--discover] [--manual DIR] [--refetch] [--token-file F]
     serve  [--port 8765]     the front end on http://127.0.0.1:<port>/
     testrun [--refetch] [--manual] [--discover] [--skip STEP ...]
@@ -3945,6 +3948,63 @@ def stage_viz():
         info(f"  ok    viz: {target.relative_to(ROOT)}")
 
 
+# ------------------------------------------------------------------- report
+#
+# The published report: a single page for readers, built from what the last `index`
+# wrote. A step of its own, never run by `update`, `viz` or `serve`: a report is
+# built when someone decides the index is worth reporting.
+
+REPORT_PARTS = Path(__file__).resolve().parent / "report"
+REPORT_PAGE = "interagent_gap_index.html"
+
+
+def report_data():
+    """The report's data: the index rows, each dossier's canonical link, the taxonomy,
+    the registry, and the dates and version the page shows."""
+    index_path, state_path = OUT / "incident_index.csv", STATE / "pipeline.json"
+    if not index_path.exists() or not state_path.exists():
+        die("report: no index yet; run `python mvp/pipeline/run.py index` first")
+
+    def link(row):
+        meta, _ = read_dossier(ROOT / row["path"])
+        sources = meta.get("sources") or []
+        canon = [s for s in sources if s.get("source_id") == row["canonical_source"]] or sources
+        return (canon[0].get("url") or "") if canon else ""
+
+    inc = [dict(k=r["mig_key"], t=r["title"], d=r["occurrence_date"], e=r["evidence_type"],
+                fm=r["failure_mode"], i=[i for i in r["instances"].split(";") if i],
+                v=r["verification"], c=r["canonical_source"],
+                s=sorted(set(s for s in r["sources"].split(";") if s)), u=link(r))
+           for r in read_csv(index_path)]
+    risks = [dict(id=r["risk_id"], n=r["risk"], k=r["risk_type"], d=r["definition"])
+             for r in read_csv(TAXONOMY / "risks.csv")]
+    inst = [dict(id=r["instance_id"], n=r["instance"], r=r["risk_id"], p=r["provenance"],
+                 d=r["definition"]) for r in read_csv(TAXONOMY / "instances.csv")]
+    src = {r["source_id"]: dict(n=r["name"], u=r["url"]) for r in read_csv(REGISTRY)}
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    aiid_raw = RAW / "aiid"
+    return dict(inc=inc, risks=risks, inst=inst, src=src,
+                version=(REPORT_PARTS / "VERSION").read_text(encoding="utf-8").strip(),
+                asof=str(state.get("generated_at", ""))[:10],
+                refreshed=aiid_fetched_at(aiid_raw) if (aiid_raw / "FETCHED.md").exists() else "")
+
+
+def stage_report():
+    """Assemble mvp/out/interagent_gap_index.html from mvp/pipeline/report/."""
+    parts = {n: (REPORT_PARTS / n).read_text(encoding="utf-8")
+             for n in ("head.html", "body.html", "app.js")}
+    data = json.dumps(report_data(), ensure_ascii=False, separators=(",", ":"))
+    # a "</" inside the data would end the script element early
+    data = data.replace("</", "<\\/")
+    html = (parts["head.html"] + parts["body.html"] + "<script>\nconst D = " + data + ";\n"
+            + parts["app.js"] + "</script>\n")
+    OUT.mkdir(parents=True, exist_ok=True)
+    target = OUT / REPORT_PAGE
+    target.write_text(html, encoding="utf-8")
+    info(f"  ok    report: {target.relative_to(ROOT)}")
+    return target
+
+
 # ------------------------------------------------------------------- update
 #
 # One runner for both front ends. `update` on the command line and `serve` walk the
@@ -4674,6 +4734,8 @@ def main():
 
     sub.add_parser("index")
     sub.add_parser("viz")
+    sub.add_parser("report", help="build the published report from the last index; "
+                                  "not part of update")
     sub.add_parser("check")
 
     args = ap.parse_args()
@@ -4718,6 +4780,8 @@ def main():
         stage_index()
     elif args.cmd == "viz":
         stage_viz()
+    elif args.cmd == "report":
+        stage_report()
     elif args.cmd == "check":
         sys.exit(stage_check())
 

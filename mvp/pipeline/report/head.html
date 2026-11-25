@@ -31,6 +31,7 @@ body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--sans);
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
 .bar .wrap { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; gap: 6px 22px; padding-block: 9px; }
 .bar b { font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.bar b .ver { font-weight: 400; color: var(--ink-2); margin-left: 6px; }
 .bar nav { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-start; }
 .bar a { color: var(--ink-2); text-decoration: none; font: 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .bar a:hover, .bar a:focus-visible { color: var(--ink); text-decoration: underline; }
@@ -76,8 +77,18 @@ h1 { font: 500 clamp(32px, 6vw, 52px)/1.08 var(--sans); letter-spacing: -.02em; 
 @media (max-width: 620px) { .figs { grid-template-columns: 1fr 1fr; } .figs > div:nth-child(3) { padding-left: 0; border-left: 0; } .figs > div:nth-child(n+3) { border-top: 1px solid var(--rule); } }
 
 section { padding-top: 64px; scroll-margin-top: 56px; }
-section > .lab { display: flex; gap: 10px; align-items: center; }
-section > .lab::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
+/* each report section folds: the § label and headline are the toggle */
+.fold > summary { list-style: none; cursor: pointer; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary .lab { display: flex; gap: 10px; align-items: center; }
+.fold > summary .lab::before { content: "−"; font: 500 14px var(--mono); width: 12px; color: var(--ink); }
+.fold:not([open]) > summary .lab::before { content: "+"; }
+.fold > summary .lab::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
+.fold > summary:hover .lab, .fold > summary:hover h2 { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.fold > summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 4px; }
+.fold:not([open]) > summary h2 { color: var(--ink-2); }
+.fold > summary h2 { margin-bottom: 8px; }
+.results .figs { margin-top: 12px; }
 h2 { font: 500 26px/1.2 var(--sans); letter-spacing: -.01em; margin: 12px 0 8px; text-wrap: balance; }
 .note { max-width: 62ch; color: var(--ink-2); margin: 0 0 22px; font-size: 14px; }
 .cap { font: 11px/1.45 var(--mono); color: var(--ink-2); margin-top: 12px; max-width: 70ch; }

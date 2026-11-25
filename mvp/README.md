@@ -99,10 +99,10 @@ by hand. See `review/README.md`. The sheets need openpyxl (`pip install -r requi
 | `prompts/` | versioned prompts: enrichment and the two classifier calls | hand |
 | `gold/` | calibration labels | hand |
 | `skills/classify-incidents/` | the reader and classifier runner | hand |
-| `pipeline/` | `run.py`, `derive.py` (the labelling rules), the source adapters, the map page template, `testenv.py` | hand |
+| `pipeline/` | `run.py`, `derive.py` (the labelling rules), the source adapters, the map page template, `testenv.py`, and `report/`, the published report's parts | hand |
 | `testenv/` | the test run's made-up incidents and stand-ins; never read by a real run | hand |
 | `state/` | candidate queue, readiness, derived verdicts, instances due, work orders, run state, run logs in `runs/` (gitignored) | `prefilter`, `readiness`, `derive`, `instances-due`, `discover`, `serve`, `update` |
-| `out/` | the flat index and the pipeline pages | `index`, `viz` |
+| `out/` | the flat index, the pipeline pages, and the published report `interagent_gap_index.html` | `index`, `viz`; `report`, run on its own |
 
 Every row in `records/`, `context/`, `proposals/` and the `state/` row files carries
 `record_key`, `"<source_id>:<source_record_id>"`, e.g. `aiid:1604`: the pipeline's
