@@ -624,8 +624,8 @@ dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
 
 <script>
 const D = {
-  "generated": "2026-11-24",
-  "generated_at": "2026-11-24T11:31",
+  "generated": "2026-11-25",
+  "generated_at": "2026-11-25T15:52",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -2279,39 +2279,39 @@ const D = {
       },
       {
         "eq": "check: in = sum of the edges into it",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "check: in = out + ends here + waiting",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "check: by source adds up",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "index: in = sum of the edges into it",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "index: in = out + ends here + waiting",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "index: by source adds up",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "instances: in = sum of the edges into it",
@@ -2396,6 +2396,12 @@ const D = {
         "lhs": 59,
         "ok": true,
         "rhs": 59
+      },
+      {
+        "eq": "incidents on the map = dossier files",
+        "lhs": 52,
+        "ok": true,
+        "rhs": 52
       }
     ],
     "dossier_failure_modes": {
@@ -3387,20 +3393,25 @@ const D = {
         ],
         "groups": [
           {
-            "note": "A dossier is our file on one incident. One incident can be told by several sources, so one dossier can list several records. The tables below count dossiers.",
+            "note": "A dossier is our file on one incident. One incident can be told by several sources, so one dossier can list several records. From here on the map counts incidents.",
             "rows": [
               {
-                "label": "Records listed in a dossier",
+                "label": "Source records listed in a dossier",
                 "n": 59,
                 "tech": "dossier sources ∩ records"
               },
               {
-                "label": "Dossiers",
+                "label": "Unique incidents: dossiers",
                 "n": 52,
                 "tech": "incidents/<mig_key>.md"
+              },
+              {
+                "label": "Records merged into an incident already counted",
+                "n": 7,
+                "tech": "records - incidents"
               }
             ],
-            "title": "Records and dossiers"
+            "title": "Records and incidents"
           },
           {
             "note": "Every dossier is a row of the index, whatever the verdict: an \"out\" dossier records that someone looked, and why it was turned away.",
@@ -3480,24 +3491,29 @@ const D = {
         "held_label": "",
         "id": "dossiers",
         "in": 59,
-        "n": 59,
+        "n": 52,
         "out": [
           {
             "branch": false,
-            "label": "to the check",
-            "n": 59,
+            "label": "one per incident, to the check",
+            "n": 52,
             "to": "check"
           }
         ],
-        "rule": "records listed in a dossier's sources",
-        "stop": []
+        "rule": "records listed in a dossier's sources, counted once per incident",
+        "stop": [
+          {
+            "label": "merged: another source's report of an incident already counted",
+            "n": 7
+          }
+        ]
       },
       {
         "by_source": {
-          "aiid": 32,
-          "air_enkrypt": 15,
+          "aiid": 31,
+          "air_enkrypt": 12,
           "aivillage": 7,
-          "lesswrong": 5
+          "lesswrong": 2
         },
         "files": [
           "pipeline/run.py"
@@ -3506,25 +3522,26 @@ const D = {
         "held": 0,
         "held_label": "",
         "id": "check",
-        "in": 59,
-        "n": 59,
+        "in": 52,
+        "n": 52,
         "out": [
           {
             "branch": false,
             "label": "passed the check",
-            "n": 59,
+            "n": 52,
             "to": "index"
           }
         ],
+        "per": "incidents",
         "rule": "run.py check validates every dossier",
         "stop": []
       },
       {
         "by_source": {
-          "aiid": 32,
-          "air_enkrypt": 15,
+          "aiid": 31,
+          "air_enkrypt": 12,
           "aivillage": 7,
-          "lesswrong": 5
+          "lesswrong": 2
         },
         "files": [
           "out/incident_index.csv"
@@ -3533,9 +3550,19 @@ const D = {
           {
             "rows": [
               {
-                "label": "Rows: one per dossier",
+                "label": "Rows: one per incident",
                 "n": 52,
                 "tech": "out/incident_index.csv"
+              },
+              {
+                "label": "In scope: in the report",
+                "n": 45,
+                "tech": "multi_agent: true"
+              },
+              {
+                "label": "Out of scope or unclear: kept, flagged, not in the report",
+                "n": 7,
+                "tech": "multi_agent: false or unclear"
               }
             ],
             "title": "Table"
@@ -3544,14 +3571,19 @@ const D = {
         "held": 0,
         "held_label": "",
         "id": "index",
-        "in": 59,
-        "n": 59,
+        "in": 52,
+        "n": 52,
         "out": [],
+        "per": "incidents",
         "rule": "index_rows(): one row per dossier",
         "stop": [
           {
-            "label": "in the finished table",
-            "n": 59
+            "label": "in scope: shown in the report",
+            "n": 45
+          },
+          {
+            "label": "kept with an out-of-scope or unclear flag",
+            "n": 7
           }
         ]
       },
@@ -3623,6 +3655,8 @@ const D = {
       "extracted": 422,
       "in_dossier_already": 27,
       "in_scope": 55,
+      "incidents": 52,
+      "incidents_in_scope": 45,
       "instance_records": 55,
       "not_queued": 684,
       "out_of_scope": 711,
@@ -3701,7 +3735,7 @@ const D = {
         "yes"
       ],
       "recent_from": "2024-01-01",
-      "where": "mvp/pipeline/run.py:1015"
+      "where": "mvp/pipeline/run.py:1018"
     },
     "queue": 1133,
     "queue_basis": {
@@ -17925,25 +17959,25 @@ function defs() {
     inp: "A record a person decided in.", out: "A decision, written up as a dossier.", prod: "mvp/incidents/<mig_key>.md",
     extra: reviewGuide, cmd: "python mvp/pipeline/run.py review" },
   { id: "dossiers", kind: "doc", status: M.dossiers ? "run" : "waiting", by: "person", x: 1280, y: 680, title: "Dossiers",
-    num: n(fl("dossiers").n), cap: "records in " + n(M.dossiers) + " dossiers · " + n(verified) + " dossiers verified",
+    num: n(fl("dossiers").n), cap: "incidents, from " + n(fl("dossiers").in) + " source records · " + n(verified) + " verified",
     plain: ["A dossier is our own file on one incident. It says what happened, how, which agents were involved, the person's verdict (in scope, out of scope or unclear) and how well it was checked against the original source.",
             "Every dossier is a row of the index, whatever its verdict: an “out of scope” dossier records that someone looked, and why it was turned away. Verified means a person checked it against the original source; " + n(verified) + " of " + n(M.dossiers) + " are verified so far, so most dossiers are not yet checked facts.",
-            "The number on the box counts records, not files: one dossier can list the same incident as told by several sources. Open the box for the counts per dossier."],
-    tech: "mvp/incidents/<mig_key>.md. YAML frontmatter plus seven fixed sections. Made blank by promote; filled by hand, or by Claude on the curator's request (always unverified, notes open “Written by Claude”). Fields are changed through sheet 3 (mvp/review/3_edit_dossiers.xlsx) via run.py review, which names them in set_by_person and logs them in mvp/review/dossier_edits.csv. multi_agent_label_source: ours only by a human verdict. The count: records listed in a dossier's sources (dossier_source_refs ∩ records).",
+            "From this box on, the map counts incidents, not records: one dossier is one incident, however many sources tell it. The " + n(fl("dossiers").in) + " records that reach this box become " + n(fl("dossiers").n) + " incidents; the rest are other sources' reports of an incident already counted."],
+    tech: "mvp/incidents/<mig_key>.md. YAML frontmatter plus seven fixed sections. Made blank by promote; filled by hand, or by Claude on the curator's request (always unverified, notes open “Written by Claude”). Fields are changed through sheet 3 (mvp/review/3_edit_dossiers.xlsx) via run.py review, which names them in set_by_person and logs them in mvp/review/dossier_edits.csv. multi_agent_label_source: ours only by a human verdict. The count: dossiers with a record behind them, one per incident; in = records listed in a dossier's sources (dossier_source_refs ∩ records).",
     byNote: "Made blank by a script; filled in by a person, or by Claude when the curator asks; corrected through sheet 3.",
     inp: "A person’s decision.", out: "The curated record.", prod: "mvp/incidents/<mig_key>.md",
     cmd: "python mvp/pipeline/run.py review  (sheet 3: edit dossiers)" },
   { id: "check", status: fl("check").n ? "run" : "waiting", by: "script", x: 1530, y: 680, title: "Check",
-    num: n(fl("check").n), cap: "records, in " + n(M.dossiers) + " dossiers, checked on the way to the index",
+    num: n(fl("check").n), cap: "incidents checked on the way to the index",
     plain: ["An automatic inspection of the dossiers and the logs. In an update it must pass before the index is rebuilt; run by hand, run it before the index yourself.",
             "It fails on a malformed dossier or log, a record that points at nothing, a machine’s tag used as a final answer, or a dossier marked verified on a reading that was only partial, secondary or the curator's own. It keeps no result file: the number shows what it checks, not that it passed."],
     tech: "run.py check, exit 0 required. Validates dossiers (fields, vocabularies, label provenance, verification against read depth), the frozen list, the MIG key registry, record keys and hashes, the scope, promote and edit logs, and the context layer. It does not read verdicts.jsonl, proposals or the queue. It gates the index only inside an update run (step_check fails the run); run.py index does not call it.",
     inp: "All the incident files and logs.", out: "Pass, or a list of problems.", prod: "nothing: it only reports",
     cmd: "python mvp/pipeline/run.py check" },
   { id: "index", kind: "doc", status: kept("index"), by: "script", x: 1780, y: 680, title: "Index",
-    num: n(fl("index").n), cap: "records, shown as " + n(M.dossiers) + " rows: one per dossier",
-    plain: ["The finished table of incidents, rebuilt from the dossiers every time: one row per dossier, whatever its verdict. This is what the rest of the project reads.",
-            "The number counts records: " + n(fl("index").n) + " records sit behind the " + n(M.dossiers) + " rows, because one incident can be told by several sources."],
+    num: n(fl("index").n), cap: "incidents · " + n(O(O(fl("index").stop)[0]).n) + " in scope, in the report",
+    plain: ["The finished table of incidents, rebuilt from the dossiers every time: one row per incident, whatever its verdict. This is what the rest of the project reads.",
+            "Only the incidents a person put in scope go into the report. Those decided out of scope or unclear stay in the table with that flag, as the record that someone looked and why they were turned away."],
     tech: "run.py index writes mvp/out/incident_index.csv and mvp/state/pipeline.json, the counts this page is drawn from; run.py viz renders this page; mvp/pipeline/index_report.py writes mvp/out/index_report.xlsx. Generated; never edited by hand.",
     inp: "All the incident files.", out: "One table.", prod: "mvp/out/incident_index.csv",
     cmd: "python mvp/pipeline/run.py index" },
@@ -18442,7 +18476,7 @@ function breakdown(nd, h) {
       if (tech && t) td.appendChild(el("span", "tech", t));
       tr.appendChild(td); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v == null ? 0 : v))); tb.appendChild(tr); });
     sbody.appendChild(tb); };
-  h("The " + n(f.in) + " records here, by source");
+  h("The " + n(f.in) + " " + (f.per || "records") + " here, by " + (f.per ? "canonical source" : "source"));
   const bs = Object.entries(O(f.by_source));
   if (bs.length) table(bs); else sbody.appendChild(el("p", "note", "None."));
   (Array.isArray(f.groups) ? f.groups : []).forEach(g => {

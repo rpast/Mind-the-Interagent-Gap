@@ -1,6 +1,6 @@
 {
-  "generated": "2026-11-24",
-  "generated_at": "2026-11-24T11:31",
+  "generated": "2026-11-25",
+  "generated_at": "2026-11-25T15:52",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -1654,39 +1654,39 @@
       },
       {
         "eq": "check: in = sum of the edges into it",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "check: in = out + ends here + waiting",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "check: by source adds up",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "index: in = sum of the edges into it",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "index: in = out + ends here + waiting",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "index: by source adds up",
-        "lhs": 59,
+        "lhs": 52,
         "ok": true,
-        "rhs": 59
+        "rhs": 52
       },
       {
         "eq": "instances: in = sum of the edges into it",
@@ -1771,6 +1771,12 @@
         "lhs": 59,
         "ok": true,
         "rhs": 59
+      },
+      {
+        "eq": "incidents on the map = dossier files",
+        "lhs": 52,
+        "ok": true,
+        "rhs": 52
       }
     ],
     "dossier_failure_modes": {
@@ -2762,20 +2768,25 @@
         ],
         "groups": [
           {
-            "note": "A dossier is our file on one incident. One incident can be told by several sources, so one dossier can list several records. The tables below count dossiers.",
+            "note": "A dossier is our file on one incident. One incident can be told by several sources, so one dossier can list several records. From here on the map counts incidents.",
             "rows": [
               {
-                "label": "Records listed in a dossier",
+                "label": "Source records listed in a dossier",
                 "n": 59,
                 "tech": "dossier sources ∩ records"
               },
               {
-                "label": "Dossiers",
+                "label": "Unique incidents: dossiers",
                 "n": 52,
                 "tech": "incidents/<mig_key>.md"
+              },
+              {
+                "label": "Records merged into an incident already counted",
+                "n": 7,
+                "tech": "records - incidents"
               }
             ],
-            "title": "Records and dossiers"
+            "title": "Records and incidents"
           },
           {
             "note": "Every dossier is a row of the index, whatever the verdict: an \"out\" dossier records that someone looked, and why it was turned away.",
@@ -2855,24 +2866,29 @@
         "held_label": "",
         "id": "dossiers",
         "in": 59,
-        "n": 59,
+        "n": 52,
         "out": [
           {
             "branch": false,
-            "label": "to the check",
-            "n": 59,
+            "label": "one per incident, to the check",
+            "n": 52,
             "to": "check"
           }
         ],
-        "rule": "records listed in a dossier's sources",
-        "stop": []
+        "rule": "records listed in a dossier's sources, counted once per incident",
+        "stop": [
+          {
+            "label": "merged: another source's report of an incident already counted",
+            "n": 7
+          }
+        ]
       },
       {
         "by_source": {
-          "aiid": 32,
-          "air_enkrypt": 15,
+          "aiid": 31,
+          "air_enkrypt": 12,
           "aivillage": 7,
-          "lesswrong": 5
+          "lesswrong": 2
         },
         "files": [
           "pipeline/run.py"
@@ -2881,25 +2897,26 @@
         "held": 0,
         "held_label": "",
         "id": "check",
-        "in": 59,
-        "n": 59,
+        "in": 52,
+        "n": 52,
         "out": [
           {
             "branch": false,
             "label": "passed the check",
-            "n": 59,
+            "n": 52,
             "to": "index"
           }
         ],
+        "per": "incidents",
         "rule": "run.py check validates every dossier",
         "stop": []
       },
       {
         "by_source": {
-          "aiid": 32,
-          "air_enkrypt": 15,
+          "aiid": 31,
+          "air_enkrypt": 12,
           "aivillage": 7,
-          "lesswrong": 5
+          "lesswrong": 2
         },
         "files": [
           "out/incident_index.csv"
@@ -2908,9 +2925,19 @@
           {
             "rows": [
               {
-                "label": "Rows: one per dossier",
+                "label": "Rows: one per incident",
                 "n": 52,
                 "tech": "out/incident_index.csv"
+              },
+              {
+                "label": "In scope: in the report",
+                "n": 45,
+                "tech": "multi_agent: true"
+              },
+              {
+                "label": "Out of scope or unclear: kept, flagged, not in the report",
+                "n": 7,
+                "tech": "multi_agent: false or unclear"
               }
             ],
             "title": "Table"
@@ -2919,14 +2946,19 @@
         "held": 0,
         "held_label": "",
         "id": "index",
-        "in": 59,
-        "n": 59,
+        "in": 52,
+        "n": 52,
         "out": [],
+        "per": "incidents",
         "rule": "index_rows(): one row per dossier",
         "stop": [
           {
-            "label": "in the finished table",
-            "n": 59
+            "label": "in scope: shown in the report",
+            "n": 45
+          },
+          {
+            "label": "kept with an out-of-scope or unclear flag",
+            "n": 7
           }
         ]
       },
@@ -2998,6 +3030,8 @@
       "extracted": 422,
       "in_dossier_already": 27,
       "in_scope": 55,
+      "incidents": 52,
+      "incidents_in_scope": 45,
       "instance_records": 55,
       "not_queued": 684,
       "out_of_scope": 711,
@@ -3076,7 +3110,7 @@
         "yes"
       ],
       "recent_from": "2024-01-01",
-      "where": "mvp/pipeline/run.py:1015"
+      "where": "mvp/pipeline/run.py:1018"
     },
     "queue": 1133,
     "queue_basis": {

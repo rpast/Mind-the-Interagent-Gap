@@ -23,6 +23,10 @@ one file with the data inlined; it opens on file://. The data is
 `mvp/out/incident_index.csv`, each dossier's canonical link, `mvp/taxonomy/risks.csv` and
 `instances.csv`, and `mvp/registry/sources.csv`.
 
+The report shows only the incidents a person put in scope (`multi_agent: True` in the
+index). Those decided out of scope or unclear are left out of it entirely; they stay in
+`mvp/out/incident_index.csv` with that flag, and in their dossiers.
+
 ## Version and dates
 
 - **Version** comes from `VERSION`. Change it by hand when a release's scope changes:

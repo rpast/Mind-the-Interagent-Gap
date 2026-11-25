@@ -2978,6 +2978,14 @@ def map_flow(reg, records, queue, context, index_rows):
             dossier_of[(s.get("source_id"), str(s.get("record_id")))] = \
                 meta.get("mig_key", path.stem)
     in_dossiers = to_dossier | derived_att
+    # From the Dossiers box on, the map counts incidents, not records: the records
+    # one dossier lists are one incident. Keyed (canonical source, mig_key), so
+    # by_source counts each incident once, under its canonical source.
+    d_keys = {(dmeta.get(m, {}).get("canonical_source") or "unknown", m)
+              for m in {dossier_of[k] for k in in_dossiers if k in dossier_of}}
+    d_in = {d for d in d_keys if dmeta.get(d[1], {}).get("multi_agent") is True}
+    d_flagged = d_keys - d_in
+    merged = len(in_dossiers) - len(d_keys)
     scope_word = {True: "in", False: "out"}
     d_scope = {"in": 0, "out": 0, "unclear": 0}   # per record, for the conservation check
     for k in in_dossiers:
@@ -3346,16 +3354,20 @@ def map_flow(reg, records, queue, context, index_rows):
          "files": ["review/2_promote.xlsx", "review/promote_decisions.csv", "incidents/"],
          "rule": "records a person decided in; promoted = a dossier lists the record; "
                  "run.py review reads the sheet and makes the dossier"},
-        {"id": "dossiers", "n": len(in_dossiers), "in": len(in_dossiers),
-         "out": [E("check", in_dossiers, "to the check")],
-         "stop": [], "held": 0, "pop": in_dossiers,
-         "groups": [{"title": "Records and dossiers",
+        {"id": "dossiers", "n": len(d_keys), "in": len(in_dossiers),
+         "out": [E("check", d_keys, "one per incident, to the check")],
+         "stop": [{"label": "merged: another source's report of an incident already counted",
+                   "n": merged}], "held": 0, "pop": in_dossiers,
+         "groups": [{"title": "Records and incidents",
                      "note": "A dossier is our file on one incident. One incident can be "
                              "told by several sources, so one dossier can list several "
-                             "records. The tables below count dossiers.",
+                             "records. From here on the map counts incidents.",
                      "rows": rows(
-                         ("Records listed in a dossier", len(in_dossiers), "dossier sources ∩ records"),
-                         ("Dossiers", len(index_rows), "incidents/<mig_key>.md"))},
+                         ("Source records listed in a dossier", len(in_dossiers),
+                          "dossier sources ∩ records"),
+                         ("Unique incidents: dossiers", len(d_keys), "incidents/<mig_key>.md"),
+                         ("Records merged into an incident already counted", merged,
+                          "records - incidents"))},
              {"title": "Dossiers, by the person's verdict",
               "note": "Every dossier is a row of the index, whatever the verdict: an "
                       "\"out\" dossier records that someone looked, and why it was turned away.",
@@ -3380,16 +3392,20 @@ def map_flow(reg, records, queue, context, index_rows):
                   ("The dossier already lists them", len(dos_listed), "dossier instances"),
                   ("None yet", len(dos_due), "neither"))}],
          "files": ["incidents/"],
-         "rule": "records listed in a dossier's sources"},
-        {"id": "check", "n": len(in_dossiers), "in": len(in_dossiers),
-         "out": [E("index", in_dossiers, "passed the check")], "stop": [], "held": 0,
-         "pop": in_dossiers, "groups": [],
+         "rule": "records listed in a dossier's sources, counted once per incident"},
+        {"id": "check", "n": len(d_keys), "in": len(d_keys), "per": "incidents",
+         "out": [E("index", d_keys, "passed the check")], "stop": [], "held": 0,
+         "pop": d_keys, "groups": [],
          "files": ["pipeline/run.py"], "rule": "run.py check validates every dossier"},
-        {"id": "index", "n": len(in_dossiers), "in": len(in_dossiers), "out": [],
-         "stop": [{"label": "in the finished table", "n": len(in_dossiers)}], "held": 0,
-         "pop": in_dossiers,
+        {"id": "index", "n": len(d_keys), "in": len(d_keys), "per": "incidents", "out": [],
+         "stop": [{"label": "in scope: shown in the report", "n": len(d_in)},
+                  {"label": "kept with an out-of-scope or unclear flag", "n": len(d_flagged)}],
+         "held": 0, "pop": d_keys,
          "groups": [{"title": "Table", "rows": rows(
-             ("Rows: one per dossier", len(index_rows), "out/incident_index.csv"))}],
+             ("Rows: one per incident", len(index_rows), "out/incident_index.csv"),
+             ("In scope: in the report", len(d_in), "multi_agent: true"),
+             ("Out of scope or unclear: kept, flagged, not in the report", len(d_flagged),
+              "multi_agent: false or unclear"))}],
          "files": ["out/incident_index.csv"], "rule": "index_rows(): one row per dossier"},
         {"id": "instances", "n": len(dec_has | dec_listed), "in": len(dec_in),
          "out": [E("review", dec_in, "to the promote sheet")],
@@ -3450,13 +3466,15 @@ def map_flow(reg, records, queue, context, index_rows):
     check("dossier files by verdict = dossiers", len(index_rows), sum(f_scope.values()))
     # fails when a queued record got a dossier before reaching review: rerun prefilter
     check("records behind a dossier = the Dossiers box", len(attested), len(in_dossiers))
+    check("incidents on the map = dossier files", len(d_keys), len(index_rows))
 
     counts = {"records": len(allkeys), "queued": len(queued),
               "not_queued": len(not_queued), "in_dossier_already": len(to_dossier),
               "read_record": len(read_any), "read_source": len(read_deeper),
               "out_of_scope": len(oos_record) + len(oos_source), "ready": len(ready),
               "extracted": len(extracted), "derived": len(derived),
-              "dossier_records": len(in_dossiers), "in_scope": len(in_scope),
+              "dossier_records": len(in_dossiers), "incidents": len(d_keys),
+              "incidents_in_scope": len(d_in), "in_scope": len(in_scope),
               "instance_records": len(has_inst), "promoted_early": len(early),
               "scope_decided_in": len(dec_in), "scope_decided_out": len(dec_out),
               "scope_decided_unclear": len(dec_unc), "scope_left": len(left),
@@ -3975,7 +3993,9 @@ def report_data():
                 fm=r["failure_mode"], i=[i for i in r["instances"].split(";") if i],
                 v=r["verification"], c=r["canonical_source"],
                 s=sorted(set(s for s in r["sources"].split(";") if s)), u=link(r))
-           for r in read_csv(index_path)]
+           for r in read_csv(index_path)
+           # only incidents a person put in scope; out and unclear stay flagged in the index
+           if r["multi_agent"] == "True"]
     risks = [dict(id=r["risk_id"], n=r["risk"], k=r["risk_type"], d=r["definition"])
              for r in read_csv(TAXONOMY / "risks.csv")]
     inst = [dict(id=r["instance_id"], n=r["instance"], r=r["risk_id"], p=r["provenance"],
