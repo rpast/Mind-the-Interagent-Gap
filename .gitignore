@@ -41,3 +41,6 @@ mvp/state/runs/
 # (mvp/review/*.csv) are data and are committed
 mvp/review/*.xlsx
 mvp/review/*.xlsx.tmp
+
+# The developer's private working folder: notes, plans, reviews. Never committed
+mvp/.dev/
