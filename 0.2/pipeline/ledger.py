@@ -59,6 +59,8 @@ OWNERS = {
                                                     "risk_factors")
                     for part in ("proposed", "why", "decision", "final")]
                  + ["instances_presumed", "verification", "last_verified"],
+    # where every record ended, and why (run.py ledger_outcome, at index)
+    "outcome": ["in_index", "stage", "reason"],
 }
 INCIDENT_LABELS = ["incident_scope", "failure_mode", "instances", "evidence_type",
                    "risk_factors"]

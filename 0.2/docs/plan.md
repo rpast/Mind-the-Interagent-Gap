@@ -2,9 +2,16 @@
 
 Approved by the curator 2026-11-25. Worked on branch `development/pipeline-0.2`.
 
-Status: P0 to P5, with P3b, done (2026-11-25). Left: P6 (stage and reason from the
-ledger, the map, the report, index_report.xlsx removed) and P7 (docs; remove the 0.1
-review code still in run.py, `stage_review_until_0_2` and the sheet 2 and 3 functions).
+Status: P0 to P6, with P3b, done (2026-11-25). Left: P7 (docs; remove the 0.1 review
+code still in run.py, `stage_review_until_0_2` and the sheet 2 and 3 functions).
+
+P6 notes: `run.py index` sets stage, reason and in_index on every ledger row
+(`ledger_outcome`); the stage counts equal those of the retired index_report.xlsx. The
+report reads the ledger and came out byte-identical. The map keeps its nodes and its
+conservation checks (two new ones on the ledger's stage column); the review boxes are
+renamed Decide records and New or duplicate, and every box and guide names the 0.2
+sheets, logs and ledger columns. index_report.py and index_report.xlsx are removed. Not
+built: a separate Dedupe box on the map (dedupe is described in New or duplicate).
 
 P5 notes: the 0.1 logs were carried over by `pipeline/migrate_logs_20261125.py` (132 record
 decisions; 0.1's three promote `no` kept as label `dossier` `no`, as written). Not built:

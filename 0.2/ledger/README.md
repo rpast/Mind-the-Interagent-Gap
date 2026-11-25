@@ -48,6 +48,9 @@ phases.
 | decisions (`review`) | `scope_decision`, `_final`, `_decided_on` | a person's newest scope decision on sheet 1: `decision` as written (`ok` or a value), `final` the value |
 | | `duplicate_of_decision`, `_final`, `_decided_on` | for a record decided in: `new`, or the incident it already is |
 | | `dossier_decision`, `_final`, `_decided_on` | `no` where a person said the record gets no dossier (0.1's promote `no`) |
+| outcome (`index`) | `in_index` | `true` if the record's incident is in the index (its scope is in) |
+| | `stage` | where the record ended: `1 Prefilter` … `7 Incident: in the index` (`run.STAGES`) |
+| | `reason` | why, in a sentence; the evidence is in the files the other columns name |
 | incidents (`review`, `index`) | `mig_key` | the record's own key, MIG-nnnn, as the sheets show it; blank until it reaches the decide-scope sheet |
 | | `incident_key` | the incident (dossier) the record belongs to; one incident, many records |
 | | `canonical` | `true` on the one record that carries the incident's columns |

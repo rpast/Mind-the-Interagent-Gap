@@ -1,6 +1,6 @@
 {
   "generated": "2026-11-25",
-  "generated_at": "2026-11-25T21:03",
+  "generated_at": "2026-11-25T21:26",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -1121,6 +1121,16 @@
           "exists": true,
           "label": "The incident files",
           "path": "incidents/"
+        },
+        {
+          "exists": true,
+          "label": "The sheet for their labels and facts",
+          "path": "review/2_incidents.xlsx"
+        },
+        {
+          "exists": true,
+          "label": "Where the labels live",
+          "path": "ledger/ledger.csv"
         }
       ],
       "evtype": [
@@ -1331,12 +1341,12 @@
         {
           "exists": true,
           "label": "The sheet to fill in",
-          "path": "review/2_promote.xlsx"
+          "path": "review/1_records.xlsx"
         },
         {
-          "exists": false,
+          "exists": true,
           "label": "The decisions so far",
-          "path": "review/promote_decisions_log.csv"
+          "path": "review/record_decisions_log.csv"
         },
         {
           "exists": true,
@@ -1348,12 +1358,12 @@
         {
           "exists": true,
           "label": "The sheet to fill in",
-          "path": "review/1_decide_scope.xlsx"
+          "path": "review/1_records.xlsx"
         },
         {
-          "exists": false,
+          "exists": true,
           "label": "The decisions so far",
-          "path": "review/scope_decisions_log.csv"
+          "path": "review/record_decisions_log.csv"
         },
         {
           "exists": true,
@@ -1743,10 +1753,22 @@
         "rhs": 319
       },
       {
-        "eq": "decided in = promoted + not promoted + rows on the promote sheet",
+        "eq": "decided in = in an incident + no dossier + awaiting duplicate_of",
         "lhs": 3,
         "ok": true,
         "rhs": 3
+      },
+      {
+        "eq": "ledger: every loaded record has one stage",
+        "lhs": 1844,
+        "ok": true,
+        "rhs": 1844
+      },
+      {
+        "eq": "ledger: incidents in the index = incidents in scope on the map",
+        "lhs": 45,
+        "ok": true,
+        "rhs": 45
       },
       {
         "eq": "in scope = proposed + already listed + waiting",
@@ -2576,8 +2598,8 @@
           "aiid": 390
         },
         "files": [
-          "review/1_decide_scope.xlsx",
-          "review/scope_decisions_log.csv",
+          "review/1_records.xlsx",
+          "review/record_decisions_log.csv",
           "ledger/ledger.csv"
         ],
         "groups": [
@@ -2637,7 +2659,7 @@
               {
                 "label": "Rows on the sheet left to decide",
                 "n": 319,
-                "tech": "review/1_decide_scope.xlsx"
+                "tech": "review/1_records.xlsx"
               },
               {
                 "label": "Of those, asking for your judgement",
@@ -2647,7 +2669,7 @@
               {
                 "label": "Decisions in the log, newest per record",
                 "n": 102,
-                "tech": "review/scope_decisions_log.csv"
+                "tech": "review/record_decisions_log.csv"
               }
             ],
             "title": "The sheet"
@@ -2672,7 +2694,7 @@
             "to": "dossiers"
           }
         ],
-        "rule": "records with a derived label; decided = the newest row of review/scope_decisions_log.csv (a hand-added record counts as decided in); run.py review reads the sheet",
+        "rule": "records with a derived label; decided = the newest scope row of review/record_decisions_log.csv (a hand-added record counts as decided in); run.py review reads the sheet",
         "stop": [
           {
             "label": "decided out by a person",
@@ -2689,8 +2711,8 @@
           "aiid": 3
         },
         "files": [
-          "review/2_promote.xlsx",
-          "review/promote_decisions_log.csv",
+          "review/1_records.xlsx",
+          "review/record_decisions_log.csv",
           "incidents/"
         ],
         "groups": [
@@ -2702,41 +2724,41 @@
                 "tech": "newest scope decision in"
               },
               {
-                "label": "Promoted: a dossier lists the record",
+                "label": "In an incident: a dossier lists the record",
                 "n": 0,
-                "tech": "listed in a dossier's sources"
+                "tech": "duplicate_of new, or an incident's MIG key"
               },
               {
-                "label": "Not promoted: a person said no",
+                "label": "No dossier: a person said no",
                 "n": 3,
-                "tech": "newest promote decision no"
+                "tech": "label dossier, no (0.1's promote no)"
               },
               {
-                "label": "Left to review: on the promote sheet",
+                "label": "Awaiting duplicate_of, on the records sheet",
                 "n": 0,
-                "tech": "review/2_promote.xlsx"
+                "tech": "review/1_records.xlsx"
               }
             ],
             "title": "Status"
           }
         ],
         "held": 0,
-        "held_label": "left to review",
+        "held_label": "awaiting duplicate_of",
         "id": "review",
         "in": 3,
         "n": 3,
         "out": [
           {
             "branch": false,
-            "label": "promoted to a dossier",
+            "label": "to an incident: a new dossier, or joined to one",
             "n": 0,
             "to": "dossiers"
           }
         ],
-        "rule": "records a person decided in; promoted = a dossier lists the record; run.py review reads the sheet and makes the dossier",
+        "rule": "records a person decided in; duplicate_of new makes the dossier, a MIG key joins the record to that incident; run.py review reads the sheet",
         "stop": [
           {
-            "label": "not promoted by a person",
+            "label": "no dossier: a person said no",
             "n": 3
           }
         ]
@@ -2749,7 +2771,9 @@
           "lesswrong": 5
         },
         "files": [
-          "incidents/"
+          "incidents/",
+          "review/2_incidents.xlsx",
+          "ledger/ledger.csv"
         ],
         "groups": [
           {
@@ -2779,17 +2803,17 @@
               {
                 "label": "In scope",
                 "n": 45,
-                "tech": "multi_agent: true"
+                "tech": "incident_scope in (ledger)"
               },
               {
                 "label": "Out of scope",
                 "n": 4,
-                "tech": "multi_agent: false"
+                "tech": "incident_scope out (ledger)"
               },
               {
                 "label": "Unclear",
                 "n": 3,
-                "tech": "multi_agent: null"
+                "tech": "incident_scope unclear (ledger)"
               }
             ],
             "title": "Dossiers, by the person's verdict"
@@ -2860,7 +2884,7 @@
             "to": "check"
           }
         ],
-        "rule": "records listed in a dossier's sources, counted once per incident",
+        "rule": "records listed in a dossier's sources, counted once per incident; their labels and facts live in the ledger and are decided on sheet 2",
         "stop": [
           {
             "label": "merged: another source's report of an incident already counted",
@@ -2904,7 +2928,8 @@
           "lesswrong": 2
         },
         "files": [
-          "out/incident_index.csv"
+          "out/incident_index.csv",
+          "ledger/ledger.csv"
         ],
         "groups": [
           {
@@ -2926,6 +2951,62 @@
               }
             ],
             "title": "Table"
+          },
+          {
+            "note": "The ledger's stage column, set by run.py index: one stage per loaded record.",
+            "rows": [
+              {
+                "label": "1 Prefilter: not screened",
+                "n": 680,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "1 Prefilter: outside rater said no",
+                "n": 4,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "2 Reading: one agent or none",
+                "n": 711,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "3 Rules: out, not decided by a person",
+                "n": 319,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "4 Person: decided out",
+                "n": 61,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "4 Person: decided unclear",
+                "n": 7,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "5 Person: decided in, no dossier",
+                "n": 3,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "6 Incident: out of scope",
+                "n": 4,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "6 Incident: scope unclear",
+                "n": 3,
+                "tech": "ledger stage"
+              },
+              {
+                "label": "7 Incident: in the index",
+                "n": 52,
+                "tech": "ledger stage"
+              }
+            ],
+            "title": "Where every record ended"
           }
         ],
         "held": 0,
@@ -2935,7 +3016,7 @@
         "n": 52,
         "out": [],
         "per": "incidents",
-        "rule": "index_rows(): one row per dossier",
+        "rule": "index_rows(): one row per dossier; ledger_outcome(): every record's stage",
         "stop": [
           {
             "label": "in scope: shown in the report",
@@ -3000,7 +3081,7 @@
         "out": [
           {
             "branch": false,
-            "label": "to the promote sheet",
+            "label": "to the duplicate_of decision",
             "n": 3,
             "to": "review"
           }

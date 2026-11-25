@@ -61,9 +61,9 @@ Project-level files stay at the root: `resources/` (source documents),
   ledger by `run.py review`: never edit them in the dossier, change them on sheet 2.
   `check` fails on a dossier whose labels differ from the ledger.
 - `0.2/proposals/` holds classifier output. It is never authoritative; a human promotes.
-- `0.2/out/` is generated. Never edit it by hand. `0.2/out/index_report.xlsx` is the index
-  report: every incident in the index, and every record that is not, with the reason.
-  `0.2/out/index_report.html` is the published report for readers, built by
+- `0.2/out/` is generated. Never edit it by hand. Where every record stopped, and why, is
+  the ledger's `stage` and `reason` (set by `run.py index`); there is no separate index
+  workbook since 0.2. `0.2/out/index_report.html` is the published report for readers, built by
   `run.py report` from `0.2/pipeline/report/`.
 - `0.2/testenv/` holds the test run's fixtures: made-up incidents and the stand-ins for
   skill and human work. `run.py testrun` runs the real steps on them in a temp folder. Never
@@ -92,8 +92,8 @@ with `.venv/bin/python` instead of `python`.
    run `review`: they go into the ledger and the incident log, and the dossier's
    frontmatter is written from the ledger.
 5. `python 0.2/pipeline/run.py check` — must exit 0.
-6. `python 0.2/pipeline/run.py index`, `viz`, then `python 0.2/pipeline/index_report.py`
-   for `0.2/out/index_report.xlsx`.
+6. `python 0.2/pipeline/run.py index` (the ledger's stage and reason, the index table)
+   and `viz` (the map).
 7. When the index is worth reporting: `python 0.2/pipeline/run.py report` builds the
    published report, `0.2/out/index_report.html`. It is a step of its own, never
    part of `update`, and so is publishing it to its claude.ai page. See

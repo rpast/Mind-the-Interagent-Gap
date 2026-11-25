@@ -756,8 +756,8 @@ function defs() {
             "The rest stop here: " + ((fl("prefilter").stop || []).map(s => n(O(s).n) + " " + String(O(s).label || "").replace(/ \(see Fetch\)$/, "")).join("; ") || "none") + ".",
             "Some candidates are also flagged: someone else already labelled them multi-agent, or the text matched a keyword such as “agents” or “swarm”. A flag does not queue a record; it protects it. A flagged record is never screened out on its short text alone: its source must be read first.",
             "The rules are a wide, cheap net: most of what it keeps will turn out to be irrelevant; the point is not to miss anything. They are written in the code, in " + where + ". Records added by hand go straight to “Ready for the model's questions”."],
-    tech: "run.py prefilter. Queued: a recent AIID record, a record on the frozen pre-2024 list, or a record added by hand (its basis). Flagged: an outside label or a keyword (its flags). Records already behind a dossier (dossier_source_refs) are left out. Writes 0.2/state/queue.jsonl. Rules in " + where + ".",
-    inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "0.2/state/queue.jsonl",
+    tech: "run.py prefilter. Queued: a recent AIID record, a record on the frozen pre-2024 list, or a record added by hand (its basis). Flagged: an outside label or a keyword (its flags). Records already behind a dossier (dossier_source_refs) are left out. Writes the ledger's prefilter columns. Rules in " + where + ".",
+    inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "0.2/ledger/ledger.csv: column queued",
     extra: prefilterRules, cmd: "python 0.2/pipeline/run.py prefilter" },
 
   { id: "readrec", status: ran("readrec"), by: "model", x: 990, y: 300, title: "Read the record text",
@@ -820,9 +820,9 @@ function defs() {
     plain: ["Gate 1 asks whether an incident is multi-agent. A fixed rule answers it from the extracted facts: no judgement, no model. An incident is in only if the harm needed more than one agent: something a single agent, however capable, could not have done alone, and the agents acted on each other.",
             "An attack by many agents counts by default when the source does not say what the number of agents added. That default is dropped when the record shows fewer than two agents, or when the model judged that one agent could have done it. If the source shows the number made no difference, the attack is out.",
             "Gate 1 answers in or out; when a fact it turns on is unclear, it answers unclear. It is the first of three rules run one after the other on each record: then the evidence type, then Gate 2. The rules' final answer, with every reason a person is needed, comes out of Gate 2."],
-    tech: "First of the three rules run.py derive applies with pipeline/derive.py (rules " + (M.verdicts_rules || "") + ") to the newest extract_gate proposal of each record; the result is the verdict field gate1: in | out | review | curator. The whole verdict goes to 0.2/state/verdicts.jsonl after Gate 2. Non-security record: in if single_agent_counterfactual = could_not AND interaction_present = true. Security record (multiplicity_role set): load_bearing → could_not; incidental → could; unreported → could_not only when n_ai_agents is null or ≥ 2 and the model did not answer could (the attack presumption), else the model's answer stands; interaction_present is not required. An unclear counterfactual (off the security branch, also interaction_present) gives gate1 review. A security record that is in with multiplicity_role unreported gets instances I28 and I29 as presumed (instances_presumed). run.py derive also runs the review step: it reads any filled sheet, logs its decisions and writes the sheets again.",
+    tech: "First of the three rules run.py derive applies with pipeline/derive.py (rules " + (M.verdicts_rules || "") + ") to the newest extract_gate proposal of each record; the result is the verdict field gate1: in | out | review | curator. The whole verdict goes to the ledger's derive columns after Gate 2. Non-security record: in if single_agent_counterfactual = could_not AND interaction_present = true. Security record (multiplicity_role set): load_bearing → could_not; incidental → could; unreported → could_not only when n_ai_agents is null or ≥ 2 and the model did not answer could (the attack presumption), else the model's answer stands; interaction_present is not required. An unclear counterfactual (off the security branch, also interaction_present) gives gate1 review. A security record that is in with multiplicity_role unreported gets instances I28 and I29 as presumed (instances_presumed). run.py derive also runs the review step: it reads any filled sheet, logs its decisions and writes the sheets again.",
     byNote: "run.py derive applies pipeline/derive.py to the extracted facts. It also runs the review step, so filled sheets are read and logged.",
-    inp: "The facts.", out: "Gate 1's answer: in, out or unclear. Passed on to the evidence type.", prod: "0.2/state/verdicts.jsonl (gate1)",
+    inp: "The facts.", out: "Gate 1's answer: in, out or unclear. Passed on to the evidence type.", prod: "0.2/ledger/ledger.csv: gate1",
     cmd: "python 0.2/pipeline/run.py derive" },
   { id: "evtype", status: ran("evtype"), by: "rule", x: 270, y: 810, title: "Evidence type",
     num: n(fl("evtype").n), cap: "records given an evidence type · " + n(etNone) + " left with none",
@@ -830,16 +830,16 @@ function defs() {
             "A fixed rule reads it from the setting, what was at stake and who controlled the environment. It is never guessed: when the facts do not settle it, the answer is none, and an in-scope record then goes to a person."],
     tech: "derive.py evidence_type(), on every record after Gate 1: setting none → theoretical; narrow_probe → lab; researcher_built → synthetic; deployed AND stakes real AND environment_controlled_by nobody or operator → real_world; anything else → none, which on an in-scope record adds the review reason “evidence type not derivable”. On a review row the value sits under labels_if_confirmed. Vocabulary: 0.2/taxonomy/evidence_types.csv.",
     byNote: "run.py derive applies it to the extracted facts, after Gate 1.",
-    inp: "A record Gate 1 has answered, and its facts.", out: "One of four labels, or none. Passed on to Gate 2.", prod: "0.2/state/verdicts.jsonl (evidence_type)",
+    inp: "A record Gate 1 has answered, and its facts.", out: "One of four labels, or none. Passed on to Gate 2.", prod: "0.2/ledger/ledger.csv: rules_evidence_type",
     cmd: "python 0.2/pipeline/run.py derive" },
   { id: "gate2", status: ran("gate2"), by: "rule", x: 270, y: 940, title: "Gate 2 · Propose failure mode",
     num: n(fl("gate2").n), cap: "the rules' answers: " + n(sv("in_scope")) + " in · " + n(sv("out_of_scope")) + " out · " + n(sv("review")) + " need a person",
     plain: ["The third and last rule. Gate 2 asks what kind of failure an in-scope incident shows, and picks one of three, or none. Collusion: the agents cooperated where cooperation was not expected. Miscoordination: same goal, but they got in each other’s way. Conflict: partly shared goals, and everyone ended up worse off.",
             "It runs only on the " + n(fmAsked) + " records Gate 1 let in, or would let in once an unclear fact is confirmed; the others pass through unchanged. It never takes an incident out of scope. An in-scope incident that fits none of the three keeps its place, with no failure type.",
             "Out of Gate 2 comes the rules' final answer: in, out, or “needs a person”. A record needs a person when the model was not highly confident, or a fact any of the three rules turns on is unclear. Today " + n(sv("review")) + " of " + n(fl("gate2").n) + " records need a person; open the box for the reasons. Every answer is only a suggestion: a person decides scope on the next sheet."],
-    tech: "derive.py failure_mode(), after the evidence type, only for records Gate 1 let in (labels multi_agent true, or added by hand): cooperation_occurred = yes AND cooperation_expected = unexpected → FM3; otherwise objective_relation identical → FM1, mixed → FM2, opposing or unclear → none. Review when cooperation_occurred is unclear, cooperation_expected is unclear where cooperation occurred, or objective_relation is unclear off the FM3 branch. Then the verdict: status review if any reason was found (confidence not high, a Gate 1 or Gate 2 field unclear, evidence type not derivable on an in-scope record), else in_scope or out_of_scope; labels, or labels_if_confirmed on a review row; written to 0.2/state/verdicts.jsonl. Written rule: 0.2/docs/definitions.md § Gate 2.",
+    tech: "derive.py failure_mode(), after the evidence type, only for records Gate 1 let in (labels multi_agent true, or added by hand): cooperation_occurred = yes AND cooperation_expected = unexpected → FM3; otherwise objective_relation identical → FM1, mixed → FM2, opposing or unclear → none. Review when cooperation_occurred is unclear, cooperation_expected is unclear where cooperation occurred, or objective_relation is unclear off the FM3 branch. Then the verdict: status review if any reason was found (confidence not high, a Gate 1 or Gate 2 field unclear, evidence type not derivable on an in-scope record), else in_scope or out_of_scope; labels, or labels_if_confirmed on a review row; written to the ledger's derive columns. Written rule: 0.2/docs/definitions.md § Gate 2.",
     byNote: "run.py derive applies it to the extracted facts, after the evidence type, and writes the verdict.",
-    inp: "A record with Gate 1's answer and its evidence type.", out: "A failure type, or none, and the rules' final answer.", prod: "0.2/state/verdicts.jsonl (failure_mode, status)",
+    inp: "A record with Gate 1's answer and its evidence type.", out: "A failure type, or none, and the rules' final answer.", prod: "0.2/ledger/ledger.csv: rules_failure_mode, rules_status",
     cmd: "python 0.2/pipeline/run.py derive" },
   { id: "instances", status: ran("instances"), by: "model", x: 780, y: 680, title: "Propose risk instances",
     num: n(fl("instances").n), cap: "with risk instances, of " + nIn("instances") + " decided in" + (row("instances", "Records a person decided in", "neither") ? " · " + n(row("instances", "Records a person decided in", "neither")) + " none yet" : ""),
@@ -847,50 +847,50 @@ function defs() {
             "It comes after Decide scope, never before or beside it: only the records you decided in get a proposal. The rules' own answer is not enough.",
             "Where it is used: the proposal is shown beside the decided record on the scope sheet, and when Claude fills a dossier it adopts the instances quoted with high or medium confidence; low ones only go in the notes. Through the dossiers they reach the index. It never changes scope, nor the failure type.",
             "A dossier you put in scope that has no risk instances is proposed for too; the Dossiers box counts those."],
-    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. In: the records whose newest scope decision is in (review/scope_decisions_log.csv), promoted or not. instances_due() also lists dossiers with multi_agent true, label source ours and empty instances; a verdict in_scope with no person's decision is not due. Consumers: sheet 1, on decided rows (scope_sheet_rows reads proposal_rows('assign_instances')) and Claude-filled dossiers (high/medium adopted, low in the notes). The presumed I28/I29 pair comes from derive.py, not from this call. A proposal row can hold instances [] (considered and rejected only). The count: decided-in records with an assign_instances proposal or instances in their dossier.",
+    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. In: the records whose newest scope decision is in (review/record_decisions_log.csv), in an incident or not. instances_due() also lists dossiers with multi_agent true, label source ours and empty instances; a verdict in_scope with no person's decision is not due. Consumers: sheet 1, on decided rows (scope_sheet_rows reads proposal_rows('assign_instances')) and Claude-filled dossiers (high/medium adopted, low in the notes). The presumed I28/I29 pair comes from derive.py, not from this call. A proposal row can hold instances [] (considered and rejected only). The count: decided-in records with an assign_instances proposal or instances in their dossier.",
     byNote: "Instructions: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Run in Claude Code: /classify-incidents, call 2.",
     inp: "An incident a person decided in, and the Risk Instances Repo.", out: "Risk instances, each with a quote.", prod: "0.2/proposals/",
     cmd: "/classify-incidents  (call 2)" },
-  { id: "scope", kind: "hand", status: decided ? "run" : "waiting", by: "person", x: 520, y: 680, title: "Decide scope",
+  { id: "scope", kind: "hand", status: decided ? "run" : "waiting", by: "person", x: 520, y: 680, title: "Decide records",
     num: n(fl("scope").held), cap: "still to decide, of " + nIn("scope") + " · decided: " + n(edgeN("scope", "review")) + " in, " + n(O((fl("scope").stop || [])[0]).n) + " out, " + n(unclearN) + " unclear",
     plain: ["A person decides, record by record, whether the incident is multi-agent. Three answers. In: two or more AI agents, and the harm came from them acting on each other. Out: one agent, or many doing what one could have done. Unclear: the source was read and does not say.",
-            "The rules' answer is shown beside each record, but it is only a suggestion. A rule never puts an incident in scope: only this decision does.",
-            "A record you decide “in” goes on to Human review. “Out” and “unclear” end here: the answer stays in the log and no dossier is made. A record that already has a dossier goes straight on.",
-            "How to do it: the records come as a spreadsheet, 0.2/review/1_decide_scope.xlsx. Fill the yellow column “decision” and save. The next run reads the sheet, keeps your answers in a log, and writes the sheet again."],
-    tech: "run.py review (also the Review step of an update, and run.py derive) writes 0.2/review/1_decide_scope.xlsx from state/verdicts.jsonl: every record with a verdict, decided or not, plus every record a dossier cites. Column ask = yes (the rules would put it in, or confidence is low) | check | decided | dossier; only rows with ask yes or check take a decision. Each record has a MIG key from the moment it reaches this sheet (0.2/registry/mig_keys.csv); the sheet names it by mig_key, source_id and source_key. Filled rows are validated and appended to 0.2/review/scope_decisions_log.csv (mig_key, source_id, source_key, decision in | out | unclear, reason, decided_on, sheet_generated_on); the newest row per record wins. A hand-added record counts as decided in. run.py check validates the log.",
-    byNote: "The sheet is written by a script; the decisions are a person’s.",
-    inp: "Every record the rules labelled.", out: "A decision: in, out or unclear.", prod: "0.2/review/scope_decisions_log.csv",
+            "Beside each record are the rules' proposal and its reason. Write ok to agree with it, or your own answer. A blank is never agreement. A rule never puts an incident in scope: only this decision does.",
+            "A record you decide “in” also needs duplicate_of: is it a new incident, or one the index already holds? “Out” and “unclear” end here: the answer stays in the log and no dossier is made. A record that already has a dossier goes straight on.",
+            "How to do it: the records come as a spreadsheet, 0.2/review/1_records.xlsx. Fill the yellow columns and save. The next run reads the sheet, keeps your answers in a log, and writes the sheet again."],
+    tech: "run.py review (also the Review step of an update, and run.py derive) writes 0.2/review/1_records.xlsx from the ledger: every record with a verdict that is in no incident and has no decision yet. Column ask = yes (the rules propose in, or confidence is low) | check (the rules propose out) | duplicate (decided in, duplicate_of missing). scope_proposed and scope_why come from the rules; scope_decision takes ok, in, out or unclear. Each record has a MIG key from the moment it reaches this sheet (0.2/registry/mig_keys.csv). Decisions are appended to 0.2/review/record_decisions_log.csv (mig_key, label, proposed, decision, final, reason, decided_on, sheet_generated_on) and copied to the ledger's scope_* columns; the newest row per record wins. An ok to a proposal that changed since the sheet was written is refused. A hand-added record counts as decided in. run.py check validates the log.",
+    byNote: "The sheet and the proposals are written by a script; the decisions are a person’s.",
+    inp: "Every record the rules labelled.", out: "A decision: in, out or unclear.", prod: "0.2/review/record_decisions_log.csv",
     extra: scopeGuide, cmd: "python 0.2/pipeline/run.py review" },
-  { id: "review", kind: "hand", status: (edgeN("review", "dossiers") || fstop("review")) ? "run" : "waiting", by: "person", x: 1030, y: 680, title: "Human review",
-    num: n(fl("review").held), cap: "still to review, of " + nIn("review") + " decided in · " + n(edgeN("review", "dossiers")) + " promoted, " + n(fstop("review")) + " not",
-    plain: ["A person has decided these records are in scope. Here they say which get a dossier: to promote a record is to make a dossier for it. Only a person can put an incident into the index; a machine or somebody else’s tag can only nominate one.",
-            "Yes: a dossier is made. It is then filled in, by hand or by Claude when you ask, and the index lists it with the verdict the dossier holds. No: no dossier is made and the record never reaches the index; the answer stays in a log.",
-            "How to do it: the records come as a second spreadsheet, 0.2/review/2_promote.xlsx. Fill the yellow column “promote” with yes or no and save. A record leaves when a dossier lists it; until then it waits on the sheet."],
-    tech: "run.py review reads 0.2/review/2_promote.xlsx: records with a newest scope decision in, no dossier, no promote decision no. A yes runs the promote logic (scaffolds the dossier; a record that is not ready is refused and stays on the sheet). Filled rows go to 0.2/review/promote_decisions_log.csv (mig_key, source_id, source_key, decision yes | no, note, decided_on, sheet_generated_on). The dossier is 0.2/incidents/<mig_key>.md. run.py promote <mig_key> still scaffolds one dossier by hand.",
-    byNote: "The sheet and the blank file are made by a script; the person decides and fills the dossier in.",
-    inp: "A record a person decided in.", out: "A decision, written up as a dossier.", prod: "0.2/incidents/<mig_key>.md",
+  { id: "review", kind: "hand", status: (edgeN("review", "dossiers") || fstop("review")) ? "run" : "waiting", by: "person", x: 1030, y: 680, title: "New or duplicate",
+    num: n(fl("review").held), cap: "awaiting duplicate_of, of " + nIn("review") + " decided in · " + n(edgeN("review", "dossiers")) + " in an incident, " + n(fstop("review")) + " no dossier",
+    plain: ["A person has decided these records are in scope. Now: is each one a new incident, or one the index already holds? The pipeline proposes an answer from the url, the text and the dates; the person confirms it with ok, or writes new, or the incident's MIG key.",
+            "New: a dossier is made, its labels proposed from the record, its scope the person's. A MIG key: the record joins that incident as a further source, so one incident is never counted twice.",
+            "How to do it: on the same sheet, 0.2/review/1_records.xlsx, fill duplicate_of_decision for every record you decide in."],
+    tech: "run.py review reads duplicate_of_decision from 0.2/review/1_records.xlsx: required for every record decided in. duplicate_of_proposed comes from pipeline/dedupe.py (same url, or TF-IDF text cosine helped by close dates; measured on the curator's merges). new runs the promote logic (scaffolds 0.2/incidents/<mig_key>.md; a record that is not ready is refused and comes back); a MIG key adds the record to that dossier's sources. Logged in 0.2/review/record_decisions_log.csv, label duplicate_of. 0.1's promote no is kept as label dossier, no.",
+    byNote: "The proposal and the blank file are made by a script; the person decides.",
+    inp: "A record a person decided in.", out: "A new incident, or a further source of one.", prod: "0.2/incidents/<mig_key>.md",
     extra: reviewGuide, cmd: "python 0.2/pipeline/run.py review" },
   { id: "dossiers", kind: "doc", status: M.dossiers ? "run" : "waiting", by: "person", x: 1280, y: 680, title: "Dossiers",
     num: n(fl("dossiers").n), cap: "incidents, from " + n(fl("dossiers").in) + " source records · " + n(verified) + " verified",
     plain: ["A dossier is our own file on one incident. It says what happened, how, which agents were involved, the person's verdict (in scope, out of scope or unclear) and how well it was checked against the original source.",
             "Every dossier is a row of the index, whatever its verdict: an “out of scope” dossier records that someone looked, and why it was turned away. Verified means a person checked it against the original source; " + n(verified) + " of " + n(M.dossiers) + " are verified so far, so most dossiers are not yet checked facts.",
             "From this box on, the map counts incidents, not records: one dossier is one incident, however many sources tell it. The " + n(fl("dossiers").in) + " records that reach this box become " + n(fl("dossiers").n) + " incidents; the rest are other sources' reports of an incident already counted."],
-    tech: "0.2/incidents/<mig_key>.md. YAML frontmatter plus seven fixed sections. Made blank by promote; filled by hand, or by Claude on the curator's request (always unverified, notes open “Written by Claude”). Fields are changed through sheet 3 (0.2/review/3_edit_dossiers.xlsx) via run.py review, which names them in set_by_person and logs them in 0.2/review/dossier_edits_log.csv. multi_agent_label_source: ours only by a human verdict. The count: dossiers with a record behind them, one per incident; in = records listed in a dossier's sources (dossier_source_refs ∩ records).",
-    byNote: "Made blank by a script; filled in by a person, or by Claude when the curator asks; corrected through sheet 3.",
+    tech: "0.2/incidents/<mig_key>.md. YAML frontmatter plus seven fixed sections. The labels and facts (scope, failure mode, instances, evidence type, title, date, actors, systems, verification) live in the ledger, 0.2/ledger/ledger.csv, on the incident's canonical record; they are proposed by the pipeline and decided on 0.2/review/2_incidents.xlsx, logged in 0.2/review/incident_decisions_log.csv, and written into the frontmatter by run.py review. The prose (sections, multi_agent_basis, sources) is written by hand, or by Claude on the curator's request (always unverified, notes open “Written by Claude”). The count: dossiers with a record behind them, one per incident; in = records listed in a dossier's sources (dossier_source_refs ∩ records).",
+    byNote: "Made by a script; labels proposed by the pipeline and decided by a person on sheet 2; prose written by a person, or by Claude when the curator asks.",
     inp: "A person’s decision.", out: "The curated record.", prod: "0.2/incidents/<mig_key>.md",
-    cmd: "python 0.2/pipeline/run.py review  (sheet 3: edit dossiers)" },
+    cmd: "python 0.2/pipeline/run.py review  (sheet 2: decide incidents)" },
   { id: "check", status: fl("check").n ? "run" : "waiting", by: "script", x: 1530, y: 680, title: "Check",
     num: n(fl("check").n), cap: "incidents checked on the way to the index",
     plain: ["An automatic inspection of the dossiers and the logs. In an update it must pass before the index is rebuilt; run by hand, run it before the index yourself.",
             "It fails on a malformed dossier or log, a record that points at nothing, a machine’s tag used as a final answer, or a dossier marked verified on a reading that was only partial, secondary or the curator's own. It keeps no result file: the number shows what it checks, not that it passed."],
-    tech: "run.py check, exit 0 required. Validates dossiers (fields, vocabularies, label provenance, verification against read depth), the frozen list, the MIG key registry, record keys and hashes, the scope, promote and edit logs, and the context layer. It does not read verdicts.jsonl, proposals or the queue. It gates the index only inside an update run (step_check fails the run); run.py index does not call it.",
+    tech: "run.py check, exit 0 required. Validates dossiers (fields, vocabularies, label provenance, verification against read depth, and that their labels equal the ledger), the ledger against the records, proposals and context, the frozen list, the MIG key registry, record keys and hashes, the two decision logs, and the context layer. It gates the index only inside an update run (step_check fails the run); run.py index does not call it.",
     inp: "All the incident files and logs.", out: "Pass, or a list of problems.", prod: "nothing: it only reports",
     cmd: "python 0.2/pipeline/run.py check" },
   { id: "index", kind: "doc", status: kept("index"), by: "script", x: 1780, y: 680, title: "Index",
     num: n(fl("index").n), cap: "incidents · " + n(O(O(fl("index").stop)[0]).n) + " in scope, in the report",
     plain: ["The finished table of incidents, rebuilt from the dossiers every time: one row per incident, whatever its verdict. This is what the rest of the project reads.",
             "Only the incidents a person put in scope go into the report. Those decided out of scope or unclear stay in the table with that flag, as the record that someone looked and why they were turned away."],
-    tech: "run.py index writes 0.2/out/incident_index.csv and 0.2/state/pipeline.json, the counts this page is drawn from; run.py viz renders this page; 0.2/pipeline/index_report.py writes 0.2/out/index_report.xlsx. Generated; never edited by hand.",
+    tech: "run.py index sets every record's stage, reason and in_index in the ledger (ledger_outcome), and writes 0.2/out/incident_index.csv and 0.2/state/pipeline.json, the counts this page is drawn from; run.py viz renders this page. Generated; never edited by hand.",
     inp: "All the incident files.", out: "One table.", prod: "0.2/out/incident_index.csv",
     cmd: "python 0.2/pipeline/run.py index" },
   { id: "gold", kind: "doc", status: gold.rows ? "run" : "waiting", by: "person", x: 1280, y: 940, title: "Answer key",
@@ -953,7 +953,7 @@ function prefilterRules(box) {
   box.appendChild(el("p", "", "Where the rules live:")); box.appendChild(el("code", "", R.where || "0.2/pipeline/run.py"));
 }
 
-// How a person fills in a dossier: shown on the Human review box and on the Review
+// How a person decides records and completes an incident: shown on the review boxes and on the Review
 // step's waiting card. One copy, so the two never disagree. The rules behind it are in
 // CLAUDE.md § Rules and 0.2/docs/input_layer.md; run.py check enforces them.
 function scopeGuide(box) {
@@ -961,14 +961,14 @@ function scopeGuide(box) {
   box.appendChild(el("h3", "", "How to decide scope"));
   const ol = el("ol");
   [
-    ["Open ", ["code", "0.2/review/1_decide_scope.xlsx"], ". One row is one record. Read the title and the quote; open the link when you need more."],
-    ["The columns ", ["code", "rules_say"], " and ", ["code", "why_a_person"], " are the rules’ suggestion and the reason it is not settled. They are not an answer."],
-    ["Fill the yellow column ", ["code", "decision"], " (a drop-down): ", ["code", "in"], ", ", ["code", "out"], " or ", ["code", "unclear"], ". Add a ", ["code", "reason"], " if you can."],
-    ["Save, then press Continue, or run ", ["code", "python 0.2/pipeline/run.py review"], ". Your answers go into the log 0.2/review/scope_decisions_log.csv. A row you left blank stays on the next sheet; a row filled wrongly is reported and comes back blank."],
+    ["Open ", ["code", "0.2/review/1_records.xlsx"], ". One row is one record. Read the title and the quote; open the link when you need more."],
+    ["The columns ", ["code", "scope_proposed"], " and ", ["code", "scope_why"], " are the rules’ proposal and its reason. They are not an answer."],
+    ["Fill the yellow column ", ["code", "scope_decision"], ": ", ["code", "ok"], " to agree with the proposal, or ", ["code", "in"], ", ", ["code", "out"], " or ", ["code", "unclear"], ". For in, also ", ["code", "duplicate_of_decision"], ". Add a ", ["code", "reason"], " if you can."],
+    ["Save, then press Continue, or run ", ["code", "python 0.2/pipeline/run.py review"], ". Your answers go into the log 0.2/review/record_decisions_log.csv. A row you left blank stays on the next sheet; a row filled wrongly is reported and comes back blank."],
   ].forEach(parts => ol.appendChild(line(parts, "li")));
   box.appendChild(ol);
   const scope = el("ul", "scope");
-  [[["b", "in: "], "two or more AI agents, and the harm came from them acting on each other. It goes on to Human review."],
+  [[["b", "in: "], "two or more AI agents, and the harm came from them acting on each other. It goes on to New or duplicate."],
    [["b", "out: "], "one agent, or many doing what one could have done. It ends here."],
    [["b", "unclear: "], "the source was read and does not say. It ends here."]]
     .forEach(parts => scope.appendChild(line(parts, "li")));
@@ -978,37 +978,23 @@ function scopeGuide(box) {
 
 function reviewGuide(box) {
   const line = (parts, tag) => { const p = el(tag || "p"); parts.forEach(x => p.appendChild(Array.isArray(x) ? el(x[0], "", x[1]) : document.createTextNode(x))); return p; };
-  box.appendChild(el("h3", "", "How to review"));
+  box.appendChild(el("h3", "", "How to decide new or duplicate"));
   const sh = el("ol");
   [
-    ["First decide scope in ", ["code", "0.2/review/1_decide_scope.xlsx"], ": fill the ", ["code", "decision"], " column with in, out or unclear."],
-    ["Then open ", ["code", "0.2/review/2_promote.xlsx"], ". It lists the records you decided in. Fill the ", ["code", "promote"], " column: ", ["code", "yes"], " makes a blank dossier on the next run, ", ["code", "no"], " leaves the record out of the index."],
-    ["Save the sheets, then press Continue, or run ", ["code", "python 0.2/pipeline/run.py review"], ". The answers go into 0.2/review/scope_decisions_log.csv and promote_decisions_log.csv."],
+    ["In ", ["code", "0.2/review/1_records.xlsx"], ", every record you decide ", ["code", "in"], " needs ", ["code", "duplicate_of_decision"], ": ", ["code", "ok"], " to take the proposal, ", ["code", "new"], " for a new incident, or the MIG key of the incident it already is."],
+    ["Save, then press Continue, or run ", ["code", "python 0.2/pipeline/run.py review"], ". new makes the dossier; a MIG key adds the record to that incident's sources. The answers go into 0.2/review/record_decisions_log.csv."],
   ].forEach(parts => sh.appendChild(line(parts, "li")));
   box.appendChild(sh);
-  box.appendChild(el("h3", "", "How to fill in a dossier"));
+  box.appendChild(el("h3", "", "How to complete an incident"));
   const ol = el("ol");
   [
-    ["Open the blank dossier in 0.2/incidents/ that a promote “yes” made (", ["code", "python 0.2/pipeline/run.py promote MIG-0058"], " makes one by hand, from its MIG key). Open it in a text editor, or ask Claude to fill it from the pipeline's readings: a dossier Claude writes stays unverified until you check it, and its notes open “Written by Claude”."],
+    ["Write the prose of the new dossier in 0.2/incidents/ (its sections and ", ["code", "multi_agent_basis"], "), or ask Claude to write it from the pipeline's readings: a dossier Claude writes stays unverified until you check it, and its notes open “Written by Claude”."],
     ["Read the original source, not only the summary or the machine’s suggestion."],
-    ["Decide the scope, and say it was you: ", ["code", "multi_agent_label_source: ours"], ", with one sentence of reasons in ", ["code", "multi_agent_basis"], "."],
+    ["Decide its labels in ", ["code", "0.2/review/2_incidents.xlsx"], ": for incident_scope, failure_mode, instances and evidence_type, ", ["code", "ok"], " takes the proposal, a value replaces it. Change the facts (date, actors, systems) in their cells. Never edit labels in the dossier itself: they are written there from the ledger."],
+    ["Say how well you checked it: set ", ["code", "verification"], " (verified, partially_verified, unverified) and write what you read in ", ["code", "verification_note"], "; it is added to ", ["code", "## Verification notes"], ", dated."],
+    ["Run ", ["code", "python 0.2/pipeline/run.py review"], ", then ", ["code", "python 0.2/pipeline/run.py check"], ". It must pass."],
   ].forEach(parts => ol.appendChild(line(parts, "li")));
   box.appendChild(ol);
-  const scope = el("ul", "scope");
-  [[["b", "In scope: "], ["code", "multi_agent: true"], ". Two or more AI agents, and the harm came from them acting on each other."],
-   [["b", "Out of scope: "], ["code", "multi_agent: false"], ". One agent, or many doing what one could have done. Also set ", ["code", "failure_mode: null"], " and ", ["code", "instances: []"], "."],
-   [["b", "Can’t tell: "], ["code", "multi_agent: null"], ". The source was read and does not say."]]
-    .forEach(parts => scope.appendChild(line(parts, "li")));
-  box.appendChild(scope);
-  box.appendChild(el("p", "note", "A blank dossier from promote starts at multi_agent: false with no label source. Set all three fields yourself, even when the answer is false."));
-  const ol2 = el("ol"); ol2.start = 4;
-  [
-    ["If in scope: check ", ["code", "failure_mode"], " and set ", ["code", "failure_mode_source: ours"], "; check ", ["code", "evidence_type"], " and ", ["code", "instances"], ". Keep only the risk instances the source shows in its own words."],
-    ["Say how well you checked it: ", ["code", "verification"], " is verified, partially_verified or unverified; ", ["code", "last_verified"], " is today’s date; under ", ["code", "## Verification notes"], " write what you read and what you found."],
-    ["To correct a dossier later, change its cells in ", ["code", "0.2/review/3_edit_dossiers.xlsx"], " and run ", ["code", "python 0.2/pipeline/run.py review"], ": each field you change is named in the dossier's ", ["code", "set_by_person"], " and logged in 0.2/review/dossier_edits_log.csv."],
-    ["Run ", ["code", "python 0.2/pipeline/run.py check"], ". It must pass."],
-  ].forEach(parts => ol2.appendChild(line(parts, "li")));
-  box.appendChild(ol2);
   box.appendChild(el("p", "note", "Out of scope does not delete anything. The dossier stays and the index lists it as out of scope: it records that someone looked, and why it was turned away."));
   box.appendChild(el("p", "note", "An incident you added by hand is in scope on your word, but your write-up alone is never “verified”: leave it unverified unless you check it against an outside source."));
   box.appendChild(el("p", "note", "Only a person writes “ours”. A machine’s suggestion or another database’s tag can nominate an incident, never put it in; the check refuses a dossier that tries."));
@@ -1040,7 +1026,7 @@ function wireDefs() {
     // the three rules of run.py derive, in the order they run on each record
     c("extract", "gate1"), c("gate1", "evtype", "", "bt"), c("evtype", "gate2", "", "bt"),
     c("gate2", "scope", "hand"),
-    // risk instances come after the scope decision, before the promote sheet
+    // risk instances come after the scope decision, before new or duplicate
     c("scope", "instances", "hand"),
     c("instances", "review"),
     c("scope", "dossiers", "hand", "tt"),

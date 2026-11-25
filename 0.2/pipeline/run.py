@@ -3067,9 +3067,126 @@ def check_edit_log(problems, warnings):
 
 # -------------------------------------------------------------------- index
 
+STAGES = [
+    "1 Prefilter: not screened",
+    "1 Prefilter: outside rater said no",
+    "1 Prefilter: no rule queues it",
+    "2 Reading: one agent or none",
+    "2 Reading: not yet judged",
+    "3 Rules: out, not decided by a person",
+    "3 Rules: unsettled, not decided by a person",
+    "4 Person: decided out",
+    "4 Person: decided unclear",
+    "5 Person: decided in, no dossier",
+    "5 Person: decided in, awaiting duplicate_of",
+    "6 Incident: out of scope",
+    "6 Incident: scope unclear",
+    "7 Incident: in the index",
+]
+
+
+def rules_reason(v, g):
+    """Why the rules leave a record out or unsettled, from the verdict and the facts."""
+    labels = rules.labels_of(v)
+    n = rules.agent_count(g) if g else None
+    cf = labels.get("counterfactual_resolved")
+    if rules_say(v) == "out":
+        if n is not None and n < 2:
+            return f"The facts show fewer than two AI agents ({n}), so no agents interacted."
+        if cf == "could":
+            if g and rules.is_security(g) and g.get("multiplicity_role") == "incidental":
+                return "The rules say out: the harm turned on one agent's capability."
+            return "The rules say out: one capable agent could have produced this outcome."
+        if not (g and rules.is_security(g)) and g.get("interaction_present") is not True:
+            return "The rules say out: no interaction between AI agents is shown."
+        return "The rules say out."
+    return f"The rules could not settle scope ({', '.join(v.get('review_why') or []) or 'not settled'})."
+
+
+def ledger_outcome():
+    """Every record's stage, reason and in_index, from the ledger's other columns. One
+    function, one place (0.2/docs/plan.md, 3.9)."""
+    rows = ledger.read(LEDGER)
+    canon = decide.canonical_rows(THIS)
+    verdicts = read_verdicts()
+    gates = proposal_rows("extract_gate")
+    frozen = read_frozen()
+    records = latest_records()
+    updates = {}
+    for key, r in rows.items():
+        pair = split_key(key)
+        inc = r["incident_key"]
+        if inc:
+            c = canon.get(inc, {})
+            scope = decide.effective(c, "incident_scope")
+            stage = {"in": "7 Incident: in the index", "out": "6 Incident: out of scope"}.get(
+                scope, "6 Incident: scope unclear")
+            how = "decided" if c.get("incident_scope_decision") else "proposed"
+            why = (f"Incident {inc}, scope {scope or 'none'} ({how})"
+                   + ("" if r["canonical"] == "true" else "; this record is a further source")
+                   + ".")
+            updates[key] = {"in_index": scope == "in", "stage": stage, "reason": why}
+            continue
+        rec = records.get(pair, {})
+        if r["queued"] != "true":
+            if pair[0] == MA_SOURCE and r["date"] >= RECENT_FROM and outside_says_no(rec):
+                stage, why = "1 Prefilter: outside rater said no", (
+                    "An outside rater answered the multi-agent question no, and none said "
+                    "yes or maybe; for 2024+ records the project acts on that answer.")
+            elif pair[0] == MA_SOURCE and r["date"] < RECENT_FROM and key not in frozen:
+                stage, why = "1 Prefilter: not screened", (
+                    "Dated before 2024 and not on the frozen pre-2024 list, so the "
+                    "pipeline never screened it.")
+            else:
+                stage, why = "1 Prefilter: no rule queues it", (
+                    "No prefilter rule queues it (not a recent AIID record, not on the "
+                    "frozen list, not added by hand).")
+        elif r["agent_count"] in ("one", "none") and not r["rules_status"]:
+            stage, why = "2 Reading: one agent or none", (
+                ("No AI agent acts in the event." if r["agent_count"] == "none"
+                 else "Only one AI agent acts in the event.")
+                + f" A multi-agent incident needs two or more ({r['read_depth']} reading).")
+        elif not r["rules_status"] and pair[0] != MANUAL:
+            stage, why = "2 Reading: not yet judged", "Queued, but its reading is not complete."
+        elif r["scope_final"] == "out":
+            stage, why = "4 Person: decided out", "A person decided it is not a multi-agent incident."
+        elif r["scope_final"] == "unclear":
+            stage, why = "4 Person: decided unclear", ("A person decided the source was read "
+                                                      "and does not say.")
+        elif r["scope_final"] == "in" and r["dossier_final"] == "no":
+            stage, why = "5 Person: decided in, no dossier", "Decided in, then given no dossier."
+        elif r["scope_final"] == "in":
+            stage, why = "5 Person: decided in, awaiting duplicate_of", (
+                "Decided in; new incident or an existing one is not decided yet.")
+        else:
+            v = verdicts.get(pair)
+            stage = ("3 Rules: out, not decided by a person" if v and rules_say(v) == "out"
+                     else "3 Rules: unsettled, not decided by a person")
+            why = rules_reason(v, gates.get(pair, {})) if v else "No verdict."
+        updates[key] = {"in_index": False, "stage": stage, "reason": why}
+    ledger.write(LEDGER, "outcome", updates)
+    return updates
+
+
+def ledger_stages():
+    """{stage: records}, in STAGES order, from the ledger; empty before the first index."""
+    if not LEDGER.exists():
+        return {}
+    counts = {}
+    for r in ledger.read(LEDGER).values():
+        if r["stage"]:
+            counts[r["stage"]] = counts.get(r["stage"], 0) + 1
+    return {s: counts[s] for s in STAGES if s in counts}
+
+
 def stage_index():
     if LEDGER.exists():
         decide.place_incidents(THIS)
+        out = ledger_outcome()
+        n_in = len({r["incident_key"] for k, r in ledger.read(LEDGER).items()
+                    if r["in_index"] == "true"})
+        info(f"  ok    ledger: stage and reason of {len(out)} records; {n_in} incidents in "
+             f"the index")
     rows = index_rows()
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / "incident_index.csv"
@@ -3232,13 +3349,15 @@ MAP_ARTIFACTS = {
                   ("Where its output will be saved", "proposals/"),
                   ("Records in scope still without one", "state/instances_due.jsonl")],
     "proposals": [("The suggestions", "proposals/")],
-    "scope": [("The sheet to fill in", "review/1_decide_scope.xlsx"),
-              ("The decisions so far", "review/scope_decisions_log.csv"),
+    "scope": [("The sheet to fill in", "review/1_records.xlsx"),
+              ("The decisions so far", "review/record_decisions_log.csv"),
               ("How to fill it in", "review/README.md")],
-    "review": [("The sheet to fill in", "review/2_promote.xlsx"),
-               ("The decisions so far", "review/promote_decisions_log.csv"),
+    "review": [("The sheet to fill in", "review/1_records.xlsx"),
+               ("The decisions so far", "review/record_decisions_log.csv"),
                ("The incident files a person writes", "incidents/")],
-    "dossiers": [("The incident files", "incidents/")],
+    "dossiers": [("The incident files", "incidents/"),
+                 ("The sheet for their labels and facts", "review/2_incidents.xlsx"),
+                 ("Where the labels live", "ledger/ledger.csv")],
     "check": [("The program that runs the check", "pipeline/run.py")],
     "index": [("The finished table", "out/incident_index.csv")],
     "gold": [("The answer key", "gold/multiagent_gold.csv"),
@@ -3717,32 +3836,32 @@ def map_flow(reg, records, queue, context, index_rows):
                         *[(STATUS_WORDS[s], split[s], f"status {s}") for s in rules.STATUSES])},
                     {"title": "The sheet", "rows": rows(
                         ("Rows on the sheet left to decide", len(rs["scope"]),
-                         "review/1_decide_scope.xlsx"),
+                         "review/1_records.xlsx"),
                         ("Of those, asking for your judgement", len(rs["scope_ask"]),
                          "ask = yes: the rules would put it in, or confidence is low"),
                         ("Decisions in the log, newest per record", len(
-                            newest_by_key(read_log("scope"))), "review/scope_decisions_log.csv"))}],
-         "files": ["review/1_decide_scope.xlsx", "review/scope_decisions_log.csv",
+                            newest_by_key(read_log("scope"))), "review/record_decisions_log.csv"))}],
+         "files": ["review/1_records.xlsx", "review/record_decisions_log.csv",
                    "ledger/ledger.csv"],
-         "rule": "records with a derived label; decided = the newest row of "
-                 "review/scope_decisions_log.csv (a hand-added record counts as decided in); "
+         "rule": "records with a derived label; decided = the newest scope row of "
+                 "review/record_decisions_log.csv (a hand-added record counts as decided in); "
                  "run.py review reads the sheet"},
         {"id": "review", "n": len(dec_in), "in": len(dec_in),
-         "out": [E("dossiers", promoted, "promoted to a dossier")],
-         "stop": [{"label": "not promoted by a person", "n": len(promo_no)}],
-         "held": len(review_left), "held_label": "left to review",
+         "out": [E("dossiers", promoted, "to an incident: a new dossier, or joined to one")],
+         "stop": [{"label": "no dossier: a person said no", "n": len(promo_no)}],
+         "held": len(review_left), "held_label": "awaiting duplicate_of",
          "pop": dec_in,
          "groups": [{"title": "Status", "rows": rows(
              ("Decided in by a person", len(dec_in), "newest scope decision in"),
-             ("Promoted: a dossier lists the record", len(promoted),
-              "listed in a dossier's sources"),
-             ("Not promoted: a person said no", len(promo_no),
-              "newest promote decision no"),
-             ("Left to review: on the promote sheet", len(review_left),
-              "review/2_promote.xlsx"))}],
-         "files": ["review/2_promote.xlsx", "review/promote_decisions_log.csv", "incidents/"],
-         "rule": "records a person decided in; promoted = a dossier lists the record; "
-                 "run.py review reads the sheet and makes the dossier"},
+             ("In an incident: a dossier lists the record", len(promoted),
+              "duplicate_of new, or an incident's MIG key"),
+             ("No dossier: a person said no", len(promo_no),
+              "label dossier, no (0.1's promote no)"),
+             ("Awaiting duplicate_of, on the records sheet", len(review_left),
+              "review/1_records.xlsx"))}],
+         "files": ["review/1_records.xlsx", "review/record_decisions_log.csv", "incidents/"],
+         "rule": "records a person decided in; duplicate_of new makes the dossier, a MIG key "
+                 "joins the record to that incident; run.py review reads the sheet"},
         {"id": "dossiers", "n": len(d_keys), "in": len(in_dossiers),
          "out": [E("check", d_keys, "one per incident, to the check")],
          "stop": [{"label": "merged: another source's report of an incident already counted",
@@ -3761,9 +3880,9 @@ def map_flow(reg, records, queue, context, index_rows):
               "note": "Every dossier is a row of the index, whatever the verdict: an "
                       "\"out\" dossier records that someone looked, and why it was turned away.",
               "rows": rows(
-                  ("In scope", f_scope["in"], "multi_agent: true"),
-                  ("Out of scope", f_scope["out"], "multi_agent: false"),
-                  ("Unclear", f_scope["unclear"], "multi_agent: null"))},
+                  ("In scope", f_scope["in"], "incident_scope in (ledger)"),
+                  ("Out of scope", f_scope["out"], "incident_scope out (ledger)"),
+                  ("Unclear", f_scope["unclear"], "incident_scope unclear (ledger)"))},
              {"title": "Dossiers, by how well they were checked",
               "note": "Verified means a person checked the dossier against the original "
                       "source. Unverified dossiers are not yet checked facts.",
@@ -3780,8 +3899,9 @@ def map_flow(reg, records, queue, context, index_rows):
                   ("Risk instances proposed", len(dos_has), "assign_instances proposal"),
                   ("The dossier already lists them", len(dos_listed), "dossier instances"),
                   ("None yet", len(dos_due), "neither"))}],
-         "files": ["incidents/"],
-         "rule": "records listed in a dossier's sources, counted once per incident"},
+         "files": ["incidents/", "review/2_incidents.xlsx", "ledger/ledger.csv"],
+         "rule": "records listed in a dossier's sources, counted once per incident; their "
+                 "labels and facts live in the ledger and are decided on sheet 2"},
         {"id": "check", "n": len(d_keys), "in": len(d_keys), "per": "incidents",
          "out": [E("index", d_keys, "passed the check")], "stop": [], "held": 0,
          "pop": d_keys, "groups": [],
@@ -3794,10 +3914,14 @@ def map_flow(reg, records, queue, context, index_rows):
              ("Rows: one per incident", len(index_rows), "out/incident_index.csv"),
              ("In scope: in the report", len(d_in), "multi_agent: true"),
              ("Out of scope or unclear: kept, flagged, not in the report", len(d_flagged),
-              "multi_agent: false or unclear"))}],
-         "files": ["out/incident_index.csv"], "rule": "index_rows(): one row per dossier"},
+              "multi_agent: false or unclear"))},
+             {"title": "Where every record ended", "note": "The ledger's stage column, set "
+              "by run.py index: one stage per loaded record.", "rows": rows(
+                  *[(s, n, "ledger stage") for s, n in ledger_stages().items()])}],
+         "files": ["out/incident_index.csv", "ledger/ledger.csv"],
+         "rule": "index_rows(): one row per dossier; ledger_outcome(): every record's stage"},
         {"id": "instances", "n": len(dec_has | dec_listed), "in": len(dec_in),
-         "out": [E("review", dec_in, "to the promote sheet")],
+         "out": [E("review", dec_in, "to the duplicate_of decision")],
          "stop": [], "held": 0,
          "pop": dec_in,
          "groups": [{"title": "Records a person decided in", "rows": rows(
@@ -3847,8 +3971,14 @@ def map_flow(reg, records, queue, context, index_rows):
           len(derived), len(dec_in) + len(dec_out) + len(dec_unc) + len(a_only) + len(left))
     check("left to decide = undecided rows on the decide-scope sheet", len(left),
           len(rs["scope"]))
-    check("decided in = promoted + not promoted + rows on the promote sheet", len(dec_in),
+    check("decided in = in an incident + no dossier + awaiting duplicate_of", len(dec_in),
           len(promoted) + len(promo_no) + len(rs["promote"]))
+    stages = ledger_stages()
+    if stages:
+        check("ledger: every loaded record has one stage", len(allkeys), sum(stages.values()))
+        check("ledger: incidents in the index = incidents in scope on the map", len(d_in),
+              len({r["incident_key"] for r in ledger.read(LEDGER).values()
+                   if r["in_index"] == "true"}))
     check("in scope = proposed + already listed + waiting", len(in_scope),
           len(has_inst) + len(listed) + len(due))
     check("dossier verdicts add up", len(in_dossiers), sum(d_scope.values()))
@@ -4185,6 +4315,10 @@ def check_ledger(records, problems, warnings):
                             f"record")
             break
     decide.check_logs(THIS, problems)
+    unstaged = [k for k, r in rows.items() if not r["stage"]]
+    if unstaged:
+        warnings.append(f"{rel}: {len(unstaged)} record(s) have no stage yet (first: "
+                        f"{unstaged[0]}); run index")
 
 
 def check_env(records=None, reg=None, context=None):
@@ -4446,23 +4580,26 @@ REPORT_PAGE = "index_report.html"
 def report_data():
     """The report's data: the index rows, each dossier's canonical link, the taxonomy,
     the registry, and the dates and version the page shows."""
-    index_path, state_path = OUT / "incident_index.csv", STATE / "pipeline.json"
-    if not index_path.exists() or not state_path.exists():
+    state_path = STATE / "pipeline.json"
+    if not LEDGER.exists() or not state_path.exists():
         die("report: no index yet; run `python 0.2/pipeline/run.py index` first")
-
-    def link(row):
-        meta, _ = read_dossier(ROOT / row["path"])
-        sources = meta.get("sources") or []
-        canon = [s for s in sources if s.get("source_id") == row["canonical_source"]] or sources
-        return (canon[0].get("url") or "") if canon else ""
-
-    inc = [dict(k=r["mig_key"], t=r["title"], d=r["occurrence_date"], e=r["evidence_type"],
-                fm=r["failure_mode"], i=[i for i in r["instances"].split(";") if i],
-                v=r["verification"], c=r["canonical_source"],
-                s=sorted(set(s for s in r["sources"].split(";") if s)), u=link(r))
-           for r in read_csv(index_path)
-           # only incidents a person put in scope; out and unclear stay flagged in the index
-           if r["multi_agent"] == "True"]
+    rows = ledger.read(LEDGER)
+    sources = {}
+    for r in rows.values():
+        if r["incident_key"]:
+            sources.setdefault(r["incident_key"], set()).add(r["source_id"])
+    eff = decide.effective
+    # Incidents in the index only: their scope is in. Out and unclear stay in the ledger,
+    # flagged by their stage. A label not yet decided shows its proposal, the same way.
+    inc = [dict(k=r["incident_key"], t=r["incident_title"], d=r["occurrence_date"],
+                e=eff(r, "evidence_type"),
+                fm="" if eff(r, "failure_mode") in ("", "none") else eff(r, "failure_mode"),
+                i=[] if eff(r, "instances") in ("", "none") else ledger.as_list(eff(r, "instances")),
+                v=r["verification"], c=r["source_id"],
+                s=sorted(sources[r["incident_key"]]), u=r["url"])
+           for r in sorted(rows.values(),
+                           key=lambda r: (str(r["occurrence_date"]), r["incident_key"]))
+           if r["canonical"] == "true" and r["in_index"] == "true"]
     risks = [dict(id=r["risk_id"], n=r["risk"], k=r["risk_type"], d=r["definition"])
              for r in read_csv(TAXONOMY / "risks.csv")]
     inst = [dict(id=r["instance_id"], n=r["instance"], r=r["risk_id"], p=r["provenance"],
