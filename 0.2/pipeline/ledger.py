@@ -42,6 +42,8 @@ OWNERS = {
                "labels_settled", "rules_multi_agent", "rules_evidence_type",
                "rules_failure_mode", "rules_instances_presumed",
                "scope_proposed", "scope_why"],
+    # whether the record reports an incident the index already holds (dedupe.py)
+    "dedupe": ["duplicate_of_proposed", "duplicate_of_why"],
     # mig_key: the record's own key (as the sheets show it); incident_key: the incident
     # (dossier) the record belongs to; canonical: the record that carries the incident's
     # columns. The rest are incident level, on the canonical row only.

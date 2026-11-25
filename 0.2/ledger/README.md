@@ -43,6 +43,8 @@ phases.
 | | `rules_multi_agent`, `rules_evidence_type`, `rules_failure_mode`, `rules_instances_presumed` | the labels the rules derive |
 | | `scope_proposed`, `scope_why` | the scope the rules propose (`in`, `out`, `unclear`) and why |
 
+| dedupe (`review`, `dedupe`) | `duplicate_of_proposed` | for a record that could be decided in and is in no incident yet: the existing incident it most likely reports, or `new` (`pipeline/dedupe.py`) |
+| | `duplicate_of_why` | the evidence: same url, or how close the text is and how far apart the dates |
 | incidents (`review`, `index`) | `mig_key` | the record's own key, MIG-nnnn, as the sheets show it; blank until it reaches the decide-scope sheet |
 | | `incident_key` | the incident (dossier) the record belongs to; one incident, many records |
 | | `canonical` | `true` on the one record that carries the incident's columns |

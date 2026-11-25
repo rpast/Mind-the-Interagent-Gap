@@ -843,6 +843,49 @@ def incident_updates(rows):
     return updates
 
 
+def dedupe_inputs(rows=None):
+    """What dedupe.py works on: every record by key, and {incident_key: its records}."""
+    import dedupe
+    rows = ledger.read(LEDGER) if rows is None else rows
+    recs = {record_key(*p): r for p, r in latest_records().items()}
+    incidents = {}
+    for k, r in rows.items():
+        if r["incident_key"]:
+            incidents.setdefault(r["incident_key"], []).append(k)
+    return dedupe, rows, recs, incidents
+
+
+def stage_dedupe(measure=False):
+    """Propose duplicate_of for every record that could be decided in and is not yet
+    part of an incident: an existing incident's key, or `new`. With `measure`, report
+    how the rules do on the incidents the curator merged instead."""
+    dedupe, rows, recs, incidents = dedupe_inputs()
+    index = dedupe.Index(recs)
+    if measure:
+        others = [m[0] for m in incidents.values() if len(m) == 1] + \
+                 [k for k, r in rows.items() if r["scope_proposed"] == "in"
+                  and not r["incident_key"]]
+        hits, misses, alarms = dedupe.measure(recs, incidents, index, others)
+        info(f"  dedupe: merged records found {len(hits)} of {len(hits) + len(misses)}; "
+             f"false alarms {len(alarms)} of {len(others)}")
+        for k, inc, got, why in misses:
+            info(f"    miss   {k} (of {inc}) -> {got}: {why}")
+        for k, got, why in alarms:
+            info(f"    alarm  {k} -> {got}: {why}")
+        return {"hits": len(hits), "misses": len(misses), "alarms": len(alarms)}
+    updates = {}
+    for k, r in rows.items():
+        if r["incident_key"] or not (r["rules_status"] or r["source_id"] == MANUAL):
+            continue
+        got, why, _ = dedupe.propose(k, recs[k], incidents, recs, index)
+        updates[k] = {"duplicate_of_proposed": got, "duplicate_of_why": why}
+    ledger.write(LEDGER, "dedupe", updates)
+    dup = sum(1 for u in updates.values() if u["duplicate_of_proposed"] != "new")
+    info(f"  ok    dedupe: {len(updates)} record(s), {dup} proposed as a duplicate of an "
+         f"existing incident -> {LEDGER.relative_to(ROOT)}")
+    return {"records": len(updates), "duplicates": dup}
+
+
 def proposal_files(prompt_id):
     """(source_id, source_record_id) -> the proposals file its newest row is in."""
     out = {}
@@ -2419,6 +2462,7 @@ def stage_review():
              f"left {left:4d}{asked}   {where}")
     n = write_incident_columns()
     info(f"  ok    ledger: incident columns of {n} incidents -> {LEDGER.relative_to(ROOT)}")
+    stage_dedupe()
     return result
 
 
@@ -5065,6 +5109,10 @@ def main():
     sub.add_parser("readiness")
     sub.add_parser("derive", help="derive the labels from the extract_gate proposals, "
                                   "by rule, into ledger/ledger.csv")
+    dd = sub.add_parser("dedupe", help="propose, for each record not yet in an incident, "
+                                       "the existing incident it duplicates, or new")
+    dd.add_argument("--measure", action="store_true",
+                    help="report how the rules do on the incidents the curator merged")
     sub.add_parser("instances-due", help="list the records a person put in scope "
                                          "that have no risk-instance proposal")
     sub.add_parser("review", help="read the filled review sheets in 0.2/review/, log the "
@@ -5106,6 +5154,8 @@ def main():
         stage_promote(args.ref, args.force)
     elif args.cmd == "readiness":
         stage_readiness()
+    elif args.cmd == "dedupe":
+        stage_dedupe(measure=args.measure)
     elif args.cmd == "derive":
         # a fresh verdicts file gives fresh sheets. This is the whole review step, not
         # only the writing: a sheet a person has filled in is read before it is replaced.

@@ -2,7 +2,13 @@
 
 Approved by the curator 2026-11-25. Worked on branch `development/pipeline-0.2`.
 
-Status: P0, P1, P2 and P3a done (2026-11-25). The columns built so far are listed in
+Status: P0, P1, P2, P3a and P4 done (2026-11-25).
+
+P4 result (`run.py dedupe --measure`): on the curator's merges (5 incidents, 12 records)
+every record is found; of 64 records not merged, 10 are proposed as duplicates. Run over
+the 390 records not in an incident, it proposes 7, three of them true duplicates never
+merged: aiid:1015 of MIG-0002 (Xanthorox), aiid:1364 of MIG-0013 (Moltbook database),
+aiid:1556 of MIG-0015 (Grok and Bankrbot). The columns built so far are listed in
 `0.2/ledger/README.md`.
 
 Change to P3, 2026-11-25: turning the direction (the dossier written from the ledger)
