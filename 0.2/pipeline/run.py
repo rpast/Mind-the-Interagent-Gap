@@ -747,12 +747,12 @@ def verdict_of(key, r):
             ("labels" if r["labels_settled"] == "true" else "labels_if_confirmed"): labels}
 
 
-# The incident columns (0.2/docs/plan.md, P3). Until the incidents sheet replaces sheet 3
-# (P5), a dossier's frontmatter still holds its labels, and these columns are built from
-# it on every review and index run: each label as proposal and decision. A label counts
-# as decided when the dossier says a person set it: multi_agent_label_source `ours`,
-# failure_mode_source `ours`, or the field in set_by_person. Every other label is a
-# proposal, waiting for a person's `ok` (the curator's choice of 2026-11-25).
+# Reading a dossier into the ledger's incident columns: done once for every dossier when
+# the columns were built (0.2/docs/plan.md, P3a), and since then only for a dossier the
+# ledger has never held (decide.place_incidents). A label counts as decided when the
+# dossier says a person set it: multi_agent_label_source `ours`, failure_mode_source
+# `ours`, or the field in set_by_person. Every other label is a proposal, waiting for a
+# person's `ok` (the curator's choice of 2026-11-25).
 
 def label_token(label, meta):
     """A dossier label as ledger text. `none` is an explicit empty answer (no failure
@@ -825,38 +825,6 @@ def incident_columns(meta, body, row, inst_prop):
                 else origin if value else ""
             out.update({f"{label}_proposed": value, f"{label}_why": why})
     return out
-
-
-def write_incident_columns():
-    """The incident columns of every record, from the registry and the dossiers."""
-    updates = incident_updates(ledger.read(LEDGER))
-    ledger.write(LEDGER, "incidents", updates)
-    return sum(1 for u in updates.values() if u.get("canonical"))
-
-
-def incident_updates(rows):
-    """What write_incident_columns writes: record_key -> incident columns."""
-    index = mig_index()
-    inst = proposal_rows("assign_instances")
-    updates = {}
-    for key in rows:
-        mig = mig_key_of(split_key(key), index)
-        if mig:
-            updates[key] = {"mig_key": mig}
-    for path in all_dossiers():
-        meta, body = read_dossier(path)
-        canon = canonical_pair(meta)
-        for s in meta.get("sources") or []:
-            key = record_key(s.get("source_id"), str(s.get("record_id")))
-            updates.setdefault(key, {}).update(
-                {"mig_key": mig_key_of(split_key(key), index) or meta.get("mig_key"),
-                 "incident_key": meta.get("mig_key"),
-                 "canonical": (s.get("source_id"), str(s.get("record_id"))) == canon})
-        if canon:
-            ck = record_key(*canon)
-            updates.setdefault(ck, {}).update(
-                incident_columns(meta, body, rows.get(ck, {}), inst.get(canon)))
-    return updates
 
 
 def dedupe_inputs(rows=None):
@@ -1758,28 +1726,12 @@ def promote_one(ref, records, context, made, force=False):
 
 # ------------------------------------------------------------ review sheets
 #
-# Two spreadsheets in 0.2/review/, filled in by a person: sheet 1 decides scope, sheet 2
-# says which records decided in get a dossier. A person's answers go into two logs, CSV,
-# append-only, committed: scope_decisions_log.csv and promote_decisions_log.csv. The newest row
-# per record_key wins. The run writes them only when it reads a filled sheet. The rules
-# never put anything in scope: a decision `in` is a person's.
+# The two sheets in 0.2/review/ and their logs are decide.py's. What stays here: the
+# helpers both sheets use, the records' evidence columns sheet 1 shows, and read_log,
+# which gives the rest of the pipeline the record decisions in the shape it reads. The
+# rules never put anything in scope: a decision `in` is a person's.
 
-SHEETS = {
-    "scope": {
-        "file": "1_decide_scope.xlsx", "log": "scope_decisions_log.csv", "title": "Decide scope",
-        "cols": ["mig_key", "source_id", "source_key", "decision", "reason", "decided_on",
-                 "sheet_generated_on"],
-        "allowed": ("in", "out", "unclear"), "field": "decision", "text": "reason",
-    },
-    "promote": {
-        "file": "2_promote.xlsx", "log": "promote_decisions_log.csv", "title": "Promote",
-        "cols": ["mig_key", "source_id", "source_key", "decision", "note", "decided_on",
-                 "sheet_generated_on"],
-        "allowed": ("yes", "no"), "field": "promote", "text": "note",
-    },
-}
 HELP_SHEET = "How to fill this in"
-FIELDS_SHEET = "Fields"
 META_SHEET = "_meta"
 OPENPYXL_HINT = "install openpyxl: pip install -r requirements.txt"
 NOTHING_LEFT = "(nothing is left on this sheet)"
@@ -1822,29 +1774,6 @@ def read_log(kind):
 def newest_by_key(rows):
     """The newest row per record_key: the log is append-only, a later row wins."""
     return {r["record_key"]: r for r in rows if r.get("record_key")}
-
-
-def ensure_logs():
-    """Both logs exist, with their header at least."""
-    REVIEW.mkdir(parents=True, exist_ok=True)
-    for cfg in SHEETS.values():
-        path = REVIEW / cfg["log"]
-        if not path.exists():
-            with open(path, "w", newline="", encoding="utf-8") as f:
-                csv.writer(f, lineterminator="\n").writerow(cfg["cols"])
-
-
-def append_log(kind, rows):
-    ensure_logs()
-    cfg = SHEETS[kind]
-    if not rows:
-        return
-    index = mig_index()
-    with open(REVIEW / cfg["log"], "a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=cfg["cols"], lineterminator="\n")
-        for r in rows:
-            r = {**r, **key_fields(split_key(r["record_key"]), index)}
-            w.writerow({c: r.get(c, "") for c in cfg["cols"]})
 
 
 def scope_newest(records=None):
@@ -2015,19 +1944,6 @@ def scope_sheet_rows(state, records):
     return rows
 
 
-def promote_sheet_rows(state, records):
-    rows = []
-    index = mig_index()
-    for key in state["promote"]:
-        rec = records.get(split_key(key), {})
-        log = state["scope_log"][key]
-        rows.append({**key_fields(split_key(key), index), "title": rec.get("title", ""),
-                     "date": rec.get("date", ""), "url": rec.get("url", ""),
-                     "decided_in_on": log.get("decided_on") or "added by hand",
-                     "scope_reason": log.get("reason", "")})
-    return rows
-
-
 # The model's answers to the extract_gate questions, in prompt order
 # (0.2/prompts/extract_gate.v4.md). QUOTED_FIELDS also get a `<field>_quote` column.
 MODEL_FIELDS = ["n_ai_agents", "agent_names", "interaction_present", "interaction_kind",
@@ -2051,341 +1967,12 @@ SCOPE_COLUMNS = (["mig_key", "source_id", "source_key", "ask", "title", "date", 
                     "read_depth", "agent_count"]
                  + [f"{f}_reading" for f in CONTEXT_FACTS]
                  + ["instances_proposed", "instances_rejected", "instances_note"])
-# The "Fields" tab of sheet 1: where every column comes from. Rules are those of
-# 0.2/pipeline/derive.py; keep the two in step when a rule changes.
-SCOPE_FIELDS_HEAD = ["column", "set_by", "what it is", "computed from", "rule"]
-SCOPE_FIELDS_CHAIN = [
-    "How the columns feed each other (model = the extract_gate answers; rules = "
-    "0.2/pipeline/derive.py; you = your decision):",
-    "  multiplicity_role  ->  is_attack",
-    "  multiplicity_role + n_ai_agents + single_agent_counterfactual  ->  presumption_fires",
-    "  is_attack + multiplicity_role + presumption_fires + single_agent_counterfactual  "
-    "->  counterfactual, by_presumption",
-    "  counterfactual + is_attack + interaction_present  ->  rules_say",
-    "  confidence + unclear Gate 1 answers + (if rules_say = in) unclear Gate 2 answers + "
-    "evidence_type  ->  why_a_person  ->  settled_by_rules, status",
-    "  rules_say + why_a_person  ->  gate1;  rules_say + confidence  ->  ask",
-    "  setting + stakes + environment_controlled_by  ->  evidence_type",
-    "  cooperation_occurred + cooperation_expected + objective_relation  ->  failure_mode "
-    "(only if rules_say = in)",
-    "  rules_say + is_attack + multiplicity_role  ->  instances_presumed",
-    "Only `decision` puts a record in scope. Every other column is a suggestion.",
-    "",
-]
-SCOPE_FIELDS = [
-    ("mig_key", "registry", "our key for the record, MIG-nnnn: given when it first "
-     "reached this sheet, never changed, kept by its dossier",
-     "0.2/registry/mig_keys.csv", ""),
-    ("source_id", "record", "the source the record comes from", "0.2/records/", ""),
-    ("source_key", "record", "the key the source itself uses; blank when it has none "
-     "(a hand-added record)", "0.2/records/", ""),
-    ("ask", "rules", "does this row need you", "rules_say, confidence, the scope log, "
-     "the dossiers",
-     "dossier if a dossier cites the record; decided if a person has decided its scope; "
-     "otherwise yes if rules_say = in or confidence = low, else check. Only yes and check "
-     "rows take a decision"),
-    ("title / date / url", "record", "the record as the source gives it", "0.2/records/", ""),
-    ("rules_say", "rules", "would the rules put it in scope (Gate 1)",
-     "counterfactual, is_attack, interaction_present",
-     "attack: in if counterfactual = could_not. Not an attack: in if counterfactual = "
-     "could_not AND interaction_present = true. Otherwise out; unclear if nothing settles it"),
-    ("settled_by_rules", "rules", "could the rules decide without a person", "why_a_person",
-     "no if why_a_person is not empty"),
-    ("why_a_person", "rules", "why the rules could not settle it (verdict field review_why)",
-     "confidence, Gate 1 and Gate 2 answers, evidence_type",
-     "lists: 'confidence <x>' if confidence is not high; interaction_present if unclear "
-     "(not on attacks); single_agent_counterfactual if unclear and presumption_fires = no; "
-     "if rules_say = in: cooperation_occurred if unclear, cooperation_expected if unclear "
-     "and cooperation occurred, objective_relation if unclear and not on the FM3 branch, "
-     "'evidence type not derivable' if evidence_type is empty"),
-    ("confidence", "model", "how well the source states the facts", "",
-     "high only when the source states the facts rather than implying them"),
-    ("counterfactual", "rules", "the single-agent counterfactual after the attack rules",
-     "is_attack, multiplicity_role, presumption_fires, single_agent_counterfactual",
-     "not an attack: the model's answer. Attack: load_bearing -> could_not; incidental -> "
-     "could; unreported -> could_not if presumption_fires, else the model's answer"),
-    ("by_presumption", "rules", "did the attack presumption decide scope",
-     "presumption_fires, single_agent_counterfactual, rules_say",
-     "yes if presumption_fires, the model had not already answered could_not, and "
-     "rules_say = in"),
-    ("key_quote", "model", "the first two quotes the model gave", "*_quote", ""),
-    ("decision", "you", "in / out / unclear", "", "the only column that sets scope"),
-    ("reason", "you", "why, in a line", "", "kept in scope_decisions_log.csv"),
-    ("is_attack", "rules", "is this an attack record", "multiplicity_role",
-     "yes unless multiplicity_role is not_applicable or empty. Note: the prompt also uses "
-     "not_applicable for an attack where multiplicity plays no part"),
-    ("presumption_fires", "rules", "does the attack presumption apply",
-     "multiplicity_role, n_ai_agents, single_agent_counterfactual",
-     "yes if multiplicity_role = unreported, n_ai_agents is empty or >= 2, and "
-     "single_agent_counterfactual is not could"),
-    ("gate1", "rules", "Gate 1 verdict", "rules_say, Gate 1 part of why_a_person",
-     "review if a Gate 1 answer is unclear (see why_a_person); else in or out = rules_say"),
-    ("status", "rules", "overall verdict", "why_a_person, rules_say",
-     "review if why_a_person is not empty; else in_scope or out_of_scope"),
-    ("evidence_type", "rules", "real_world / synthetic / lab / theoretical",
-     "setting, stakes, environment_controlled_by",
-     "none -> theoretical; narrow_probe -> lab; researcher_built -> synthetic; deployed + "
-     "real + nobody or operator -> real_world; else empty"),
-    ("failure_mode", "rules", "Gate 2 failure mode, only if rules_say = in",
-     "cooperation_occurred, cooperation_expected, objective_relation",
-     "cooperation occurred + unexpected -> FM3; else identical -> FM1, mixed -> FM2; "
-     "else empty"),
-    ("instances_presumed", "rules", "instances the presumption attaches",
-     "rules_say, is_attack, multiplicity_role",
-     "I28; I29 if rules_say = in, attack, and multiplicity_role = unreported"),
-    ("prompt", "model", "which prompt version produced the answers", "", ""),
-    ("n_ai_agents", "model", "how many AI agents (not systems, products or artefacts)?",
-     "", ""),
-    ("agent_names", "model", "which agents, as the record names them?", "", ""),
-    ("interaction_present", "model", "do the agents act on or talk to each other?", "", ""),
-    ("interaction_kind", "model",
-     "communication / one-acting-on-another / shared-environment / none?", "",
-     "not used by the rules"),
-    ("setting", "model", "deployed / researcher_built / narrow_probe / none?", "", ""),
-    ("stakes", "model", "real / simulated / none?", "", ""),
-    ("environment_controlled_by", "model", "experimenter / operator / nobody?", "", ""),
-    ("single_agent_counterfactual", "model",
-     "could one sufficiently capable agent have produced this outcome?", "",
-     "could / could_not / unclear"),
-    ("multiplicity_role", "model",
-     "attacks only: did the number or mix of agents matter?", "",
-     "load_bearing / incidental / unreported / not_applicable"),
-    ("cooperation_occurred", "model", "did the agents actually work together?", "", ""),
-    ("cooperation_expected", "model", "was that cooperation intended?", "", ""),
-    ("objective_relation", "model", "identical / mixed / opposing objectives?", "", ""),
-    ("uncertainty_reason", "model", "why the model was unsure, in a sentence", "", ""),
-    ("<field>_quote", "model", "the verbatim span the model gave for that answer", "", ""),
-    ("decided", "you", "your earlier scope decision: in / out / unclear",
-     "0.2/review/scope_decisions_log.csv", "the newest row for the record"),
-    ("decided_on / decided_reason", "you", "when you decided it, and the reason you gave",
-     "0.2/review/scope_decisions_log.csv", ""),
-    ("dossier_multi_agent / dossier_failure_mode / dossier_instances / "
-     "dossier_verification", "dossier", "what the dossier citing this record says now",
-     "0.2/incidents/", "change these on sheet 3, 3_edit_dossiers.xlsx"),
-    ("read_depth", "reading", "how far the source was read: record, secondary, "
-     "primary_partial, primary_full, curator, unreadable", "0.2/context/",
-     "the best depth of the newest reading"),
-    ("agent_count", "reading", "none / one / several / unknown, from the reading",
-     "0.2/context/", ""),
-    ("<fact>_reading", "reading", "what the source says on one of the seven facts the gates "
-     "need: status, then the reading, then the verbatim quote",
-     "0.2/context/", "not_stated = read and silent; unread = nobody looked"),
-    ("instances_proposed", "model", "the instances the model would assign, with confidence "
-     "and the quote", "0.2/proposals/assign_instances.*.jsonl",
-     "high and medium are adoptable; low is noted only"),
-    ("instances_rejected", "model", "instances the model considered and why it rejected them",
-     "0.2/proposals/assign_instances.*.jsonl", ""),
-    ("instances_note", "model", "why the model was unsure about the instances", "", ""),
-]
-PROMOTE_COLUMNS = ["mig_key", "source_id", "source_key", "title", "date", "url",
-                   "decided_in_on", "scope_reason", "promote", "note"]
-SHEET_WIDTHS = {"mig_key": 11, "source_id": 11, "source_key": 14, "ask": 8, "title": 48, "date": 12, "url": 30, "rules_say": 10,
-                "settled_by_rules": 12, "why_a_person": 30, "confidence": 11,
-                "counterfactual": 15, "by_presumption": 12, "key_quote": 60,
-                "decision": 12, "reason": 40, "decided_in_on": 14, "scope_reason": 40,
-                "promote": 12, "note": 40, "decided_reason": 40, "instances_proposed": 60,
-                "instances_rejected": 60, "instances_note": 40,
-                **{f"{f}_reading": 60 for f in CONTEXT_FACTS}}
-SHEET_WRAP = {"title", "why_a_person", "key_quote", "reason", "scope_reason", "note",
-              "uncertainty_reason", "decided_reason", "instances_proposed",
-              "instances_rejected", "instances_note"} | {f"{f}_reading" for f in CONTEXT_FACTS}
-SCOPE_HELP = [
-    "Decide scope: is this record a multi-agent incident, yes or no?",
-    "Read the title and the quote, and open the url when you need more. Only you can say "
-    "'in': the rules and the model only suggest (columns rules_say and why_a_person).",
-    "Column `ask` says which rows need you. `yes`: the rules would put the record in, or "
-    "the model's confidence is low; these rows come first, and they are the ones to "
-    "decide. `check`: the rules leave the record out; it is listed so you can sample-check "
-    "the exclusions, and deciding it is optional. Filter on `ask` to see one kind.",
-    "Rows with `ask` = decided or dossier are for reading only: every record you have "
-    "already decided, and every record a dossier cites, with all that was extracted for "
-    "it. Their `decision` cell is not read; a value typed there is reported and not "
-    "logged. Your earlier decision is in `decided`; the dossier's current labels are in "
-    "the `dossier_*` columns, and you change those on sheet 3, 3_edit_dossiers.xlsx.",
-    "Fill the yellow column `decision` with the drop-down: in, out or unclear.",
-    "in = two or more AI agents, and the harm came from them acting on each other. "
-    "out = one agent, or many doing what one could have done. "
-    "unclear = the source was read and does not say.",
-    "Write a short `reason` if you can. It is kept in 0.2/review/scope_decisions_log.csv.",
-    "Right of `reason`: the rules' intermediate steps, then every question the model "
-    "answered with its quote, then your earlier decision and the dossier's labels, then "
-    "the reading of the source (`read_depth` and one `<fact>_reading` column per fact) "
-    "and the instance proposals. The `Fields` tab says what each column is and which "
-    "columns it is computed from.",
-    "You do not have to finish. Leave a row blank and it stays on the next sheet.",
-    "Save the file, then run `python 0.2/pipeline/run.py review` or press Continue on "
-    "the page. A row you filled wrongly is reported and comes back blank.",
-    "Records you decide `in` go on to sheet 2, 2_promote.xlsx, where you say which get a "
-    "dossier.",
-]
-PROMOTE_HELP = [
-    "Promote: which in-scope records get a dossier?",
-    "These are records you decided `in` on sheet 1 that have no dossier yet.",
-    "Fill the yellow column `promote` with the drop-down: yes or no.",
-    "yes = the next run writes a blank dossier in 0.2/incidents/. You then fill it in by "
-    "hand, verify it against the primary source and set multi_agent yourself, and "
-    "`python 0.2/pipeline/run.py check` must pass.",
-    "no = leave it undossiered. It is kept in 0.2/review/promote_decisions_log.csv and does "
-    "not come back.",
-    "A `yes` for a record that is not ready to classify is refused and is not logged: it "
-    "stays on the sheet. Read the record first (see 0.2/docs/context_layer.md).",
-    "Leave a row blank to decide later.",
-    "Save the file, then run `python 0.2/pipeline/run.py review` or press Continue on "
-    "the page.",
-]
 
 
 def clean(value):
     """Cell text: no control characters, and nothing that Excel would read as a formula."""
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", str(value if value is not None else ""))
     return " " + text if text.startswith("=") else text
-
-
-def write_sheet(kind, columns, rows, help_lines, fields=None, path=None):
-    """Write one sheet to 0.2/review/, replacing the last one (or to `path`). The sheet's
-    `field` and `text` columns are the ones a person fills in; `field` gets a drop-down.
-    `fields`, if given, is (chain lines, header, rows) for a `Fields` tab."""
-    from openpyxl.styles import Alignment, Font, PatternFill
-    from openpyxl.utils import get_column_letter
-    from openpyxl.worksheet.datavalidation import DataValidation
-
-    cfg = SHEETS[kind]
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = cfg["title"]
-    ws.append(columns)
-    head = PatternFill("solid", start_color="D9E1F2")
-    ask = PatternFill("solid", start_color="FFF2CC")
-    ask_head = PatternFill("solid", start_color="FFD966")
-    fill_cols = [cfg["field"], cfg["text"]]
-    for i, name in enumerate(columns, 1):
-        c = ws.cell(1, i)
-        c.font = Font(bold=True)
-        c.fill = ask_head if name in fill_cols else head
-        c.alignment = Alignment(vertical="top", wrap_text=True)
-        ws.column_dimensions[get_column_letter(i)].width = SHEET_WIDTHS.get(
-            name, 40 if name.endswith("_quote") else 14)
-    if rows:
-        for row in rows:
-            ws.append([clean(row.get(c, "")) for c in columns])
-    else:
-        ws.append([NOTHING_LEFT] + [""] * (len(columns) - 1))
-    last = len(rows) + 1 if rows else 2
-    for r in range(2, last + 1):
-        for i, name in enumerate(columns, 1):
-            c = ws.cell(r, i)
-            c.alignment = Alignment(vertical="top", wrap_text=name in SHEET_WRAP
-                                    or name.endswith("_quote"))
-            if name in fill_cols:
-                c.fill = ask
-            if name == "url" and str(c.value).startswith(("http://", "https://")):
-                c.hyperlink = str(c.value)
-                c.style = "Hyperlink"
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(columns))}{last}"
-    allowed = ",".join(cfg["allowed"])
-    dv = DataValidation(type="list", formula1=f'"{allowed}"', allow_blank=True,
-                        showErrorMessage=True, errorTitle="Not a choice",
-                        error=f"Pick one of: {allowed}.")
-    ws.add_data_validation(dv)
-    col = get_column_letter(columns.index(cfg["field"]) + 1)
-    dv.add(f"{col}2:{col}{last}")
-    hs = wb.create_sheet(HELP_SHEET)
-    hs.column_dimensions["A"].width = 110
-    for i, line in enumerate(help_lines, 1):
-        hs.cell(i, 1, line).alignment = Alignment(wrap_text=True, vertical="top")
-    hs.cell(1, 1).font = Font(bold=True)
-    if fields:
-        chain, fhead, frows = fields
-        fs = wb.create_sheet(FIELDS_SHEET)
-        for line in chain:
-            fs.append([line])
-        fs.append(fhead)
-        hrow = fs.max_row
-        for i in range(1, len(fhead) + 1):
-            fs.cell(hrow, i).font = Font(bold=True)
-            fs.cell(hrow, i).fill = head
-        for r in frows:
-            fs.append(list(r))
-        for row in fs.iter_rows(min_row=hrow + 1):
-            for c in row:
-                c.alignment = Alignment(wrap_text=True, vertical="top")
-        for col, w in zip("ABCDE", (26, 8, 45, 40, 70)):
-            fs.column_dimensions[col].width = w
-        fs.cell(1, 1).font = Font(bold=True)
-    meta = wb.create_sheet(META_SHEET)
-    meta.append(["generated_on", TODAY])
-    meta.append(["sheet", kind])
-    meta.sheet_state = "hidden"
-    wb.properties.title = f"{cfg['title']} (generated {TODAY})"
-    REVIEW.mkdir(parents=True, exist_ok=True)
-    path = Path(path) if path else REVIEW / cfg["file"]
-    tmp = path.with_name(path.name + ".tmp")
-    wb.save(tmp)
-    os.replace(tmp, path)
-    return path
-
-
-def read_sheet(kind):
-    """The filled rows of a sheet: (generated_on, [{row, record_key, value, text}]), or
-    None when there is no sheet. Raises ValueError for a file that cannot be read."""
-    cfg = SHEETS[kind]
-    path = REVIEW / cfg["file"]
-    if not path.exists():
-        return None
-    try:
-        wb = openpyxl.load_workbook(path, data_only=True)
-        ws = wb[cfg["title"]]
-    except Exception as e:  # noqa: BLE001 - a corrupt or half-written file
-        raise ValueError(f"{type(e).__name__}: {e}") from None
-    head = {str(c.value).strip(): i for i, c in enumerate(ws[1]) if c.value is not None}
-    for need in ("mig_key", cfg["field"], cfg["text"]):
-        if need not in head:
-            raise ValueError(f"the column {need!r} is gone from the header row")
-    generated = ""
-    if META_SHEET in wb.sheetnames:
-        generated = str(wb[META_SHEET].cell(1, 2).value or "")
-    _, by_key = mig_index()
-    out = []
-    for n, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
-        def cell(name):
-            v = row[head[name]] if head[name] < len(row) else None
-            return "" if v is None else str(v).strip()
-        value = cell(cfg["field"]).lower()
-        if value:
-            pair = keyed_pair({c: cell(c) for c in ("mig_key", "source_id", "source_key")
-                               if c in head}, by_key)
-            out.append({"row": n, "mig_key": cell("mig_key"),
-                        "record_key": record_key(*pair) if pair else "",
-                        "value": value, "text": cell(cfg["text"])})
-    return generated, out
-
-
-def ingest_sheet(kind, listed):
-    """Validate the filled rows of a sheet against what it should still list.
-    Returns (valid log rows, [(row, record_key, why)]); None when there is no sheet."""
-    cfg = SHEETS[kind]
-    got = read_sheet(kind)
-    if got is None:
-        return None
-    generated, filled = got
-    good, bad, seen = [], [], set()
-    for r in filled:
-        key = r["record_key"]
-        if r["value"] not in cfg["allowed"]:
-            bad.append((r["row"], r["mig_key"], f"{r['value']!r} is not one of "
-                        + ", ".join(cfg["allowed"])))
-        elif key not in listed:
-            bad.append((r["row"], r["mig_key"], "this record is not listed for this sheet "
-                        "(unknown, already decided, or already in a dossier)"))
-        elif key in seen:
-            bad.append((r["row"], r["mig_key"], "the record is on the sheet twice"))
-        else:
-            seen.add(key)
-            good.append({"record_key": key, "mig_key": r["mig_key"],
-                         "decision": r["value"], cfg["text"]: r["text"],
-                         "decided_on": TODAY, "sheet_generated_on": generated})
-    return good, bad
 
 
 def stage_review():
@@ -2449,184 +2036,15 @@ def stage_review():
     return result
 
 
-def stage_review_until_0_2():
-    """The review step until 0.2 (sheets 1_decide_scope, 2_promote, 3_edit_dossiers).
-    No longer called; kept until the clean-up of P7."""
-    ensure_logs()
-    records = latest_records()
-    # Every record that reaches the decide-scope sheet has a MIG key from then on; a
-    # hand-added record, in scope on the curator's word, has one from the start.
-    new_keys = assign_mig_keys(set(read_verdicts()) | {p for p in records if p[0] == MANUAL})
-    if new_keys:
-        info(f"  ok    gave {len(new_keys)} record(s) a MIG key "
-             f"({min(new_keys.values())} to {max(new_keys.values())}) in "
-             f"{MIG_KEYS.relative_to(ROOT)}")
-    state = review_state(records)
-    listed = {"scope": set(state["scope"]), "promote": set(state["promote"])}
-    decided = {"scope": 0, "promote": 0}
-    detail = {"scope": "", "promote": ""}
-    unreadable = set()
-    if openpyxl is None:
-        info(f"  warn  {OPENPYXL_HINT}. The review sheets are skipped; the run goes on.")
-    else:
-        # 1. ingest
-        for kind in ("scope", "promote"):
-            cfg = SHEETS[kind]
-            try:
-                got = ingest_sheet(kind, listed[kind])
-            except ValueError as e:
-                unreadable.add(kind)
-                info(f"  FAIL  {cfg['file']} cannot be read ({e}). It is left as it is "
-                     f"and not rewritten; fix or delete it.")
-                continue
-            if got is None:
-                continue
-            good, bad = got
-            for row, key, why in bad:
-                info(f"  warn  {cfg['file']} row {row} {key or '(no mig_key)'}: {why}. "
-                     f"Not logged; the record comes back on the new sheet.")
-            if kind == "promote":
-                good = promote_yes(good, records)
-            append_log(kind, good)
-            decided[kind] = len(good)
-            counts = {}
-            for r in good:
-                counts[r["decision"]] = counts.get(r["decision"], 0) + 1
-            detail[kind] = ", ".join(f"{v} {k}" for k, v in sorted(counts.items()))
-            if good:
-                info(f"  ok    {cfg['file']}: logged {len(good)} decision(s) "
-                     f"({detail[kind]}) in 0.2/review/{cfg['log']}")
-            elif not bad:
-                info(f"  note  {cfg['file']}: nothing filled in")
-        # 2. sheet 3: the fields a person changed, written into the dossiers
-        try:
-            edits = apply_dossier_edits()
-        except ValueError as e:
-            unreadable.add("edit")
-            info(f"  FAIL  {EDIT['file']} cannot be read ({e}). It is left as it is and "
-                 f"not rewritten; fix or delete it.")
-        else:
-            if edits:
-                decided["edit"] = len(edits)
-                info(f"  ok    {EDIT['file']}: logged {len(edits)} field(s) in "
-                     f"0.2/review/{EDIT['log']}")
-            elif edits is not None:
-                info(f"  note  {EDIT['file']}: nothing edited")
-    # 3. write the sheets again from the state now
-    state = review_state(records)
-    if openpyxl is not None:
-        for kind, columns, rows, lines, fields in (
-                ("scope", SCOPE_COLUMNS, scope_sheet_rows(state, records), SCOPE_HELP,
-                 (SCOPE_FIELDS_CHAIN, SCOPE_FIELDS_HEAD, SCOPE_FIELDS)),
-                ("promote", PROMOTE_COLUMNS, promote_sheet_rows(state, records),
-                 PROMOTE_HELP, None)):
-            if kind not in unreadable:
-                write_sheet(kind, columns, rows, lines, fields)
-        if "edit" not in unreadable:
-            write_edit_sheet(edit_sheet_rows())
-    # 4. the numbers
-    edited = decided.pop("edit", 0)
-    REVIEW_DECIDED["edit"] += edited
-    for kind, n in decided.items():
-        REVIEW_DECIDED[kind] += n
-    result = {"openpyxl": openpyxl is not None,
-              "edit": {"decided": edited, "left": len(all_dossiers()),
-                       "path": str((REVIEW / EDIT["file"]).relative_to(ROOT))}}
-    info(f"  ok    edit dossiers fields set this run {edited:4d}   "
-         f"dossiers {len(all_dossiers()):4d}   "
-         + (result["edit"]["path"] if openpyxl is not None else "no sheet: openpyxl missing"))
-    for kind, label in (("scope", "decide scope"), ("promote", "promote")):
-        cfg = SHEETS[kind]
-        left = len(state[kind])
-        result[kind] = {"decided": decided[kind], "left": left,
-                        "path": str((REVIEW / cfg["file"]).relative_to(ROOT))}
-        asked = ""
-        if kind == "scope":
-            result[kind]["asked"] = len(state["scope_ask"])
-            asked = f" (asking you {len(state['scope_ask'])})"
-        where = result[kind]["path"] if openpyxl is not None else "no sheet: openpyxl missing"
-        info(f"  ok    {label:13s} decided this run {decided[kind]:4d}   "
-             f"left {left:4d}{asked}   {where}")
-    n = write_incident_columns()
-    info(f"  ok    ledger: incident columns of {n} incidents -> {LEDGER.relative_to(ROOT)}")
-    stage_dedupe()
-    return result
-
-
-def promote_yes(rows, records):
-    """Act on the `yes` rows of the promote sheet: scaffold each dossier. A yes the
-    promote logic refuses, or that has nothing to make, is reported and dropped, so the
-    record stays on the sheet. Returns the rows to log."""
-    context = load_context()
-    made, keep = [], []
-    for row in rows:
-        if row["decision"] != "yes":
-            keep.append(row)
-            continue
-        try:
-            doc_id = promote_one(row["record_key"], records, context, made)
-        except PromoteRefused as e:
-            info(f"  warn  promote {row['mig_key']}: {e} Its yes is not logged; it "
-                 f"stays on the sheet.")
-            continue
-        if doc_id is None:
-            info(f"  warn  promote {row['mig_key']}: a dossier of that name already "
-                 f"exists. Its yes is not logged; it stays on the sheet.")
-            continue
-        made.append(doc_id)
-        keep.append(row)
-    if made:
-        info("  note  a scaffold is not a record: fill every _pending_ section, verify "
-             "against the primary source, and set multi_agent yourself.")
-    return keep
-
-
 def check_review_logs(records, problems, warnings):
-    """Both decision logs: header, values, keys, dates; a promote yes rests on a scope
-    decision `in`; a scope decision against a dossier."""
-    by_pair, by_key = mig_index()
-    mine = {(r["source_id"], str(r["source_record_id"])): r["mig_key"]
-            for r in read_mig_registry()}
-    rel = lambda cfg: (REVIEW / cfg["log"]).relative_to(ROOT)
-    bad_header = False
-    for kind, cfg in SHEETS.items():
-        path = REVIEW / cfg["log"]
-        if not path.exists():
-            continue
-        with open(path, newline="", encoding="utf-8") as f:
-            header = next(csv.reader(f), [])
-        if header != cfg["cols"]:
-            problems.append(f"{rel(cfg)}: the header is {header}, it must be {cfg['cols']}")
-            bad_header = True
-            continue
-        for n, row in enumerate(read_csv(path), 2):
-            where = f"{rel(cfg)}:{n}"
-            if row["decision"] not in cfg["allowed"]:
-                problems.append(f"{where}: decision {row['decision']!r} is not one of "
-                                f"{list(cfg['allowed'])}")
-            pair = keyed_pair(row, by_key)
-            if pair is None:
-                problems.append(f"{where}: {row['mig_key']!r} is no MIG key and the row "
-                                f"has no source key")
-            elif pair not in records:
-                problems.append(f"{where}: {row['source_id']} {row['source_key']!r} "
-                                f"({row['mig_key']}) is no record")
-            elif row["mig_key"] not in (by_pair.get(pair), mine.get(pair)):
-                problems.append(f"{where}: {row['mig_key']} is neither the key of "
-                                f"{row['source_id']} {row['source_key']!r} "
-                                f"({by_pair.get(pair)}) nor one it was given")
-            for col in ("decided_on", "sheet_generated_on"):
-                if not parse_iso(row[col])[0]:
-                    problems.append(f"{where}: {col} {row[col]!r} is not an ISO date")
-    if bad_header:
-        return
+    """How the record decisions agree with the incidents (decide.check_logs checks the
+    logs themselves): an incident given to a record rests on a scope decision `in`, and
+    no incident in scope rests on a record a person decided out."""
     scope = scope_newest(records)
-    promo = newest_by_key(read_log("promote"))
-    for key, row in sorted(promo.items()):
-        if row["decision"] == "yes" and scope.get(key, {}).get("decision") != "in":
-            problems.append(f"0.2/review/promote_decisions_log.csv: {row['mig_key']} has a "
-                            f"promote yes "
-                            f"but no newest scope decision `in`")
+    for key, row in sorted(newest_by_key(read_log("promote")).items()):
+        if row["label"] == "duplicate_of" and scope.get(key, {}).get("decision") != "in":
+            problems.append(f"0.2/review/{decide.LOGS['record']}: {row['mig_key']} has "
+                            f"duplicate_of {row['final']} but no newest scope decision `in`")
     real = newest_by_key(read_log("scope"))
     for path in all_dossiers():
         meta, _ = read_dossier(path)
@@ -2636,78 +2054,31 @@ def check_review_logs(records, problems, warnings):
             rel_d = path.relative_to(ROOT)
             said = f"{s.get('source_id')} {source_key(s.get('source_id'), s.get('record_id'))}"
             if decision == "out" and meta.get("multi_agent") is True:
-                problems.append(f"{rel_d}: multi_agent is true, but the newest scope "
-                                f"decision for its source {said} is `out`. Decide again "
-                                f"on sheet 1, or fix the dossier.")
+                problems.append(f"{rel_d}: in scope, but the newest scope decision for its "
+                                f"source {said} is `out`. Decide again on sheet 1, or set "
+                                f"incident_scope on sheet 2.")
             elif decision == "in" and meta.get("multi_agent") is False:
-                warnings.append(f"{rel_d}: multi_agent is false; the scope decision for "
-                                f"its source {said} was `in`. The dossier is the later, "
+                warnings.append(f"{rel_d}: out of scope; the scope decision for its source "
+                                f"{said} was `in`. The incident's decision is the later, "
                                 f"fuller judgement.")
-    check_edit_log(problems, warnings)
 
 
-# ------------------------------------------------------- sheet 3: edit dossiers
+# ----------------------------------------------- the values a person types on a sheet
 #
-# One row per dossier, prefilled with what the dossier says now. A person changes a
-# cell; the next review run writes that field to the dossier, adds its name to the
-# dossier's `set_by_person`, and logs it, one row per field, in dossier_edits_log.csv. A cell
-# left as it was is not an edit. The values the sheet was written with are kept in a
-# hidden tab, so an edit to a field the dossier has changed since is refused, never
-# written over it.
+# How sheet 2 (decide.py) reads a fact a person changed: parse_edit, with the kind of
+# value each field holds. Until 0.2 a third sheet edited the dossiers directly and named
+# each field it set in the dossier's `set_by_person`; that key is no longer written, and
+# check still validates it where an old dossier has it.
 
-EDIT = {"file": "3_edit_dossiers.xlsx", "log": "dossier_edits_log.csv", "title": "Edit dossiers"}
-EDIT_LOG_COLS = ["mig_key", "field", "old_value", "new_value", "decided_on",
-                 "sheet_generated_on"]
-SNAPSHOT_SHEET = "_snapshot"
 SET_BY_PERSON = "set_by_person"
-# The dossier fields sheet 3 sets, and what kind of value each holds.
+# The dossier fields a person may set, and what kind of value each holds.
 EDIT_FIELDS = {
     "title": "text", "multi_agent": "scope", "failure_mode": "choice",
     "instances": "list", "instances_presumed": "list", "evidence_type": "choice",
     "verification": "choice", "last_verified": "date", "actor_count": "text",
     "interaction_kind": "choice", "occurrence_date": "date", "systems": "list",
 }
-# Free text, blank on every new sheet. scope_reason goes into multi_agent_basis; a
-# verification_note is added to the dossier's ## Verification notes.
-EDIT_NOTES = ["scope_reason", "verification_note"]
 PERSON_SETTABLE = list(EDIT_FIELDS) + ["multi_agent_basis"]
-EDIT_COLUMNS = ["mig_key", "source_id", "source_key", "title", "url", SET_BY_PERSON, "multi_agent", "scope_reason",
-                "failure_mode", "failure_mode_source", "instances", "instances_presumed",
-                "evidence_type", "verification", "last_verified", "verification_note",
-                "actor_count", "interaction_kind", "occurrence_date", "systems"]
-EDIT_WIDTHS = {"mig_key": 11, "source_id": 11, "source_key": 14, "title": 44, "url": 26, SET_BY_PERSON: 18, "multi_agent": 11,
-               "scope_reason": 34, "failure_mode": 10, "failure_mode_source": 20,
-               "instances": 14, "instances_presumed": 12, "evidence_type": 13,
-               "verification": 16, "last_verified": 12, "verification_note": 40,
-               "actor_count": 10, "interaction_kind": 20, "occurrence_date": 12,
-               "systems": 30}
-EDIT_HELP = [
-    "Edit dossiers: change what a dossier says, and have it recorded as yours.",
-    "One row per dossier, filled in with what the dossier says now. The yellow columns "
-    "are yours to change. Change a cell and the next run writes it to the dossier; leave "
-    "it as it is and nothing happens.",
-    "Every field you change is named in the dossier's `set_by_person` list, and logged "
-    "with its old and new value in 0.2/review/dossier_edits_log.csv. Column set_by_person "
-    "shows what you have already set.",
-    "multi_agent: true, false or unclear. This is your scope verdict; it also sets "
-    "multi_agent_label_source to ours. Write why in scope_reason; it goes into "
-    "multi_agent_basis.",
-    "failure_mode: FM1, FM2, FM3, or empty for none. Setting it (or emptying it) makes "
-    "failure_mode_source ours. On an attack admitted by the presumption, empty "
-    "instances_presumed when you set a failure mode.",
-    "instances and instances_presumed: instance ids separated by ';' "
-    "(0.2/taxonomy/instances.csv). instances_presumed is empty or 'I28; I29'.",
-    "verification: verified, partially_verified or unverified. Raising it sets "
-    "last_verified to today unless you fill last_verified yourself. Write what you "
-    "checked in verification_note; it is added to ## Verification notes with the date.",
-    "Dates are ISO: 2026, 2026-06 or 2026-06-18. Lists are separated by ';'.",
-    "A row that breaks a dossier rule (the same rules as run.py check) is not written: "
-    "the run says why, and the new sheet shows the dossier as it is, so enter it again.",
-    "If the dossier was changed by someone else since this sheet was written, your edit "
-    "to that field is refused, not written over it. Run review again for a fresh sheet.",
-    "Save the file, then run `python 0.2/pipeline/run.py review` or press Continue on "
-    "the page.",
-]
 
 
 def edit_choices():
@@ -2778,126 +2149,6 @@ def parse_edit(field, text, choices):
     return value, edit_text(field, value)
 
 
-def edit_sheet_rows():
-    rows = []
-    for path in all_dossiers():
-        meta, _ = read_dossier(path)
-        srcs = meta.get("sources") or []
-        row = {"mig_key": path.stem, "source_id": meta.get("canonical_source") or "",
-               "source_key": meta.get("source_key") or "",
-               "url": srcs[0].get("url", "") if srcs else "",
-               SET_BY_PERSON: "; ".join(meta.get(SET_BY_PERSON) or []),
-               "failure_mode_source": meta.get("failure_mode_source") or ""}
-        for field in EDIT_FIELDS:
-            row[field] = edit_text(field, meta.get(field))
-        rows.append(row)
-    return rows
-
-
-def write_edit_sheet(rows, path=None):
-    """Write sheet 3 to 0.2/review/ (or to `path`), with the values it was written with
-    in a hidden tab."""
-    from openpyxl.styles import Alignment, Font, PatternFill
-    from openpyxl.utils import get_column_letter
-    from openpyxl.worksheet.datavalidation import DataValidation
-
-    editable = set(EDIT_FIELDS) | set(EDIT_NOTES)
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = EDIT["title"]
-    ws.append(EDIT_COLUMNS)
-    head = PatternFill("solid", start_color="D9E1F2")
-    ask = PatternFill("solid", start_color="FFF2CC")
-    ask_head = PatternFill("solid", start_color="FFD966")
-    for i, name in enumerate(EDIT_COLUMNS, 1):
-        c = ws.cell(1, i)
-        c.font = Font(bold=True)
-        c.fill = ask_head if name in editable else head
-        c.alignment = Alignment(vertical="top", wrap_text=True)
-        ws.column_dimensions[get_column_letter(i)].width = EDIT_WIDTHS.get(name, 14)
-    for row in rows:
-        ws.append([clean(row.get(c, "")) for c in EDIT_COLUMNS])
-    if not rows:
-        ws.append([NOTHING_LEFT] + [""] * (len(EDIT_COLUMNS) - 1))
-    last = max(len(rows) + 1, 2)
-    for r in range(2, last + 1):
-        for i, name in enumerate(EDIT_COLUMNS, 1):
-            c = ws.cell(r, i)
-            c.alignment = Alignment(vertical="top", wrap_text=name in (
-                "title", "scope_reason", "verification_note", "systems"))
-            if name in editable:
-                c.fill = ask
-                c.number_format = "@"   # text: a typed date stays the text typed
-            if name == "url" and str(c.value).startswith(("http://", "https://")):
-                c.hyperlink = str(c.value)
-                c.style = "Hyperlink"
-    ws.freeze_panes = "B2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(EDIT_COLUMNS))}{last}"
-    for field, allowed in edit_choices().items():
-        listed = ",".join(allowed)
-        dv = DataValidation(type="list", formula1=f'"{listed}"', allow_blank=True,
-                            showErrorMessage=True, errorTitle="Not a choice",
-                            error=f"Pick one of: {listed}.")
-        ws.add_data_validation(dv)
-        col = get_column_letter(EDIT_COLUMNS.index(field) + 1)
-        dv.add(f"{col}2:{col}{last}")
-    hs = wb.create_sheet(HELP_SHEET)
-    hs.column_dimensions["A"].width = 110
-    for i, line in enumerate(EDIT_HELP, 1):
-        hs.cell(i, 1, line).alignment = Alignment(wrap_text=True, vertical="top")
-    hs.cell(1, 1).font = Font(bold=True)
-    snap = wb.create_sheet(SNAPSHOT_SHEET)
-    snap.append(["mig_key"] + list(EDIT_FIELDS))
-    for row in rows:
-        snap.append([row["mig_key"]] + [clean(row.get(f, "")) for f in EDIT_FIELDS])
-    snap.sheet_state = "hidden"
-    meta = wb.create_sheet(META_SHEET)
-    meta.append(["generated_on", TODAY])
-    meta.append(["sheet", "edit"])
-    meta.sheet_state = "hidden"
-    wb.properties.title = f"{EDIT['title']} (generated {TODAY})"
-    REVIEW.mkdir(parents=True, exist_ok=True)
-    path = Path(path) if path else REVIEW / EDIT["file"]
-    tmp = path.with_name(path.name + ".tmp")
-    wb.save(tmp)
-    os.replace(tmp, path)
-    return path
-
-
-def read_edit_sheet():
-    """(generated_on, rows, snapshot), or None when there is no sheet. A row is
-    {row, id, cells: {column: text}}; the snapshot is {id: {field: text}}, the values
-    the sheet was written with. Raises ValueError for a file that cannot be read."""
-    path = REVIEW / EDIT["file"]
-    if not path.exists():
-        return None
-    try:
-        wb = openpyxl.load_workbook(path, data_only=True)
-        ws, sw = wb[EDIT["title"]], wb[SNAPSHOT_SHEET]
-    except Exception as e:  # noqa: BLE001 - a corrupt or half-written file
-        raise ValueError(f"{type(e).__name__}: {e}") from None
-    head = {str(c.value).strip(): i for i, c in enumerate(ws[1]) if c.value is not None}
-    for need in ["mig_key"] + list(EDIT_FIELDS) + EDIT_NOTES:
-        if need not in head:
-            raise ValueError(f"the column {need!r} is gone from the header row")
-    generated = ""
-    if META_SHEET in wb.sheetnames:
-        generated = str(wb[META_SHEET].cell(1, 2).value or "")
-    srows = list(sw.iter_rows(values_only=True))
-    snapshot = {}
-    if srows:
-        shead = [str(h) for h in srows[0]]
-        for r in srows[1:]:
-            if r and r[0]:
-                snapshot[str(r[0])] = {h: cell_text(v) for h, v in zip(shead[1:], r[1:])}
-    rows = []
-    for n, r in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
-        cells = {name: cell_text(r[i] if i < len(r) else None) for name, i in head.items()}
-        if cells.get("mig_key") and cells["mig_key"] != NOTHING_LEFT:
-            rows.append({"row": n, "id": cells["mig_key"], "cells": cells})
-    return generated, rows, snapshot
-
-
 def add_to_section(body, name, text):
     """The body with `text` added as a paragraph at the end of section `name`. A section
     holding only the _pending_ placeholder is replaced."""
@@ -2911,158 +2162,6 @@ def add_to_section(body, name, text):
         sec = ""
     new = "\n" + (sec + "\n\n" if sec else "") + text + "\n" + ("\n" if nxt else "")
     return body[:m.end()] + new + body[end:]
-
-
-def edit_one(cells, snap, choices):
-    """What one sheet row changes: ({field: (value, text)}, {note: text}, [problems])."""
-    changed, bad = {}, []
-    for field in EDIT_FIELDS:
-        text = cells.get(field, "")
-        was = snap.get(field, "")
-        try:
-            value, canon = parse_edit(field, text, choices)
-        except ValueError as e:
-            # A cell left as the dossier had it is not the person's doing, even when
-            # the dossier's own value would not parse (a scaffold's empty evidence_type).
-            if text != was:
-                bad.append(str(e))
-            continue
-        if canon != was:
-            changed[field] = (value, canon)
-    notes = {k: cells.get(k, "") for k in EDIT_NOTES if cells.get(k, "")}
-    return changed, notes, bad
-
-
-def apply_dossier_edits():
-    """Read sheet 3 and write what a person changed into the dossiers. Returns the log
-    rows written, or None when there is no sheet. Raises ValueError for a sheet that
-    cannot be read."""
-    got = read_edit_sheet()
-    if got is None:
-        return None
-    generated, rows, snapshot = got
-    choices = edit_choices()
-    env, seen, logged = None, set(), []
-    for r in rows:
-        doc_id, cells = r["id"], r["cells"]
-        where = f"{EDIT['file']} row {r['row']} {doc_id}"
-        if doc_id in seen:
-            info(f"  warn  {where}: the dossier is on the sheet twice; only the first "
-                 f"row is read")
-            continue
-        seen.add(doc_id)
-        snap = snapshot.get(doc_id)
-        if snap is None:
-            info(f"  warn  {where}: not a row the sheet was written with; not read")
-            continue
-        changed, notes, bad = edit_one(cells, snap, choices)
-        if bad:
-            info(f"  warn  {where}: {'; '.join(bad)}. Nothing in this row is written; "
-                 f"the new sheet shows the dossier as it is.")
-            continue
-        if not changed and not notes:
-            continue
-        path = dossier_path(doc_id)
-        if not path.exists():
-            info(f"  warn  {where}: there is no such dossier any more (renamed?); not "
-                 f"written")
-            continue
-        meta, body = read_dossier(path)
-        moved = [f for f in changed
-                 if cell_text(clean(edit_text(f, meta.get(f)))) != snap.get(f, "")]
-        if moved:
-            info(f"  warn  {where}: the dossier's {', '.join(moved)} changed after the "
-                 f"sheet was written; nothing in this row is written over it. Enter it "
-                 f"again on the new sheet.")
-            continue
-        new, new_body = copy.deepcopy(meta), body
-        entries = [(f, snap.get(f, ""), canon) for f, (_, canon) in changed.items()]
-        for f, (value, _) in changed.items():
-            new[f] = value
-        # what the dossier rules need beside the field a person set
-        if "failure_mode" in changed:
-            new["failure_mode_source"] = "ours"
-        if "occurrence_date" in changed:
-            new["occurrence_date_precision"] = parse_iso(new["occurrence_date"])[1]
-        if ("verification" in changed and "last_verified" not in changed
-                and new["verification"] != "unverified"):
-            new["last_verified"] = TODAY
-        reason = notes.get("scope_reason", "")
-        if "multi_agent" in changed:
-            new["multi_agent_label_source"] = "ours"
-            new["multi_agent_basis"] = (
-                f"Set to `{changed['multi_agent'][1]}` by a person on sheet 3 on {TODAY}"
-                + (f": {reason}" if reason else "; no reason given") + ".")
-        elif reason:
-            new["multi_agent_basis"] = (f"{(meta.get('multi_agent_basis') or '').strip()} "
-                                        f"Reason added by a person on sheet 3 on {TODAY}: "
-                                        f"{reason}").strip()
-        if reason:
-            entries.append(("multi_agent_basis", meta.get("multi_agent_basis") or "",
-                            new["multi_agent_basis"]))
-        note = notes.get("verification_note", "")
-        if note:
-            new_body = add_to_section(body, "Verification notes",
-                                      f"Curator, {TODAY}: {note}")
-            if new_body is None:
-                info(f"  warn  {where}: the dossier has no ## Verification notes section "
-                     f"for the note; nothing in this row is written")
-                continue
-            entries.append(("verification_note", "", note))
-        named = [f for f, _, _ in entries if f in PERSON_SETTABLE]
-        if named:
-            mine = list(meta.get(SET_BY_PERSON) or [])
-            new[SET_BY_PERSON] = mine + [f for f in named if f not in mine]
-        env = env or check_env()
-        before, _ = check_dossier(path, meta, body, env)
-        after, _ = check_dossier(path, new, new_body, env)
-        fresh = [p for p in after if p not in before]
-        if fresh:
-            info(f"  warn  {where}: not written, it would break a dossier rule: "
-                 + " | ".join(p.split(": ", 1)[-1] for p in fresh))
-            continue
-        write_dossier_body(path, new, new_body)
-        for field, old, value in entries:
-            logged.append({"mig_key": doc_id, "field": field, "old_value": old,
-                           "new_value": value, "decided_on": TODAY,
-                           "sheet_generated_on": generated})
-        info(f"  ok    {doc_id}: set {', '.join(f for f, _, _ in entries)}")
-    append_edit_log(logged)
-    return logged
-
-
-def append_edit_log(rows):
-    path = REVIEW / EDIT["log"]
-    REVIEW.mkdir(parents=True, exist_ok=True)
-    new = not path.exists()
-    with open(path, "a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=EDIT_LOG_COLS, lineterminator="\n")
-        if new:
-            w.writeheader()
-        w.writerows({c: r.get(c, "") for c in EDIT_LOG_COLS} for r in rows)
-
-
-def check_edit_log(problems, warnings):
-    """dossier_edits_log.csv: header, fields, dates; a dossier it names that is gone (it may
-    have been renamed) is a warning."""
-    path = REVIEW / EDIT["log"]
-    if not path.exists():
-        return
-    rel = path.relative_to(ROOT)
-    with open(path, newline="", encoding="utf-8") as f:
-        header = next(csv.reader(f), [])
-    if header != EDIT_LOG_COLS:
-        problems.append(f"{rel}: the header is {header}, it must be {EDIT_LOG_COLS}")
-        return
-    ids = {p.stem for p in all_dossiers()}
-    for n, row in enumerate(read_csv(path), 2):
-        if row["field"] not in PERSON_SETTABLE + ["verification_note"]:
-            problems.append(f"{rel}:{n}: field {row['field']!r} is not one sheet 3 sets")
-        for col in ("decided_on", "sheet_generated_on"):
-            if not parse_iso(row[col])[0]:
-                problems.append(f"{rel}:{n}: {col} {row[col]!r} is not an ISO date")
-        if row["mig_key"] not in ids:
-            warnings.append(f"{rel}:{n}: {row['mig_key']} is no dossier now")
 
 
 # -------------------------------------------------------------------- index
@@ -3925,8 +3024,8 @@ def map_flow(reg, records, queue, context, index_rows):
          "stop": [], "held": 0,
          "pop": dec_in,
          "groups": [{"title": "Records a person decided in", "rows": rows(
-             ("Decided in on the scope sheet", len(dec_in),
-              "review/scope_decisions_log.csv decision in"),
+             ("Decided in on the records sheet", len(dec_in),
+              "review/record_decisions_log.csv scope in"),
              ("Risk instances proposed", len(dec_has), "assign_instances proposal"),
              ("The dossier already lists them", len(dec_listed), "dossier instances"),
              ("None proposed yet", len(dec_due), "neither"))},
@@ -4315,10 +3414,6 @@ def check_ledger(records, problems, warnings):
                             f"record")
             break
     decide.check_logs(THIS, problems)
-    unstaged = [k for k, r in rows.items() if not r["stage"]]
-    if unstaged:
-        warnings.append(f"{rel}: {len(unstaged)} record(s) have no stage yet (first: "
-                        f"{unstaged[0]}); run index")
 
 
 def check_env(records=None, reg=None, context=None):
@@ -4436,7 +3531,8 @@ def check_dossier(path, meta, body, env):
             problems.append(f"{rel}: {overlap} is both quoted and presumed; a quoted "
                             f"I28 or I29 replaces the presumed pair")
 
-    # The fields a person set on sheet 3. Optional: a dossier nobody edited there has none.
+    # Until 0.2, the fields a person set on sheet 3. No longer written; validated where
+    # an old dossier still has it.
     by_person = meta.get(SET_BY_PERSON, [])
     if not isinstance(by_person, list):
         problems.append(f"{rel}: {SET_BY_PERSON} must be a list of field names")
@@ -4444,7 +3540,7 @@ def check_dossier(path, meta, body, env):
         for name in by_person:
             if name not in PERSON_SETTABLE:
                 problems.append(f"{rel}: {SET_BY_PERSON} names {name!r}, which is not a "
-                                f"field sheet 3 sets ({', '.join(PERSON_SETTABLE)})")
+                                f"field a person sets ({', '.join(PERSON_SETTABLE)})")
         if len(set(by_person)) != len(by_person):
             problems.append(f"{rel}: {SET_BY_PERSON} names a field twice")
 

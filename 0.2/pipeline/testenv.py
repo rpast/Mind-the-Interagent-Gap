@@ -237,6 +237,12 @@ def standin_review(rm, run):
     rm.info("  test  now the run reads it (scope and duplicate_of; the dossiers of the "
             "records decided in and new are made)")
     rm.stage_review()
+    for n, round_ in enumerate(answers.get("records_again") or [], 1):
+        done = fill_book(rm, rm.decide.RECORDS, round_)
+        rm.info(f"  test  records round {n + 1}: changed {rm.decide.RECORDS['file']} for "
+                f"{len(done)} record(s), as a person deciding again would have: "
+                f"{', '.join(done) or 'none listed'}")
+        rm.stage_review()
     put, left = put_prose(rm, STANDINS / "review" / "incidents")
     if not put:
         rm.info("  test  no new dossier was made, so no prose was written")

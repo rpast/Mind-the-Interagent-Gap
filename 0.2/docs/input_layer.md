@@ -27,8 +27,8 @@ Navigator's multi-agent facet, copied by hand on 2026-11-09 (see its `README.md`
 
 A record's identity is the pair `(source_id, source_record_id)`; `source_record_id` is
 the source's own id, the AIID `incident_id` for AIID. Every row in `records/`,
-`context/`, `proposals/`, `state/queue.jsonl`, `state/readiness.jsonl`,
-`state/verdicts.jsonl` and `state/instances_due.jsonl` carries the pair
+`context/`, `proposals/`, `state/readiness.jsonl` and `state/instances_due.jsonl` carries
+the pair, every row of the ledger (`ledger/ledger.csv`) carries the key,
 and also one string, `record_key`, `"<source_id>:<source_record_id>"`, e.g. `"aiid:1604"`.
 It is the same string `run.py promote` takes. `run.py` builds it in one place
 (`record_key`, `split_key`). It reads a row by `record_key` when the row has one, else by
@@ -83,7 +83,7 @@ Each stage is also runnable alone: `fetch`, `normalise`, `discover`, `prefilter`
 An `update` run walks: sources, discover, fetch, manual, normalise, prefilter, read,
 readiness, judge, **derive**, review, check, index. `derive` comes right after judge: it
 applies the labelling rules (`0.2/pipeline/derive.py`) to the newest `extract_gate`
-proposal of every record and writes `0.2/state/verdicts.jsonl`. The review step also runs
+proposal of every record and writes the ledger's derive columns. The review step also runs
 `instances-due` and shows how many records in scope still have no instance proposal.
 
 ### Who does each step

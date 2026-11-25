@@ -21,10 +21,11 @@ Outside this folder:
   `assign_instances.v2`).
 - `0.2/skills/classify-incidents/SKILL.md`: what `/classify-incidents` does, step by step.
   Claude Code finds it through the link `.claude/skills/classify-incidents`.
-- `0.2/review/README.md`: the two review sheets a person fills in, and their logs. Sheet 1's
-  `Fields` tab says what every column is and which columns it is computed from.
-- `0.2/pipeline/index_report.py`: writes `0.2/out/index_report.xlsx`, every incident in the
-  index and every record that is not, with the stage it stopped at and why.
+- `0.2/review/README.md`: the two review sheets a person fills in, proposal and decision
+  for every label, and their logs.
+- `0.2/ledger/README.md`: the ledger, `0.2/ledger/ledger.csv`, one row per loaded record:
+  every step's output, the decisions, the incident, and the stage it stopped at and why.
+  Since 0.2 it replaces `index_report.xlsx`. `0.2/docs/plan.md` is the design behind it.
 - `0.2/testenv/README.md`: the test run and its made-up cases.
 - `OPEN.md` at the repo root: open questions and recorded decisions, by number.
 - `docs/project_outline.md`: the project's goal and its three layers.

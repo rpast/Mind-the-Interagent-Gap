@@ -598,11 +598,15 @@
     - A scope decision `in` that a dossier later contradicts with `multi_agent: false` only
       warns in `check`; the dossier is the later judgement. `out` against `multi_agent: true`
       fails.
-    - A promote `no` is final: the record does not return to sheet 2. To reverse it, delete
-      its row from `promote_decisions_log.csv`. There is no sheet column for that.
-    - Reversing a scope decision (a record decided `out` then thought `in`) is the same:
-      delete or append a row by hand in `scope_decisions_log.csv`; sheet 1 does not list a
-      decided record.
+    - *Settled 2026-11-25, in 0.2:* two sheets replace the three (`1_records.xlsx`,
+      `2_incidents.xlsx`), every label proposed and decided, and two logs
+      (`record_decisions_log.csv`, `incident_decisions_log.csv`) carry every old decision.
+      A decided record in no incident is listed on sheet 1 with its decision: changing it
+      decides again, and the log keeps both rows. That covers reversing a scope decision
+      and a promote `no` (give the record a `duplicate_of`). See `0.2/review/README.md`.
+    - *Open:* aiid:1556 (MIG-0399) was decided `out` on 2026-11-23, but the duplicate
+      proposer finds it the same incident as MIG-0015, which is in scope. Decide it again
+      on sheet 1.
     - The sheets are generated and gitignored. `review` and `derive` read a sheet before
       they replace it, so filled rows are kept; an invalid row is reported by record_key and
       comes back blank, so what was typed in it is lost. A sheet that cannot be read is left
@@ -621,7 +625,7 @@
       `scope_suggestion` (in / out / unclear) with a one-line reason and a quote, and show
       it on sheet 1 beside `rules_say`. It stays a suggestion: only a human verdict sets
       scope. Before trusting it, measure it against the 103 human scope decisions of
-      2026-11-23 in `0.2/review/scope_decisions_log.csv`. Watch for anchoring: the gold review
+      2026-11-23 in `0.2/review/record_decisions_log.csv`. Watch for anchoring: the gold review
       hides prior labels for that reason (item 28), so the sheet may need to do the same.
     - **Simplify the data flow map, after the first full run cycle.** In
       `0.2/out/pipeline_flow.html` the step names do not match the sheets and the CLI

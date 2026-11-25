@@ -426,7 +426,7 @@ RECORDS_LEAD = ["mig_key", "source_id", "source_key", "ask", "title", "date", "u
                 "duplicate_of_proposed", "duplicate_of_why", "duplicate_of_decision",
                 "reason"]
 RECORDS_EDIT = ["scope_decision", "duplicate_of_decision", "reason"]
-RECORDS_SNAP = ["scope_proposed", "duplicate_of_proposed"]
+RECORDS_SNAP = ["scope_proposed", "duplicate_of_proposed", "scope_decision"]
 RECORDS_HELP = [
     "Decide records: is each record a multi-agent incident, and is it one the index "
     "already holds?",
@@ -441,7 +441,9 @@ RECORDS_HELP = [
     "that dossier), or ok to take the proposal.",
     "reason is optional; a line is worth writing. It goes into the log.",
     "ask: yes = decide this; check = the rules leave it out, decide only to sample-check "
-    "them; duplicate = you decided it in, it still needs duplicate_of.",
+    "them; duplicate = you decided it in, it still needs duplicate_of; decided = decided "
+    "before and in no incident: its decision shows, change it to decide again (the log "
+    "keeps the old one).",
     "An ok to a proposal that changed after this sheet was written is refused; the row "
     "comes back with the new proposal.",
     "Right of the yellow columns: everything the pipeline extracted for the record "
@@ -452,7 +454,9 @@ RECORDS_HELP = [
 
 
 def records_state(rm, records=None):
-    """The records sheet 1 lists: record_key -> ask (yes, check, duplicate)."""
+    """The records sheet 1 lists: record_key -> ask (yes, check, duplicate, decided).
+    Every record with a verdict that is in no incident: the undecided ones to decide, the
+    decided ones so a decision can be changed."""
     rows = ledger.read(rm.LEDGER)
     dec = record_decisions(rm)
     gates = rm.proposal_rows("extract_gate")
@@ -470,6 +474,8 @@ def records_state(rm, records=None):
             out[key] = "yes" if say == "in" or conf == "low" else "check"
         elif scope["final"] == "in" and "duplicate_of" not in d and "dossier" not in d:
             out[key] = "duplicate"
+        else:
+            out[key] = "decided"
     return out
 
 
@@ -479,7 +485,7 @@ def records_rows(rm, state, records):
     rows = ledger.read(rm.LEDGER)
     dec = record_decisions(rm)
     out = []
-    order = {"yes": 0, "duplicate": 0, "check": 1}
+    order = {"yes": 0, "duplicate": 0, "check": 1, "decided": 2}
     for key in sorted(state, key=lambda k: (order[state[k]], rm.natural(k))):
         r, pair = rows[key], rm.split_key(key)
         row = dict(evidence.get(pair, {}))
@@ -488,7 +494,7 @@ def records_rows(rm, state, records):
                     "scope_proposed": r["scope_proposed"], "scope_why": r["scope_why"],
                     "duplicate_of_proposed": r["duplicate_of_proposed"],
                     "duplicate_of_why": r["duplicate_of_why"]})
-        if state[key] == "duplicate":
+        if state[key] in ("duplicate", "decided"):
             row["scope_decision"] = dec[key]["scope"]["final"]
         out.append(row)
     return out
@@ -540,7 +546,10 @@ def read_records_sheet(rm, records):
     made = []
     for r in rows:
         c, mig = r["cells"], r["id"]
-        if not (c.get("scope_decision") or c.get("duplicate_of_decision")):
+        # A decision shown because it was made before is not made again by being there.
+        scope_cell = c.get("scope_decision", "")
+        scope_then = (snapshot.get(mig) or {}).get("scope_decision", "")
+        if scope_cell == scope_then and not c.get("duplicate_of_decision"):
             continue
         where = f"{RECORDS['file']} row {r['row']} {mig}"
         pair = by_key.get(mig)
@@ -553,10 +562,13 @@ def read_records_sheet(rm, records):
         seen.add(key)
         lr = ledger_rows[key]
         try:
-            if state[key] == "duplicate":
-                scope, scope_dec = "in", None
+            if scope_then and scope_cell == scope_then:
+                scope, scope_dec = scope_then, None
+                if scope != "in":
+                    raise ValueError(f"duplicate_of is only for a record decided in; this "
+                                     f"one is {scope}")
             else:
-                scope, scope_dec = resolve(c.get("scope_decision", ""), lr["scope_proposed"],
+                scope, scope_dec = resolve(scope_cell, lr["scope_proposed"],
                                            snap.get("scope_proposed", ""), SCOPES)
             dup = dup_dec = None
             if scope == "in":

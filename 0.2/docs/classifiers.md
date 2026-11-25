@@ -61,15 +61,15 @@ prefiltered volumes — 1,133 candidates on 2026-11-16, most of them settled by 
 record pass before any judging — an in-session run needs no API key and no credit.
 
 The skill reads a versioned prompt from `0.2/prompts/`, pulls un-dispositioned records from
-`0.2/state/queue.jsonl`, works in batches of 10–20 per turn, and appends verdicts to
+the ledger (rows with `queued` true), works in batches of 10–20 per turn, and appends them to
 `0.2/proposals/<prompt>.<date>.jsonl`. Every row it appends carries `record_key`. It is
 **resumable**: a record whose `record_key` already has a row for that prompt is skipped, so
 an interrupted run continues where it stopped.
 
 **Proposals hold model output only.** No derived label is written into a proposal. The
 labels are generated state: `python 0.2/pipeline/run.py derive` reads the newest
-`extract_gate` proposal of every record, applies the rules, and writes
-`0.2/state/verdicts.jsonl`. It is rewritten on every run, so a rule change reaches every
+`extract_gate` proposal of every record, applies the rules, and writes the ledger's derive
+columns. They are rewritten on every run, so a rule change reaches every
 record at once and no stale label survives in a proposal.
 
 **Which model.** Every prompt that judges an incident runs on `claude-opus-5-5`:
@@ -146,14 +146,15 @@ agents and the model did not answer `could` (decided 2026-11-16). When the presu
 does not fire, an `unclear` counterfactual routes as usual. Everywhere else `unreported`
 has no meaning.
 
-**The verdicts file.** `0.2/state/verdicts.jsonl`, one row per record with an
-`extract_gate` proposal: `record_key`, `source_id`, `source_record_id`, `status`
-(`in_scope`, `out_of_scope` or `review`), `gate1` (`in`, `out`, `review`, or `curator` for
-a manual record), `review_why`, `by_presumption`, `rules_version`, and the labels. A settled
-record carries them under `labels`; a review item under `labels_if_confirmed`, the labels
-the rules give if a person confirms the facts, so nothing reads them as settled. It is
-never an authority: a person still decides scope, in `0.2/review/1_decide_scope.xlsx`, and
-promotes, in `0.2/review/2_promote.xlsx`.
+**The derived verdict.** The ledger's derive columns, on every record with an
+`extract_gate` proposal (until 0.2, `state/verdicts.jsonl`): `rules_status` (`in_scope`,
+`out_of_scope` or `review`), `gate1` (`in`, `out`, `review`, or `curator` for a manual
+record), `why_a_person`, `by_presumption`, `rules_version`, and the labels
+(`rules_multi_agent`, `rules_evidence_type`, `rules_failure_mode`,
+`rules_instances_presumed`). `labels_settled` is `false` for a review item: its labels hold
+only if a person confirms the facts, so nothing reads them as settled. They are never an
+authority: they become proposals, and a person decides scope on `0.2/review/1_records.xlsx`
+and the incident's labels on `0.2/review/2_incidents.xlsx`.
 
 **Rules applied in code afterwards.** `0.2/pipeline/derive.py` is the single authority. It
 is a pure function, `derive(gate_row)`, with a self-test (`python 0.2/pipeline/derive.py
@@ -316,11 +317,11 @@ meaningful only after a source pass reads the cited reports for those facts.
 ## What the classifier may and may not write
 
 It writes to `0.2/proposals/` only. It never edits a dossier, and it never decides scope:
-the rules' `in_scope` is a suggestion. A person decides scope on the first review sheet
-(`0.2/review/1_decide_scope.xlsx`), and promotion is a human step too: a `yes` on the second
-sheet (`0.2/review/2_promote.xlsx`), or `python 0.2/pipeline/run.py promote
-<source_id>:<record_id>`, scaffolds a dossier with every narrative section marked pending,
-and a human fills it in against the primary source.
+the rules' `in_scope` is a proposal. A person decides scope on the records sheet
+(`0.2/review/1_records.xlsx`); a record decided `in` with `duplicate_of` `new` (or
+`python 0.2/pipeline/run.py promote <mig_key>`) gets a dossier with every narrative section
+marked pending, its labels proposed from the ledger, and a human writes the prose against
+the primary source and decides the labels on `0.2/review/2_incidents.xlsx`.
 
 `run.py check` enforces the boundary: a dossier with `multi_agent: true` whose
 `multi_agent_label_source` is anything other than `ours` fails the build.

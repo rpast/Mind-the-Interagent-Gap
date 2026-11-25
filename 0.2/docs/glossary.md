@@ -59,13 +59,28 @@ mid-2024.
 **Curator.** The person who keeps the index. A curator's hand write-up is a manual incident,
 in scope on their word; its read depth is `curator`.
 
-**Decide scope.** The map's box, and the sheet behind it, `0.2/review/1_decide_scope.xlsx`,
-where a person says `in`, `out` or `unclear` for each derived record. The rules only
-suggest (`rules_say`); a record is in scope only by a person's decision, which goes into the
-scope decision log. `in` goes on to Human review; `out` and `unclear` end there.
+**Decide records.** The map's box, and the sheet behind it, `0.2/review/1_records.xlsx`,
+where a person decides each derived record's scope (`ok`, `in`, `out`, `unclear`) and, for
+`in`, its `duplicate_of`. The rules only propose (`scope_proposed`); a record is in scope only
+by a person's decision, which goes into the record decision log. `in` goes on to New or
+duplicate; `out` and `unclear` end there.
+
+**Decide incidents.** The sheet `0.2/review/2_incidents.xlsx`: each incident's labels
+(scope, failure mode, instances, evidence type) as proposal and decision, its facts and
+its verification. Decisions go into the ledger and the incident decision log.
+
+**Decision log.** `0.2/review/record_decisions_log.csv` and `incident_decisions_log.csv`: a
+person's decisions, one row per label (`mig_key, label, proposed, decision, final, reason,
+decided_on, sheet_generated_on`), append-only, the newest row per key and label winning.
+Written only when `run.py review` reads a filled sheet. `check` validates them. Until 0.2
+there were three logs (scope, promote, dossier edits); their rows were carried over.
 
 **Derive.** `run.py derive`: applies `derive.py` to the newest call-1 proposal of every
-record and writes `0.2/state/verdicts.jsonl`.
+record and writes the ledger's derive columns.
+
+**duplicate_of.** The record label that says whether a record decided in is a new incident
+(`new`) or one the index already holds (its MIG key). Proposed by `pipeline/dedupe.py`,
+decided on the records sheet.
 
 **Discovery source.** Any source other than AIID, searched for incidents AIID lacks. The
 discover step is a placeholder, not built yet.
@@ -145,17 +160,19 @@ keyword calls multi-agent.
 
 **Promote.** `run.py promote <mig_key or record_key>`: scaffolds a dossier from a record for a person to
 fill in. Refuses a `not_ready` record unless given `--force`. The review step does the same
-for each `yes` on the promote sheet.
+for each record decided `in` with `duplicate_of` `new`. (Until 0.2 a separate promote sheet
+asked yes or no.)
 
-**Promote sheet.** `0.2/review/2_promote.xlsx`: the records a person decided `in` that have
-no dossier yet. The person fills `promote` with `yes` (the next run scaffolds the dossier)
-or `no` (logged in `0.2/review/promote_decisions_log.csv`; the record does not come back). It is
-the map's Human review box.
+**Proposal.** Two senses. A row of model output in `0.2/proposals/`: never authoritative,
+and it holds no derived label. And a label's `<label>_proposed` on a review sheet: what the
+pipeline proposes, for a person to take with `ok` or replace.
 
-**Proposal.** A row of model output in `0.2/proposals/`. Never authoritative, and it holds no
-derived label.
+**Ledger.** `0.2/ledger/ledger.csv`: one row per loaded record, one column per value a step
+produced for it, the person's decisions, the incident it belongs to, and its stage and
+reason. The source of truth for its columns; query it directly. See `0.2/ledger/README.md`.
 
-**Queue.** `0.2/state/queue.jsonl`: the candidates the prefilter queued. 1,133 on 2026-11-18.
+**Queue.** The candidates the prefilter queued: the ledger's rows with `queued` true (until
+0.2, `state/queue.jsonl`). 1,101 on 2026-11-25.
 
 **raw_ref.** The pointer in a record to the raw row it was built from: file, id field, id and
 fetch date.
@@ -193,18 +210,15 @@ likely, RF1 to RF7, such as RF7 Multi-Agent Security.
 **Rules version.** The date stamped on each derived verdict, saying which version of
 `derive.py` made it. Currently `2026-11-16`.
 
-**Scope decision log.** `0.2/review/scope_decisions_log.csv`: a person's scope decisions, one row
-per decision (`mig_key, source_id, source_key, decision, reason, decided_on,
-sheet_generated_on`), append-only,
-the newest row per record winning. Written only when `run.py review` reads a filled sheet.
-`check` validates it.
-
 **Security record.** A record about an attack, intrusion or abuse campaign: call 1 set
 `multiplicity_role` to anything but `not_applicable`.
 
-**set_by_person.** A dossier key: the list of fields a person set on sheet 3
-(`0.2/review/3_edit_dossiers.xlsx`), each also logged in `0.2/review/dossier_edits_log.csv`.
-Absent when nobody has edited the dossier there. The index report shows those cells green.
+**set_by_person.** Until 0.2, a dossier key listing the fields a person set on sheet 3.
+Since 0.2 a label is a person's when its `<label>_decision` in the ledger is filled; the key
+is no longer written.
+
+**Stage.** The ledger's `stage` column: where a record stopped, from `1 Prefilter` to
+`7 Incident: in the index`, with `reason` saying why. Set by `run.py index`.
 
 **Skill.** `/classify-incidents`, run in Claude Code. It does the reading and both model
 calls, and writes only to `context/` and `proposals/`.
@@ -216,9 +230,9 @@ Never touches the real tree.
 no taxonomy had asked the multi-agent question. Retired on 2026-11-17: every AIID record dated
 2024 or later is now queued with basis `recent`.
 
-**Verdict.** Two senses; keep them apart. A *derived verdict* is a row in
-`0.2/state/verdicts.jsonl`, made by rule from model facts. A *human verdict* is a person's
-decision recorded in a dossier; only it puts an incident in scope.
+**Verdict.** Two senses; keep them apart. A *derived verdict* is a record's derive
+columns in the ledger, made by rule from model facts. A *human verdict* is a person's
+decision on a review sheet; only it puts an incident in scope.
 
 **Verification.** A dossier field: `verified`, `partially_verified` or `unverified`.
 `verified` needs the primary source read in full. `partially_verified`: the primary source

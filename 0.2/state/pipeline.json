@@ -1,6 +1,6 @@
 {
   "generated": "2026-11-25",
-  "generated_at": "2026-11-25T21:26",
+  "generated_at": "2026-11-25T21:53",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -3040,9 +3040,9 @@
           {
             "rows": [
               {
-                "label": "Decided in on the scope sheet",
+                "label": "Decided in on the records sheet",
                 "n": 3,
-                "tech": "review/scope_decisions_log.csv decision in"
+                "tech": "review/record_decisions_log.csv scope in"
               },
               {
                 "label": "Risk instances proposed",
@@ -3176,7 +3176,7 @@
         "yes"
       ],
       "recent_from": "2024-01-01",
-      "where": "0.2/pipeline/run.py:1307"
+      "where": "0.2/pipeline/run.py:1275"
     },
     "queue": 1101,
     "queue_basis": {

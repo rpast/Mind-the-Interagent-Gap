@@ -13,6 +13,14 @@
       "duplicate_of_decision": "new",
       "reason": "Test: a hand-added record is in on the curator's word; it needs only duplicate_of."}}
   ],
+  "records_again": [
+    [{"record_key": "aiid:9904", "set": {
+      "scope_decision": "unclear",
+      "reason": "Test: the source was read and does not say."}}],
+    [{"record_key": "aiid:9904", "set": {
+      "scope_decision": "out",
+      "reason": "Test: deciding a decided record again; the log keeps both rows."}}]
+  ],
   "incidents": [
     [{"record_key": "aiid:9901", "set": {
       "evidence_type_decision": "bogus",

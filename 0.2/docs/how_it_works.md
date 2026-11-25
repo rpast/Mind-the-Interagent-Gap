@@ -28,7 +28,7 @@ Three kinds of actor touch a record. Keep them apart; the project depends on it.
 |---|---|---|
 | **script** (`0.2/pipeline/run.py`) | moves and counts data: fetch, normalise, prefilter, readiness, check, index | `raw/`, `records/`, `state/`, `out/` |
 | **model** (Claude, following a prompt in `0.2/prompts/`, run by the `/classify-incidents` skill) | **judgement**: reads sources and writes down facts; extracts gate facts; picks instances | `context/`, `proposals/` |
-| **fixed rule** (`0.2/pipeline/derive.py`) | turns the model's facts into labels, the same way every time | `state/verdicts.jsonl` |
+| **fixed rule** (`0.2/pipeline/derive.py`) | turns the model's facts into labels, the same way every time | the ledger's derive columns |
 | **person** | decides scope for the index, writes the dossier (or asks Claude to), sets `verification` | `incidents/` |
 
 Only a person can put an incident in scope. In a dossier that is `multi_agent: true` with
@@ -109,7 +109,7 @@ Incident Database, is the only `baseline` source; no discovery source has a work
   a third of our known cases and the keyword net's recall is unmeasured. A record nobody
   asked is *unscreened*, not negative. [aiid_background.md](aiid_background.md) tells the full story.
 - **Who:** script. Records already cited by a dossier are skipped.
-- **Writes:** `0.2/state/queue.jsonl`. On 2026-11-18: 1,133 queued (recent 1,099, frozen 34),
+- **Writes:** the ledger's prefilter columns (until 0.2, `state/queue.jsonl`). On 2026-11-18: 1,133 queued (recent 1,099, frozen 34),
   93 of them flagged (label 39, keyword 64; a record with both counts under both).
 - **1668:** `basis: "recent"`, `flags: "label;keyword"`,
   `label_values: "navigator=Multi-agent"`,
@@ -180,7 +180,7 @@ characters), and the facts the gates need are usually missing from them.
 - **What:** `derive.py` applies the gates (next section) to the newest call-1 row of every
   record. Each record comes out `in_scope`, `out_of_scope` or `review`.
 - **Who:** fixed rule. **Command:** `python 0.2/pipeline/run.py derive` (an `update` runs it
-  too). **Writes:** `0.2/state/verdicts.jsonl`, rewritten on every run, so a rule change
+  too). **Writes:** the ledger's derive columns, rewritten on every run, so a rule change
   reaches every record at once.
 - On 2026-11-16: 103 verdicts, **1 in scope, 0 out of scope, 102 review**.
 - **1668** is the one: `status: in_scope`, `gate1: in`, `review_why: []`, labels
@@ -211,19 +211,20 @@ characters), and the facts the gates need are usually missing from them.
 
 ### 10. Review by a person
 
-- **What:** a person reads the verdict, the proposals and the source, and decides, in two
-  spreadsheets in `0.2/review/`. **Sheet 1**, `1_decide_scope.xlsx`, lists every derived
-  record that has no scope decision yet, the rule-settled ones too: the rules never put
-  anything in scope, a person does. It asks for a judgement only where one matters: the
-  column `ask` is `yes` when the rules would put the record in or the model's confidence
-  is `low`, and those rows come first; `check` marks the rest, listed so a person can
-  sample-check the exclusions (decided 2026-11-19). Each row carries the title, the link, what the rules
-  would say (`rules_say`), why a person is needed, and a quote. The person fills the
-  `decision` column (a drop-down: `in`, `out`, `unclear`) and, if they like, a `reason`.
-  `in` sends the record on to sheet 2; `out` and `unclear` end it there. The answers go
-  into the log `0.2/review/scope_decisions_log.csv`. A hand-added incident counts as decided
-  `in` on the curator's word. The update's Review step writes the sheets and waits for the
-  person; on the map the **Decide scope** box counts the rows left.
+- **What:** a person reads the proposals and the source, and decides, in two spreadsheets
+  in `0.2/review/` (since 0.2; `0.2/review/README.md`). Every label on them has a proposal,
+  its reason, and the person's decision: `ok` takes the proposal, a value replaces it, a
+  blank is never agreement. **Sheet 1**, `1_records.xlsx`, lists every derived record in
+  no incident: the undecided ones to decide, the decided ones so a decision can be changed.
+  The rules never put anything in scope, a person does. Column `ask` is `yes` when the
+  rules propose in or the model's confidence is `low` (those rows come first), `check` for
+  the rest, listed so a person can sample-check the exclusions (decided 2026-11-19),
+  `duplicate` and `decided`. The person fills `scope_decision` (`ok`, `in`, `out`,
+  `unclear`) and, for `in`, `duplicate_of_decision`: `new`, or the MIG key of the incident
+  the record already is, proposed by `pipeline/dedupe.py`. The answers go into
+  `0.2/review/record_decisions_log.csv` and the ledger. A hand-added incident counts as
+  decided `in` on the curator's word. The update's Review step writes the sheets and waits
+  for the person; on the map the **Decide records** box counts the rows left.
 - **1668:** the person finds it duplicates an incident already in the index: dossier
   **MIG-0016**, "OpenAI agent swarm on DSEWiki and the Vanderbilt link shortener", which a
   person already judged `multi_agent: true`, `multi_agent_label_source: ours`,
@@ -233,29 +234,30 @@ characters), and the facts the gates need are usually missing from them.
   1800 are now sources of that dossier and AIID is canonical. The dossier is
   **MIG-0016** again, with `source_key: '1668'` (it was briefly named AIID-1668).
 
-### 11. Promote and write the dossier
+### 11. New or duplicate, then the dossier
 
-- **What:** **sheet 2**, `0.2/review/2_promote.xlsx`, lists the records a person decided
-  `in` that have no dossier yet (the map's **Human review** box). The person fills the
-  `promote` column: `yes` or `no`. On the next run a `yes` scaffolds
-  `0.2/incidents/<mig_key>.md`, named by the record's MIG key, with every narrative
-  section marked `_pending_` and `multi_agent: false`; a `no` is logged and the record does
-  not come back. The person fills the seven sections against the primary source and sets
-  `multi_agent`, `multi_agent_label_source: ours`, `failure_mode`, `instances`,
-  `evidence_type` and `verification` themselves. A `yes` for a `not_ready` record is
-  refused and stays on the sheet. `python 0.2/pipeline/run.py promote aiid:NNNN` still
-  scaffolds one dossier by hand, and refuses a `not_ready` record unless given `--force`.
-- **Or Claude fills it.** At the curator's request Claude fills the scaffolds from what the
-  pipeline holds: the person's scope decision becomes `multi_agent_basis`; evidence type
-  and failure mode come from the verdict, the failure mode tagged
-  `failure_mode_source: classifier:<prompt>@<version>`; instances quoted at `high` or
-  `medium` are adopted. The dossier stays `unverified` until a person checks it against
-  the primary source (the rule is in `CLAUDE.md`). First done 2026-11-23, for 26 dossiers.
-- **Duplicates.** A record decided `in` that is already an incident is linked, not
-  promoted: it is added to the existing dossier's `sources`. On 2026-11-23 six records were
-  linked into five dossiers, which were renamed from `MIG-` to `AIID-` ids. Later that day
-  every dossier was keyed by its MIG key instead, and those five got their MIG keys back;
-  the source's own key is in `source_key`.
+- **What:** a record decided `in` with `duplicate_of` `new` gets its dossier on the next
+  run (the map's **New or duplicate** box): `0.2/incidents/<mig_key>.md`, named by the
+  record's MIG key, every narrative section marked `_pending_`, its scope the person's
+  decision, its other labels and facts proposed from the record (the rules' evidence type
+  and failure mode, the adoptable instance proposals, the model's agent count and names).
+  A record decided `in` with an incident's MIG key joins that incident as a further
+  source, so one incident is never counted twice. A record that is `not_ready` is refused
+  and comes back. `python 0.2/pipeline/run.py promote <mig_key>` still makes one dossier by
+  hand, and refuses a `not_ready` record unless given `--force`.
+- **Then sheet 2**, `0.2/review/2_incidents.xlsx`: per incident, the scope, failure mode,
+  instances and evidence type as proposal and decision, the facts, and the verification
+  with a note. The decisions go into the ledger and `0.2/review/incident_decisions_log.csv`,
+  and the run writes the dossier's frontmatter from the ledger. A label edited in the
+  dossier by hand fails `check`.
+- **The prose.** The person writes the seven sections against the primary source, or, at
+  the curator's request, Claude writes them from what the pipeline holds; such a dossier
+  stays `unverified` until a person checks it (the rule is in `CLAUDE.md`). First done
+  2026-11-23, for 26 dossiers. Claude never writes the labels.
+- **Duplicates, before 0.2.** On 2026-11-23 six records were linked by hand into five
+  dossiers, which were renamed from `MIG-` to `AIID-` ids. Later that day every dossier was
+  keyed by its MIG key instead, and those five got their MIG keys back; the source's own
+  key is in `source_key`. Since 0.2 linking is the `duplicate_of` decision.
 - **Who:** person, helped by the script. The sheets need openpyxl; without it the step says
   how to install it, skips the sheets, and the run goes on.
 
@@ -265,11 +267,11 @@ characters), and the facts the gates need are usually missing from them.
   exit 0. Among other things it fails a dossier with `multi_agent: true` whose label source
   is not `ours`, a dossier that asserts scope with no source read far enough, and a
   `verified` dossier whose scope rests on a secondary or curator reading.
-- `python 0.2/pipeline/run.py index` writes `0.2/out/incident_index.csv` (one row per
-  dossier) and `0.2/state/pipeline.json`; `viz` renders the pages in `0.2/out/`.
-- `python 0.2/pipeline/index_report.py` writes `0.2/out/index_report.xlsx`: every incident
-  in the index with its labels, and every record that is not, with the stage it stopped
-  at, who stopped it (prefilter, reading, rules or person) and why.
+- `python 0.2/pipeline/run.py index` sets every record's `stage`, `reason` and `in_index`
+  in the ledger: where it stopped (prefilter, reading, rules, a person, or an incident in or
+  out of the index) and why. It also writes `0.2/out/incident_index.csv` (one row per
+  dossier) and `0.2/state/pipeline.json`; `viz` renders the pages in `0.2/out/`. (Until
+  0.2, `index_report.py` wrote the same as a workbook, `index_report.xlsx`.)
 - On 2026-11-23: 52 dossiers covering 59 records; 1,785 records not in the index.
 - On 2026-11-16: 26 dossiers, 19 `multi_agent: true`, 4 `false`, 3 `unclear`; `check` passes
   with 11 warnings, one per dossier resting on a secondary reading.
@@ -291,13 +293,13 @@ flowchart TD
   REG["Sources registry<br/>registry/sources.csv"] --> FETCH["Fetch<br/>raw/aiid/"]
   MAN["Curator write-ups<br/>update --manual DIR"] --> NORM
   FETCH --> NORM["Normalise<br/>records/SOURCE.jsonl"]
-  NORM --> PRE["Prefilter: recent, frozen, manual<br/>flags: label, keyword<br/>state/queue.jsonl"]
+  NORM --> PRE["Prefilter: recent, frozen, manual<br/>flags: label, keyword<br/>ledger: queued"]
   PRE --> READ["Read: record pass, source pass<br/>context/SOURCE.jsonl"]
   READ --> RDY{"Readiness<br/>state/readiness.jsonl"}
   RDY -->|"not_ready"| READ
   RDY -->|"one agent or none, confirmed"| GONE["Finished: out of scope"]
   RDY -->|"ready or provisional"| C1["Call 1: extract facts<br/>proposals/extract_gate.DATE.jsonl"]
-  C1 --> DER["Derive by rule<br/>state/verdicts.jsonl"]
+  C1 --> DER["Derive by rule<br/>ledger: derive columns"]
   DER --> REV["Decide scope, by a person"]
   REV -->|"decided in"| DUE["instances-due<br/>state/instances_due.jsonl"]
   DUE --> C2["Call 2: risk instances<br/>proposals/assign_instances.DATE.jsonl"]
@@ -322,17 +324,17 @@ Blue: script. Amber: model. Green: fixed rule. Pink: person.
 | fetch | script | AIID API, or the snapshot | `raw/aiid/` | `run.py fetch`, `update --refetch` |
 | manual | script | your folder of write-ups | `raw/manual/`, `records/manual.jsonl`, `context/manual.jsonl` | `update --manual DIR` |
 | normalise | script | `raw/`, `registry/labels/` | `records/<source>.jsonl` | `run.py normalise` |
-| prefilter | script | `records/`, dossier sources | `state/queue.jsonl` | `run.py prefilter` |
+| prefilter | script | `records/`, dossier sources | ledger: prefilter columns | `run.py prefilter` |
 | read | model, `enrich_context.v2` | queue, records, the web source | `context/<source>.jsonl` | `/classify-incidents` step 0 |
 | readiness | script | context, queue, dossiers | `state/readiness.jsonl` | `run.py readiness` |
 | call 1 | model, `extract_gate.v4` | record and context row | `proposals/extract_gate.<date>.jsonl` | `/classify-incidents` |
-| derive | fixed rule, `derive.py` | newest `extract_gate` proposals | `state/verdicts.jsonl` | `run.py derive` |
+| derive | fixed rule, `derive.py` | newest `extract_gate` proposals | ledger: derive columns | `run.py derive` |
 | instances-due | script | dossiers, verdicts, instance proposals | `state/instances_due.jsonl` | `run.py instances-due` |
 | call 2 | model, `assign_instances.v2` | record, context, `taxonomy/instances.csv` | `proposals/assign_instances.<date>.jsonl` | `/classify-incidents` |
 | decide scope, promote | person, helped by script | verdicts, proposals, sources | `review/*.csv` logs, then `incidents/<ID>.md` | `run.py review`; `run.py promote <mig_key>` by hand |
 | check | script | everything | exit code only | `run.py check` |
 | index, viz | script | `incidents/` | `out/incident_index.csv`, `out/*.html`, `state/pipeline.json` | `run.py index`, `run.py viz` |
-| report | script | dossiers, records, queue, context, verdicts, logs, taxonomy | `out/index_report.xlsx` | `index_report.py` |
+| outcome | script | every ledger column | ledger: `stage`, `reason`, `in_index` | `run.py index` |
 
 ## The gates
 
@@ -509,13 +511,14 @@ It is not a verdict for the index until a person has read the source.
 2. **Classify.** In Claude Code, run `/classify-incidents`. It reads sources (step 0),
    writes proposals for call 1, runs `run.py derive`, then call 2 for what is due. It asks
    before long runs and before fetching. It writes only to `context/` and `proposals/`; the `run.py derive` it runs also writes
-`state/verdicts.jsonl` and refreshes the review sheets in `review/`.
-3. **Review and promote.** Open `0.2/review/1_decide_scope.xlsx` and fill `decision` (in,
-   out, unclear) for each record, checking it against the source. Run `python
-   0.2/pipeline/run.py review` (or press Continue on the page): the decisions are logged and
-   `0.2/review/2_promote.xlsx` lists the records you decided in. Fill `promote` (yes or no),
-   run `review` again, and each `yes` makes a blank dossier in `0.2/incidents/`. Write the
-   dossier. `0.2/review/README.md` has the details.
+the ledger's derive columns and refreshes the review sheets in `review/`.
+3. **Review.** Open `0.2/review/1_records.xlsx` and fill `scope_decision` (ok, in, out,
+   unclear) for each record, checking it against the source, and for each `in` its
+   `duplicate_of_decision` (ok, new, or an incident's MIG key). Run `python
+   0.2/pipeline/run.py review` (or press Continue on the page): the decisions are logged,
+   `new` makes the dossier, a MIG key joins the record to that incident. Write the new
+   dossier's prose, then decide its labels on `0.2/review/2_incidents.xlsx` and run
+   `review` again. `0.2/review/README.md` has the details.
 4. **Check.** `python 0.2/pipeline/run.py check` must end `ok check: N dossiers, no
    problems` and exit 0. `warn` lines do not fail it; `FAIL` lines do.
 5. **Commit** the records, the dossiers and the rebuilt `0.2/out/` together.

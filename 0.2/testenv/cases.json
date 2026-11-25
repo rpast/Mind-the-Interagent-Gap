@@ -1,7 +1,7 @@
 [
   {"ref": "aiid:9901",
    "title": "TEST CASE: Fictional buyer and seller bots at Example Logistics drive a reorder spiral",
-   "shows": "Recent, so it is queued; an external multi-agent label flags it and a full reading confirms two interacting agents, so it is judged in scope; its first dossier rests on the external label, which the check refuses until a person sets the verdict as ours."},
+   "shows": "Recent, so it is queued; an external multi-agent label flags it and a full reading confirms two interacting agents, so it is judged in scope; a person decides it in and new on the records sheet, which makes its dossier with the labels proposed; on the incidents sheet a bogus evidence type is refused, then the proposals are taken with ok, the instances set by hand and the verification raised."},
   {"ref": "aiid:9902",
    "title": "TEST CASE: Example Bank's support assistant promises refunds that do not exist",
    "shows": "Recent, so it is queued; a keyword flags it, and a secondary reading shows one chatbot, so it is dismissed as single-agent and needs no judgement."},

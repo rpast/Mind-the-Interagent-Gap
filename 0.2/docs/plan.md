@@ -2,8 +2,16 @@
 
 Approved by the curator 2026-11-25. Worked on branch `development/pipeline-0.2`.
 
-Status: P0 to P6, with P3b, done (2026-11-25). Left: P7 (docs; remove the 0.1 review
-code still in run.py, `stage_review_until_0_2` and the sheet 2 and 3 functions).
+Status: all phases done (2026-11-25), P0 to P7 with P3b.
+
+P7 notes: the 0.1 review code is removed from run.py (792 lines); `read_log` stays as the
+shape the map and instances_due read, over the record log. Sheet 1 now also lists the
+decided records in no incident, with their decision, so a decision can be changed (the
+log keeps both rows); this closed a gap found in P5 (aiid:1556, decided out, is the same
+incident as MIG-0015; OPEN.md item 64). The docs in `0.2/docs/`, both READMEs, the test
+README and OPEN.md describe 0.2; the 26 dossiers whose `multi_agent_basis` cited the scope
+log now cite the record log. Still open: the `proposal changed` flag (3.5) and a Dedupe
+box on the map.
 
 P6 notes: `run.py index` sets stage, reason and in_index on every ledger row
 (`ledger_outcome`); the stage counts equal those of the retired index_report.xlsx. The

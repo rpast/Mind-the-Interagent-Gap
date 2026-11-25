@@ -73,18 +73,24 @@ each change of state. `run.py runs` lists them; `run.py runs RUN` prints what ch
 
 Reading sources and judging are not in `run.py`. They are the `/classify-incidents` skill,
 run in Claude Code. The labels are not the model's: `run.py derive` applies the rules in
-`pipeline/derive.py` to the model's extracted facts and writes `state/verdicts.jsonl`; an
+`pipeline/derive.py` to the model's extracted facts and writes the ledger's derive columns; an
 `update` runs it right after the Judge step. `run.py instances-due` lists the records a
 person put in scope that still need instances: they are proposed only after the scope
 decision.
 
-A person decides in two spreadsheets, `review/1_decide_scope.xlsx` (is the record in scope:
-`in`, `out` or `unclear`) and `review/2_promote.xlsx` (which records decided in get a
-dossier: `yes` or `no`). `run.py review`, which the update's Review step also runs, reads
-the filled sheets, logs the decisions in `review/scope_decisions_log.csv` and
-`review/promote_decisions_log.csv`, makes the dossier for each promote `yes`, and writes both
-sheets again. The map counts what is left on each. `run.py promote` still makes one dossier
-by hand. See `review/README.md`. The sheets need openpyxl (`pip install -r requirements.txt`).
+Everything the pipeline knows about a record is one row of the ledger, `ledger/ledger.csv`:
+what was loaded, queued and read, the model's answers, the rules' labels, the person's
+decisions, the incident it belongs to, and where it stopped and why (`stage`, `reason`).
+Query it directly. See `ledger/README.md`.
+
+A person decides in two spreadsheets, each label proposed by the pipeline and decided with
+`ok` or a value of one's own: `review/1_records.xlsx` (is the record in scope, and if in, is
+it a new incident or one the index holds) and `review/2_incidents.xlsx` (each incident's
+scope, failure mode, instances, evidence type, facts and verification). `run.py review`,
+which the update's Review step also runs, reads the filled sheets, logs the decisions in
+`review/record_decisions_log.csv` and `review/incident_decisions_log.csv`, makes or joins the
+dossiers, writes their labels from the ledger, and writes both sheets again. See
+`review/README.md`. The sheets need openpyxl (`pip install -r requirements.txt`).
 
 ## Layout
 
@@ -97,15 +103,16 @@ by hand. See `review/README.md`. The sheets need openpyxl (`pip install -r requi
 | `raw/<source>/` | verbatim fetch output; `raw/manual/` holds copies of hand write-ups | `fetch`, `update --manual` |
 | `records/<source>.jsonl` | normalised, append-only, content-hashed, with a `raw_ref` back to `raw/`; `manual.jsonl` for hand-added incidents | `normalise`, `update --manual` |
 | `context/<source>.jsonl` | what each source says about the gate facts, with quotes and depth read | the skill; `update --manual` for manual rows |
-| `review/` | the two sheets a person fills in (generated, gitignored) and the two decision logs, `scope_decisions_log.csv` and `promote_decisions_log.csv` | `review` writes; a person fills the sheets |
-| `incidents/<ID>.md` | the curated record, one dossier per incident a person promotes: in, out or unclear | hand |
+| `ledger/ledger.csv` | one row per loaded record: every step's output, the decisions, the incident, the stage and reason; the source of truth for its columns | each `run.py` step, its own columns |
+| `review/` | the two sheets a person fills in (generated, gitignored) and the two decision logs, `record_decisions_log.csv` and `incident_decisions_log.csv` | `review` writes; a person fills the sheets |
+| `incidents/<ID>.md` | one dossier per incident: prose by hand (or Claude on request); labels and facts written from the ledger | hand, and `review` |
 | `proposals/` | classifier output, the model's only, never authoritative | the skill |
 | `prompts/` | versioned prompts: enrichment and the two classifier calls | hand |
 | `gold/` | calibration labels | hand |
 | `skills/classify-incidents/` | the reader and classifier runner | hand |
 | `pipeline/` | `run.py`, `derive.py` (the labelling rules), the source adapters, the map page template, `testenv.py`, and `report/`, the published report's parts | hand |
 | `testenv/` | the test run's made-up incidents and stand-ins; never read by a real run | hand |
-| `state/` | candidate queue, readiness, derived verdicts, instances due, work orders, run state, run logs in `runs/` (gitignored) | `prefilter`, `readiness`, `derive`, `instances-due`, `discover`, `serve`, `update` |
+| `state/` | readiness, instances due, work orders, the map's counts, run state, run logs in `runs/` (gitignored) | `readiness`, `instances-due`, `discover`, `index`, `serve`, `update` |
 | `out/` | the flat index, the pipeline flowchart `pipeline_flow.html`, and the published report `index_report.html` | `index`, `viz`; `report`, run on its own |
 
 Every row in `records/`, `context/`, `proposals/` and the `state/` row files carries

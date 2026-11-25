@@ -43,22 +43,24 @@ Then the real steps run. Three things differ from a real run:
   place, as that work would have, and logs each one. `skip` puts nothing in place, and the
   later steps show the consequence. A stand-in puts in place only what the workspace
   allows: no reading for a record that is not queued, no proposal for a record that
-  cannot be judged, no dossier that no promote decision made.
-- **The review stand-in works the real sheets.** The run writes `0.2/review/1_decide_scope.xlsx`
-  in the workspace. On Continue the stand-in opens it with openpyxl and types the decisions
-  of `standins/review/decisions.json` into it (9901 `in`, 9906 `out`, 9904 a wrong value),
-  and the real `stage_review` reads it: it logs two decisions, reports the wrong one by
-  its MIG key and writes sheet 2. The stand-in finds each record's row by its MIG key: the
-  run gives aiid:9901 MIG-0001 and aiid:9904 MIG-0002, and with `--manual` the hand-added
-  record MIG-0003. The stand-in fills that too (9901 `yes`, and the manual
-  record `yes` with `--manual`), the real step reads it and makes the blank dossiers, and the
-  stand-in puts the filled-in sample dossiers over them. 9906 is stopped by its `out`: it has
-  no dossier. Then it edits sheet 3 in two rounds, each read by the real step: round 1 types
-  an evidence type that does not exist on MIG-0001, which is reported and not written;
-  round 2 changes its instances and verification and adds a verification note, which are
-  written, named in `set_by_person` and logged in `0.2/review/dossier_edits_log.csv`. The check
-  stand-in later puts the corrected MIG-0001 over it, so those edits do not survive to
-  the index. Without openpyxl the stand-in says so and decides nothing.
+  cannot be judged, no dossier that no record decision made.
+- **The review stand-in works the real sheets.** The run writes `0.2/review/1_records.xlsx`
+  in the workspace. On Continue the stand-in opens it with openpyxl and types the answers
+  of `standins/review/decisions.json` into it, finding each record's row by its MIG key
+  (the run gives aiid:9901 MIG-0001 and aiid:9904 MIG-0002, and with `--manual` the
+  hand-added record MIG-0003): 9901 `in` and `new`, 9904 a wrong value, and with
+  `--manual` the hand-added record `new` (it is in on the curator's word). The real
+  `stage_review` reads it: it makes MIG-0001's dossier (and MIG-0003's) with its labels
+  proposed from the record, logs the decisions, and reports the wrong value, so 9904 comes
+  back. Two more rounds decide 9904 again, `unclear` then `out`: a decided record shows on
+  the sheet with its decision, and changing it logs a new row. The stand-in then writes the
+  prose of each new dossier from the sample (the sections only; the frontmatter is the
+  ledger's). Then it decides MIG-0001 on `2_incidents.xlsx` in two rounds: round 1 types an
+  evidence type that does not exist, which refuses the whole row; round 2 takes the
+  proposed scope and failure mode with `ok`, sets its instances and evidence type,
+  raises its verification and adds a note, which go into the ledger and
+  `0.2/review/incident_decisions_log.csv` and are written into the dossier. Without
+  openpyxl the stand-in says so and decides nothing.
 
 Each waiting or failed prompt in a test run carries `test_note`, a sentence saying what the
 answer does in the test run.
@@ -100,8 +102,8 @@ path; delete the workspace when done.
   builds it from the id. Those pages do not exist; the sources the readings cite are
   `example.org` pages.
 - The stand-in proposals hold model output only, as real ones do. The labels come from the
-  real Derive step, which runs `derive.py` on them and writes the workspace's
-  `state/verdicts.jsonl`: 9901 in scope, 9906 out of scope, 9904 and the manual record for
+  real Derive step, which runs `derive.py` on them and writes the workspace ledger's
+  derive columns: 9901 in scope, 9906 out of scope, 9904 and the manual record for
   review.
 - The workspace has no gold set or accuracy scores, so the map shows none.
 - The map's record counts are small and many are 0. They obey the same rule as a real
