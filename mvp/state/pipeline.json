@@ -1,6 +1,6 @@
 {
   "generated": "2026-11-25",
-  "generated_at": "2026-11-25T15:52",
+  "generated_at": "2026-11-25T17:59",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -1336,7 +1336,7 @@
         {
           "exists": true,
           "label": "The decisions so far",
-          "path": "review/promote_decisions.csv"
+          "path": "review/promote_decisions_log.csv"
         },
         {
           "exists": true,
@@ -1353,7 +1353,7 @@
         {
           "exists": true,
           "label": "The decisions so far",
-          "path": "review/scope_decisions.csv"
+          "path": "review/scope_decisions_log.csv"
         },
         {
           "exists": true,
@@ -2587,7 +2587,7 @@
         },
         "files": [
           "review/1_decide_scope.xlsx",
-          "review/scope_decisions.csv",
+          "review/scope_decisions_log.csv",
           "state/verdicts.jsonl"
         ],
         "groups": [
@@ -2662,7 +2662,7 @@
               {
                 "label": "Decisions in the log, newest per record",
                 "n": 103,
-                "tech": "review/scope_decisions.csv"
+                "tech": "review/scope_decisions_log.csv"
               }
             ],
             "title": "The sheet"
@@ -2687,7 +2687,7 @@
             "to": "dossiers"
           }
         ],
-        "rule": "records with a derived label; decided = the newest row of review/scope_decisions.csv (a hand-added record counts as decided in); run.py review reads the sheet",
+        "rule": "records with a derived label; decided = the newest row of review/scope_decisions_log.csv (a hand-added record counts as decided in); run.py review reads the sheet",
         "stop": [
           {
             "label": "decided out by a person",
@@ -2705,7 +2705,7 @@
         },
         "files": [
           "review/2_promote.xlsx",
-          "review/promote_decisions.csv",
+          "review/promote_decisions_log.csv",
           "incidents/"
         ],
         "groups": [
@@ -2976,7 +2976,7 @@
               {
                 "label": "Decided in on the scope sheet",
                 "n": 35,
-                "tech": "review/scope_decisions.csv decision in"
+                "tech": "review/scope_decisions_log.csv decision in"
               },
               {
                 "label": "Risk instances proposed",

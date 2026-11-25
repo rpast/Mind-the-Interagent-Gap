@@ -147,7 +147,7 @@ INDEX_COLS = [
     ("instances_presumed", 12, "I28; I29 presumed for an attack whose source does not say what the number or mix of agents contributed. Not quoted. Also listed in instances."),
     ("verification", 15, "verified / partially_verified / unverified against the primary source by a person."),
     ("last_verified", 12, "When a person last checked the dossier against the primary source."),
-    ("set_by_person", 20, "The dossier fields a person set on sheet 3 (mvp/review/3_edit_dossiers.xlsx), each logged in mvp/review/dossier_edits.csv. The cells showing those fields are green."),
+    ("set_by_person", 20, "The dossier fields a person set on sheet 3 (mvp/review/3_edit_dossiers.xlsx), each logged in mvp/review/dossier_edits_log.csv. The cells showing those fields are green."),
     ("origin", 30, "How the dossier came to be."),
     ("scope_basis", 50, "Why the incident is in scope: always a person's verdict."),
     ("actor_count", 10, "Number of AI agents when the source states it; unclear otherwise."),

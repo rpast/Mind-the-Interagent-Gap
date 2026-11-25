@@ -40,10 +40,10 @@ Project-level files stay at the root: `resources/` (source documents),
   reading, with quotes and the depth read. Machine-written. See `mvp/docs/context_layer.md`.
 - `mvp/review/` holds the three sheets a person fills in (`1_decide_scope.xlsx`,
   `2_promote.xlsx`, `3_edit_dossiers.xlsx`; generated, gitignored) and their logs
-  (`scope_decisions.csv`, `promote_decisions.csv`, `dossier_edits.csv`; data, committed,
+  (`scope_decisions_log.csv`, `promote_decisions_log.csv`, `dossier_edits_log.csv`; data, committed,
   written only by `run.py review` when it reads a filled sheet). See `mvp/review/README.md`.
 - `mvp/incidents/<ID>.md` is the curated record: one dossier per incident a person
-  promotes. Scope decisions that are not promoted live in `mvp/review/scope_decisions.csv`.
+  promotes. Scope decisions that are not promoted live in `mvp/review/scope_decisions_log.csv`.
   Hand-edited, or filled by Claude when the curator asks (see Rules).
 - `mvp/proposals/` holds classifier output. It is never authoritative; a human promotes.
 - `mvp/out/` is generated. Never edit it by hand. `mvp/out/index_report.xlsx` is the index
@@ -77,7 +77,7 @@ with `.venv/bin/python` instead of `python`.
 4. Fill each new dossier by hand, or ask Claude to fill it from the readings (see Rules).
    To set or correct a dossier's labels, scope, verification or facts, change the cells
    of `3_edit_dossiers.xlsx` and run `review`: each field changed there is named in the
-   dossier's `set_by_person` and logged in `mvp/review/dossier_edits.csv`. Never remove
+   dossier's `set_by_person` and logged in `mvp/review/dossier_edits_log.csv`. Never remove
    a field from `set_by_person`, and never overwrite a field it names without the
    curator's say.
 5. `python mvp/pipeline/run.py check` — must exit 0.

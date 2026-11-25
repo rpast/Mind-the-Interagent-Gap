@@ -221,7 +221,7 @@ characters), and the facts the gates need are usually missing from them.
   would say (`rules_say`), why a person is needed, and a quote. The person fills the
   `decision` column (a drop-down: `in`, `out`, `unclear`) and, if they like, a `reason`.
   `in` sends the record on to sheet 2; `out` and `unclear` end it there. The answers go
-  into the log `mvp/review/scope_decisions.csv`. A hand-added incident counts as decided
+  into the log `mvp/review/scope_decisions_log.csv`. A hand-added incident counts as decided
   `in` on the curator's word. The update's Review step writes the sheets and waits for the
   person; on the map the **Decide scope** box counts the rows left.
 - **1668:** the person finds it duplicates an incident already in the index: dossier

@@ -56,7 +56,7 @@ Then the real steps run. Three things differ from a real run:
   no dossier. Then it edits sheet 3 in two rounds, each read by the real step: round 1 types
   an evidence type that does not exist on MIG-0001, which is reported and not written;
   round 2 changes its instances and verification and adds a verification note, which are
-  written, named in `set_by_person` and logged in `mvp/review/dossier_edits.csv`. The check
+  written, named in `set_by_person` and logged in `mvp/review/dossier_edits_log.csv`. The check
   stand-in later puts the corrected MIG-0001 over it, so those edits do not survive to
   the index. Without openpyxl the stand-in says so and decides nothing.
 

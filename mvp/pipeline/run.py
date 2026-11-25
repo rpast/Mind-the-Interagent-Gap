@@ -1447,19 +1447,19 @@ def promote_one(ref, records, context, made, force=False):
 #
 # Two spreadsheets in mvp/review/, filled in by a person: sheet 1 decides scope, sheet 2
 # says which records decided in get a dossier. A person's answers go into two logs, CSV,
-# append-only, committed: scope_decisions.csv and promote_decisions.csv. The newest row
+# append-only, committed: scope_decisions_log.csv and promote_decisions_log.csv. The newest row
 # per record_key wins. The run writes them only when it reads a filled sheet. The rules
 # never put anything in scope: a decision `in` is a person's.
 
 SHEETS = {
     "scope": {
-        "file": "1_decide_scope.xlsx", "log": "scope_decisions.csv", "title": "Decide scope",
+        "file": "1_decide_scope.xlsx", "log": "scope_decisions_log.csv", "title": "Decide scope",
         "cols": ["mig_key", "source_id", "source_key", "decision", "reason", "decided_on",
                  "sheet_generated_on"],
         "allowed": ("in", "out", "unclear"), "field": "decision", "text": "reason",
     },
     "promote": {
-        "file": "2_promote.xlsx", "log": "promote_decisions.csv", "title": "Promote",
+        "file": "2_promote.xlsx", "log": "promote_decisions_log.csv", "title": "Promote",
         "cols": ["mig_key", "source_id", "source_key", "decision", "note", "decided_on",
                  "sheet_generated_on"],
         "allowed": ("yes", "no"), "field": "promote", "text": "note",
@@ -1785,7 +1785,7 @@ SCOPE_FIELDS = [
      "rules_say = in"),
     ("key_quote", "model", "the first two quotes the model gave", "*_quote", ""),
     ("decision", "you", "in / out / unclear", "", "the only column that sets scope"),
-    ("reason", "you", "why, in a line", "", "kept in scope_decisions.csv"),
+    ("reason", "you", "why, in a line", "", "kept in scope_decisions_log.csv"),
     ("is_attack", "rules", "is this an attack record", "multiplicity_role",
      "yes unless multiplicity_role is not_applicable or empty. Note: the prompt also uses "
      "not_applicable for an attack where multiplicity plays no part"),
@@ -1831,9 +1831,9 @@ SCOPE_FIELDS = [
     ("uncertainty_reason", "model", "why the model was unsure, in a sentence", "", ""),
     ("<field>_quote", "model", "the verbatim span the model gave for that answer", "", ""),
     ("decided", "you", "your earlier scope decision: in / out / unclear",
-     "mvp/review/scope_decisions.csv", "the newest row for the record"),
+     "mvp/review/scope_decisions_log.csv", "the newest row for the record"),
     ("decided_on / decided_reason", "you", "when you decided it, and the reason you gave",
-     "mvp/review/scope_decisions.csv", ""),
+     "mvp/review/scope_decisions_log.csv", ""),
     ("dossier_multi_agent / dossier_failure_mode / dossier_instances / "
      "dossier_verification", "dossier", "what the dossier citing this record says now",
      "mvp/incidents/", "change these on sheet 3, 3_edit_dossiers.xlsx"),
@@ -1881,7 +1881,7 @@ SCOPE_HELP = [
     "in = two or more AI agents, and the harm came from them acting on each other. "
     "out = one agent, or many doing what one could have done. "
     "unclear = the source was read and does not say.",
-    "Write a short `reason` if you can. It is kept in mvp/review/scope_decisions.csv.",
+    "Write a short `reason` if you can. It is kept in mvp/review/scope_decisions_log.csv.",
     "Right of `reason`: the rules' intermediate steps, then every question the model "
     "answered with its quote, then your earlier decision and the dossier's labels, then "
     "the reading of the source (`read_depth` and one `<fact>_reading` column per fact) "
@@ -1900,7 +1900,7 @@ PROMOTE_HELP = [
     "yes = the next run writes a blank dossier in mvp/incidents/. You then fill it in by "
     "hand, verify it against the primary source and set multi_agent yourself, and "
     "`python mvp/pipeline/run.py check` must pass.",
-    "no = leave it undossiered. It is kept in mvp/review/promote_decisions.csv and does "
+    "no = leave it undossiered. It is kept in mvp/review/promote_decisions_log.csv and does "
     "not come back.",
     "A `yes` for a record that is not ready to classify is refused and is not logged: it "
     "stays on the sheet. Read the record first (see mvp/docs/context_layer.md).",
@@ -2237,7 +2237,7 @@ def check_review_logs(records, problems, warnings):
     promo = newest_by_key(read_log("promote"))
     for key, row in sorted(promo.items()):
         if row["decision"] == "yes" and scope.get(key, {}).get("decision") != "in":
-            problems.append(f"mvp/review/promote_decisions.csv: {row['mig_key']} has a "
+            problems.append(f"mvp/review/promote_decisions_log.csv: {row['mig_key']} has a "
                             f"promote yes "
                             f"but no newest scope decision `in`")
     real = newest_by_key(read_log("scope"))
@@ -2263,12 +2263,12 @@ def check_review_logs(records, problems, warnings):
 #
 # One row per dossier, prefilled with what the dossier says now. A person changes a
 # cell; the next review run writes that field to the dossier, adds its name to the
-# dossier's `set_by_person`, and logs it, one row per field, in dossier_edits.csv. A cell
+# dossier's `set_by_person`, and logs it, one row per field, in dossier_edits_log.csv. A cell
 # left as it was is not an edit. The values the sheet was written with are kept in a
 # hidden tab, so an edit to a field the dossier has changed since is refused, never
 # written over it.
 
-EDIT = {"file": "3_edit_dossiers.xlsx", "log": "dossier_edits.csv", "title": "Edit dossiers"}
+EDIT = {"file": "3_edit_dossiers.xlsx", "log": "dossier_edits_log.csv", "title": "Edit dossiers"}
 EDIT_LOG_COLS = ["mig_key", "field", "old_value", "new_value", "decided_on",
                  "sheet_generated_on"]
 SNAPSHOT_SHEET = "_snapshot"
@@ -2300,7 +2300,7 @@ EDIT_HELP = [
     "are yours to change. Change a cell and the next run writes it to the dossier; leave "
     "it as it is and nothing happens.",
     "Every field you change is named in the dossier's `set_by_person` list, and logged "
-    "with its old and new value in mvp/review/dossier_edits.csv. Column set_by_person "
+    "with its old and new value in mvp/review/dossier_edits_log.csv. Column set_by_person "
     "shows what you have already set.",
     "multi_agent: true, false or unclear. This is your scope verdict; it also sets "
     "multi_agent_label_source to ours. Write why in scope_reason; it goes into "
@@ -2656,7 +2656,7 @@ def append_edit_log(rows):
 
 
 def check_edit_log(problems, warnings):
-    """dossier_edits.csv: header, fields, dates; a dossier it names that is gone (it may
+    """dossier_edits_log.csv: header, fields, dates; a dossier it names that is gone (it may
     have been renamed) is a warning."""
     path = REVIEW / EDIT["log"]
     if not path.exists():
@@ -2844,10 +2844,10 @@ MAP_ARTIFACTS = {
                   ("Records in scope still without one", "state/instances_due.jsonl")],
     "proposals": [("The suggestions", "proposals/")],
     "scope": [("The sheet to fill in", "review/1_decide_scope.xlsx"),
-              ("The decisions so far", "review/scope_decisions.csv"),
+              ("The decisions so far", "review/scope_decisions_log.csv"),
               ("How to fill it in", "review/README.md")],
     "review": [("The sheet to fill in", "review/2_promote.xlsx"),
-               ("The decisions so far", "review/promote_decisions.csv"),
+               ("The decisions so far", "review/promote_decisions_log.csv"),
                ("The incident files a person writes", "incidents/")],
     "dossiers": [("The incident files", "incidents/")],
     "check": [("The program that runs the check", "pipeline/run.py")],
@@ -3332,11 +3332,11 @@ def map_flow(reg, records, queue, context, index_rows):
                         ("Of those, asking for your judgement", len(rs["scope_ask"]),
                          "ask = yes: the rules would put it in, or confidence is low"),
                         ("Decisions in the log, newest per record", len(
-                            newest_by_key(read_log("scope"))), "review/scope_decisions.csv"))}],
-         "files": ["review/1_decide_scope.xlsx", "review/scope_decisions.csv",
+                            newest_by_key(read_log("scope"))), "review/scope_decisions_log.csv"))}],
+         "files": ["review/1_decide_scope.xlsx", "review/scope_decisions_log.csv",
                    "state/verdicts.jsonl"],
          "rule": "records with a derived label; decided = the newest row of "
-                 "review/scope_decisions.csv (a hand-added record counts as decided in); "
+                 "review/scope_decisions_log.csv (a hand-added record counts as decided in); "
                  "run.py review reads the sheet"},
         {"id": "review", "n": len(dec_in), "in": len(dec_in),
          "out": [E("dossiers", promoted, "promoted to a dossier")],
@@ -3351,7 +3351,7 @@ def map_flow(reg, records, queue, context, index_rows):
               "newest promote decision no"),
              ("Left to review: on the promote sheet", len(review_left),
               "review/2_promote.xlsx"))}],
-         "files": ["review/2_promote.xlsx", "review/promote_decisions.csv", "incidents/"],
+         "files": ["review/2_promote.xlsx", "review/promote_decisions_log.csv", "incidents/"],
          "rule": "records a person decided in; promoted = a dossier lists the record; "
                  "run.py review reads the sheet and makes the dossier"},
         {"id": "dossiers", "n": len(d_keys), "in": len(in_dossiers),
@@ -3413,7 +3413,7 @@ def map_flow(reg, records, queue, context, index_rows):
          "pop": dec_in,
          "groups": [{"title": "Records a person decided in", "rows": rows(
              ("Decided in on the scope sheet", len(dec_in),
-              "review/scope_decisions.csv decision in"),
+              "review/scope_decisions_log.csv decision in"),
              ("Risk instances proposed", len(dec_has), "assign_instances proposal"),
              ("The dossier already lists them", len(dec_listed), "dossier instances"),
              ("None proposed yet", len(dec_due), "neither"))},

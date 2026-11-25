@@ -149,7 +149,7 @@ for each `yes` on the promote sheet.
 
 **Promote sheet.** `mvp/review/2_promote.xlsx`: the records a person decided `in` that have
 no dossier yet. The person fills `promote` with `yes` (the next run scaffolds the dossier)
-or `no` (logged in `mvp/review/promote_decisions.csv`; the record does not come back). It is
+or `no` (logged in `mvp/review/promote_decisions_log.csv`; the record does not come back). It is
 the map's Human review box.
 
 **Proposal.** A row of model output in `mvp/proposals/`. Never authoritative, and it holds no
@@ -193,7 +193,7 @@ likely, RF1 to RF7, such as RF7 Multi-Agent Security.
 **Rules version.** The date stamped on each derived verdict, saying which version of
 `derive.py` made it. Currently `2026-11-16`.
 
-**Scope decision log.** `mvp/review/scope_decisions.csv`: a person's scope decisions, one row
+**Scope decision log.** `mvp/review/scope_decisions_log.csv`: a person's scope decisions, one row
 per decision (`mig_key, source_id, source_key, decision, reason, decided_on,
 sheet_generated_on`), append-only,
 the newest row per record winning. Written only when `run.py review` reads a filled sheet.
@@ -203,7 +203,7 @@ the newest row per record winning. Written only when `run.py review` reads a fil
 `multiplicity_role` to anything but `not_applicable`.
 
 **set_by_person.** A dossier key: the list of fields a person set on sheet 3
-(`mvp/review/3_edit_dossiers.xlsx`), each also logged in `mvp/review/dossier_edits.csv`.
+(`mvp/review/3_edit_dossiers.xlsx`), each also logged in `mvp/review/dossier_edits_log.csv`.
 Absent when nobody has edited the dossier there. The index report shows those cells green.
 
 **Skill.** `/classify-incidents`, run in Claude Code. It does the reading and both model

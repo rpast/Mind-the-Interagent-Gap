@@ -7,9 +7,9 @@ Where a person decides. Three spreadsheets, three logs.
 | `1_decide_scope.xlsx` | sheet 1: every record the rules labelled and every record a dossier cites, one row each; the ones with no scope decision yet take one | `run.py review`; a person fills it |
 | `2_promote.xlsx` | sheet 2: records you decided `in` that have no dossier yet | `run.py review`; a person fills it |
 | `3_edit_dossiers.xlsx` | sheet 3: every dossier, one row each, with the fields you can set | `run.py review`; a person edits it |
-| `scope_decisions.csv` | the log of scope decisions: `mig_key, source_id, source_key, decision, reason, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
-| `promote_decisions.csv` | the log of promote decisions: `mig_key, source_id, source_key, decision, note, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
-| `dossier_edits.csv` | the log of dossier fields set on sheet 3: `mig_key, field, old_value, new_value, decided_on, sheet_generated_on` | `run.py review`, when it reads an edited sheet 3 |
+| `scope_decisions_log.csv` | the log of scope decisions: `mig_key, source_id, source_key, decision, reason, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
+| `promote_decisions_log.csv` | the log of promote decisions: `mig_key, source_id, source_key, decision, note, decided_on, sheet_generated_on` | `run.py review`, when it reads a filled sheet |
+| `dossier_edits_log.csv` | the log of dossier fields set on sheet 3: `mig_key, field, old_value, new_value, decided_on, sheet_generated_on` | `run.py review`, when it reads an edited sheet 3 |
 
 Every row of every sheet and log names its record by two keys: `mig_key`, MIG-nnnn, ours,
 given in `mvp/registry/mig_keys.csv` when the record first reached sheet 1 and kept by its
@@ -105,7 +105,7 @@ dossier. A cell left as it was is not an edit, so you only touch what you mean t
 
 - added to the dossier's `set_by_person` list (a dossier nobody edited here has no such
   key);
-- logged in `dossier_edits.csv` with its old and new value and the date;
+- logged in `dossier_edits_log.csv` with its old and new value and the date;
 - shown green in `mvp/out/index_report.xlsx`, which also has a `set_by_person` column.
 
 A field you change by editing the dossier's YAML yourself is not tracked; add its name to
@@ -135,7 +135,7 @@ The run:
 2. appends the good rows to the logs, dated today;
 3. makes the dossier for every promote `yes`;
 4. writes the fields changed on sheet 3 into the dossiers and logs them in
-   `dossier_edits.csv`;
+   `dossier_edits_log.csv`;
 5. writes all three sheets again from what is left, and says how many rows each has.
 
 The map's Decide scope and Human review boxes count what is left on the two sheets.

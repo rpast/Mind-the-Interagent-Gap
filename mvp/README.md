@@ -77,8 +77,8 @@ decision.
 A person decides in two spreadsheets, `review/1_decide_scope.xlsx` (is the record in scope:
 `in`, `out` or `unclear`) and `review/2_promote.xlsx` (which records decided in get a
 dossier: `yes` or `no`). `run.py review`, which the update's Review step also runs, reads
-the filled sheets, logs the decisions in `review/scope_decisions.csv` and
-`review/promote_decisions.csv`, makes the dossier for each promote `yes`, and writes both
+the filled sheets, logs the decisions in `review/scope_decisions_log.csv` and
+`review/promote_decisions_log.csv`, makes the dossier for each promote `yes`, and writes both
 sheets again. The map counts what is left on each. `run.py promote` still makes one dossier
 by hand. See `review/README.md`. The sheets need openpyxl (`pip install -r requirements.txt`).
 
@@ -93,7 +93,7 @@ by hand. See `review/README.md`. The sheets need openpyxl (`pip install -r requi
 | `raw/<source>/` | verbatim fetch output; `raw/manual/` holds copies of hand write-ups | `fetch`, `update --manual` |
 | `records/<source>.jsonl` | normalised, append-only, content-hashed, with a `raw_ref` back to `raw/`; `manual.jsonl` for hand-added incidents | `normalise`, `update --manual` |
 | `context/<source>.jsonl` | what each source says about the gate facts, with quotes and depth read | the skill; `update --manual` for manual rows |
-| `review/` | the two sheets a person fills in (generated, gitignored) and the two decision logs, `scope_decisions.csv` and `promote_decisions.csv` | `review` writes; a person fills the sheets |
+| `review/` | the two sheets a person fills in (generated, gitignored) and the two decision logs, `scope_decisions_log.csv` and `promote_decisions_log.csv` | `review` writes; a person fills the sheets |
 | `incidents/<ID>.md` | the curated record, one dossier per incident a person promotes: in, out or unclear | hand |
 | `proposals/` | classifier output, the model's only, never authoritative | the skill |
 | `prompts/` | versioned prompts: enrichment and the two classifier calls | hand |
