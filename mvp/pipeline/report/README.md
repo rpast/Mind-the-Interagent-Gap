@@ -5,7 +5,7 @@ The published report: one page for readers, the successor to the PoC's
 wrote:
 
     python mvp/pipeline/run.py index     # if the dossiers changed
-    python mvp/pipeline/run.py report    # -> mvp/out/interagent_gap_index.html
+    python mvp/pipeline/run.py report    # -> mvp/out/index_report.html
 
 `report` is deliberately not part of `update`, `viz` or `serve`. The index is rebuilt on
 every run; a report is built when someone decides the index is worth reporting.
@@ -34,7 +34,7 @@ one file with the data inlined; it opens on file://. The data is
 ## Publishing
 
 The claude.ai page is a separate copy. It changes only when
-`mvp/out/interagent_gap_index.html` is published to it, which is always a deliberate step,
+`mvp/out/index_report.html` is published to it, which is always a deliberate step,
 never automatic.
 
 ## Design decisions

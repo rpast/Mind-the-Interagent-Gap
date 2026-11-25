@@ -1,6 +1,6 @@
 """The front end of the update routine: `python mvp/pipeline/run.py serve`.
 
-Serves the dataflow map (pipeline_patch.html) on http://127.0.0.1:<port>/ with live
+Serves the dataflow map (pipeline_flow.html) on http://127.0.0.1:<port>/ with live
 data, and runs `update` step by step on a background thread, waiting for the person
 wherever a step needs one. The steps are run.py's UpdateRun, the same code the
 command line runs; only the waiting differs.
@@ -448,7 +448,7 @@ def make_handler(rm, runner, port):
             state = rm.pipeline_state(rm.index_rows())
             state["server_stale_code"] = stale_code()
             payload = json.dumps(state, indent=2, sort_keys=True, ensure_ascii=False)
-            html = rm.render_page("pipeline_patch.html", payload)
+            html = rm.render_page("pipeline_flow.html", payload)
             if html is None:
                 return self._send(404, "no template", "text/plain; charset=utf-8")
             return self._send(200, html, "text/html; charset=utf-8")

@@ -23,9 +23,9 @@ Stages, in the order an update runs them:
                scope with no risk-instance proposal
     check      validate the layer; exits non-zero on any problem
     index      regenerate mvp/out/incident_index.csv and mvp/state/pipeline.json
-    viz        render the pages in mvp/out/
+    viz        render the pipeline flowchart, mvp/out/pipeline_flow.html
 
-    report     the published report, mvp/out/interagent_gap_index.html, built from what
+    report     the published report, mvp/out/index_report.html, built from what
                the last `index` wrote. Not part of `update`: run it on its own
 
     update [--discover] [--manual DIR] [--refetch] [--token-file F]
@@ -3467,7 +3467,7 @@ def map_flow(reg, records, queue, context, index_rows):
 
 
 def pipeline_map(reg, records, queue, proposals, index_rows):
-    """The numbers the dataflow map (mvp/pipeline/pipeline_patch.html) prints. Every
+    """The numbers the dataflow map (mvp/pipeline/pipeline_flow.html) prints. Every
     count on the map is a number of records; `flow` carries them and `checks` the
     equations that must hold. See map_flow."""
     context = load_context()
@@ -3916,7 +3916,7 @@ def check_rows():
 
 # ---------------------------------------------------------------------- viz
 
-PAGES = ("input_workflow.html", "pipeline_patch.html")
+PAGES = ("pipeline_flow.html",)
 
 
 def render_page(name, payload):
@@ -3931,7 +3931,7 @@ def render_page(name, payload):
 
 
 def stage_viz():
-    """Render the two pages: the stage-by-stage workflow, and the dataflow map."""
+    """Render the dataflow map, the pipeline flowchart."""
     state_path = STATE / "pipeline.json"
     if not state_path.exists():
         info("  skip  viz: no pipeline state; run index first")
@@ -3955,7 +3955,7 @@ def stage_viz():
 # built when someone decides the index is worth reporting.
 
 REPORT_PARTS = Path(__file__).resolve().parent / "report"
-REPORT_PAGE = "interagent_gap_index.html"
+REPORT_PAGE = "index_report.html"
 
 
 def report_data():
@@ -3990,7 +3990,7 @@ def report_data():
 
 
 def stage_report():
-    """Assemble mvp/out/interagent_gap_index.html from mvp/pipeline/report/."""
+    """Assemble mvp/out/index_report.html from mvp/pipeline/report/."""
     parts = {n: (REPORT_PARTS / n).read_text(encoding="utf-8")
              for n in ("head.html", "body.html", "app.js")}
     data = json.dumps(report_data(), ensure_ascii=False, separators=(",", ":"))

@@ -213,12 +213,11 @@ without `--force`. See `mvp/docs/context_layer.md`.
 because a Pro subscription covers Claude Code and not the Messages API. See
 `mvp/docs/classifiers.md`.
 
-**viz** renders two pages into `mvp/out/` from the live counts. `pipeline_patch.html` is
+**viz** renders one page into `mvp/out/` from the live counts. `pipeline_flow.html` is
 the plain-language map of the whole pipeline: every step is a box, the wires show what flows
 between them, and clicking a box explains it. The same page, served by `run.py serve`, is
 the front end: it can start a run and shows it step by step. Opened from disk it shows the
-numbers of the last build but cannot run anything. `input_workflow.html` is the older
-stage-by-stage view of the input layer.
+numbers of the last build but cannot run anything.
 
 **promote** scaffolds a dossier from a record, with every narrative section marked pending.
 A scaffold is not a record: the gaps are filled by hand against the primary source.

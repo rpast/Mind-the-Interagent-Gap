@@ -44,7 +44,7 @@ run ends `done`. See `testenv/README.md`.
 `serve` shows the pipeline map with live numbers and can start a run from the page. It
 listens on 127.0.0.1 only. When a step needs a person, the run waits and the page says what
 to do. During a run, real or test, the map's numbers are recomputed each time a step changes
-state. `mvp/out/pipeline_patch.html` also opens from disk, without a server, showing the
+state. `mvp/out/pipeline_flow.html` also opens from disk, without a server, showing the
 last build's numbers.
 
 Every number on the map is a number of records, over all sources (`aiid:1604` is one
@@ -102,7 +102,7 @@ by hand. See `review/README.md`. The sheets need openpyxl (`pip install -r requi
 | `pipeline/` | `run.py`, `derive.py` (the labelling rules), the source adapters, the map page template, `testenv.py`, and `report/`, the published report's parts | hand |
 | `testenv/` | the test run's made-up incidents and stand-ins; never read by a real run | hand |
 | `state/` | candidate queue, readiness, derived verdicts, instances due, work orders, run state, run logs in `runs/` (gitignored) | `prefilter`, `readiness`, `derive`, `instances-due`, `discover`, `serve`, `update` |
-| `out/` | the flat index, the pipeline pages, and the published report `interagent_gap_index.html` | `index`, `viz`; `report`, run on its own |
+| `out/` | the flat index, the pipeline flowchart `pipeline_flow.html`, and the published report `index_report.html` | `index`, `viz`; `report`, run on its own |
 
 Every row in `records/`, `context/`, `proposals/` and the `state/` row files carries
 `record_key`, `"<source_id>:<source_record_id>"`, e.g. `aiid:1604`: the pipeline's

@@ -624,7 +624,7 @@
       2026-11-23 in `mvp/review/scope_decisions.csv`. Watch for anchoring: the gold review
       hides prior labels for that reason (item 28), so the sheet may need to do the same.
     - **Simplify the data flow map, after the first full run cycle.** In
-      `mvp/out/pipeline_patch.html` the step names do not match the sheets and the CLI
+      `mvp/out/pipeline_flow.html` the step names do not match the sheets and the CLI
       ("Decide scope" is `review` on the CLI; "Human review" is the promote sheet), the
       same records appear in several boxes as if they were separate counts, and rule
       outcomes and human decisions are mixed (records out by the rules gather in one box,

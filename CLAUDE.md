@@ -48,7 +48,7 @@ Project-level files stay at the root: `resources/` (source documents),
 - `mvp/proposals/` holds classifier output. It is never authoritative; a human promotes.
 - `mvp/out/` is generated. Never edit it by hand. `mvp/out/index_report.xlsx` is the index
   report: every incident in the index, and every record that is not, with the reason.
-  `mvp/out/interagent_gap_index.html` is the published report for readers, built by
+  `mvp/out/index_report.html` is the published report for readers, built by
   `run.py report` from `mvp/pipeline/report/`.
 - `mvp/testenv/` holds the test run's fixtures: made-up incidents and the stand-ins for
   skill and human work. `run.py testrun` runs the real steps on them in a temp folder. Never
@@ -84,7 +84,7 @@ with `.venv/bin/python` instead of `python`.
 6. `python mvp/pipeline/run.py index`, `viz`, then `python mvp/pipeline/index_report.py`
    for `mvp/out/index_report.xlsx`.
 7. When the index is worth reporting: `python mvp/pipeline/run.py report` builds the
-   published report, `mvp/out/interagent_gap_index.html`. It is a step of its own, never
+   published report, `mvp/out/index_report.html`. It is a step of its own, never
    part of `update`, and so is publishing it to its claude.ai page. See
    `mvp/pipeline/report/README.md`.
 8. Commit the records, the dossiers and the rebuilt `mvp/out/` together.
@@ -131,6 +131,6 @@ with `.venv/bin/python` instead of `python`.
 - Never infer an FM–RF link from two tags on one row; associations come only from Hammond
   et al., with `basis` recording which.
 - Scoring is parked. No E1–E5 anywhere in `mvp/`.
-- Never read `mvp/pipeline/pipeline_patch.html` whole: it is about 140 KB.
+- Never read `mvp/pipeline/pipeline_flow.html` whole: it is about 140 KB.
   Search it (`grep -n`), or read only the lines you need with an offset
   and limit.

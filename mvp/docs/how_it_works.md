@@ -525,7 +525,7 @@ It is not a verdict for the index until a person has read the source.
 `python mvp/pipeline/run.py serve` and open `http://127.0.0.1:8765/`. It shows the pipeline
 as a map of boxes with live numbers, and can start an update. Unlike the terminal, the page
 **waits** at a step that needs a person and offers buttons: "Done, continue", "Skip for
-now", "Try again", "Use the snapshot". It listens on 127.0.0.1 only. `mvp/out/pipeline_patch.html`
+now", "Try again", "Use the snapshot". It listens on 127.0.0.1 only. `mvp/out/pipeline_flow.html`
 opens from disk too, with the last build's numbers, but cannot run anything.
 
 ### The test run

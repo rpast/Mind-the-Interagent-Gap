@@ -266,7 +266,8 @@ svg .band.sel text { fill: var(--ink); font-weight: 500; }
 body.docked .bar .wrap { padding-right: max(16px, calc(808px - 50vw)); }
 @media (min-width: 1640px) { .barfilter { right: auto; left: calc(50% + 440px + 64px); } body.docked .bar .wrap { padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
 @media (max-width: 700px) { .barfilter { position: static; transform: none; width: 100%; } body.docked .bar .wrap { padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
-.barfilter[hidden] { display: none !important; }
+/* `hidden` must win over every display rule above (.panel is display: grid) */
+[hidden] { display: none !important; }
 .barfilter button { background: var(--paper); color: var(--ink); border: 0; font: inherit; cursor: pointer; padding: 3px 8px; }
 .barfilter button:hover { background: var(--ink); color: var(--paper); }
 .barfilter .bf-open { flex: 1; min-width: 0; text-align: left; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: .04em; }
