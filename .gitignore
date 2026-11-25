@@ -50,6 +50,9 @@ mvp/review/*.xlsx
 mvp/review/*.xlsx.tmp
 0.2/review/*.xlsx
 0.2/review/*.xlsx.tmp
+# The ledger is data and is committed; its lock and half-written temp file are not
+0.2/ledger/ledger.lock
+0.2/ledger/ledger.csv.tmp
 
 # The developer's private working folder: notes, plans, reviews. Never committed
 mvp/.dev/

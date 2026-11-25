@@ -25,13 +25,13 @@ TREE = Path(__file__).resolve().parents[1]
 GOLD = TREE / "gold" / "multiagent_gold.csv"
 ARCHIVE = TREE / "gold" / "archive" / "ceiling_input_multiagent_gold_20261113.csv"
 ARCHIVE_DROPPED = TREE / "gold" / "archive" / "ceiling_input_dropped_20261113.csv"
-QUEUE = TREE / "state" / "queue.jsonl"
 # A blind extract_gate run over the gold rows, keyed by gold_id. Its labels are derived
 # by the same rules the pipeline uses (0.2/pipeline/derive.py), never by hand.
 GATE_RUN = TREE / "out" / "calibration" / "extract_gate_v3_gold_20261115.jsonl"
 
 sys.path.insert(0, str(TREE / "pipeline"))
 import derive  # noqa: E402
+import run as pipeline  # noqa: E402  the queue is the ledger's prefilter columns
 
 
 def score(pairs, name, note="", only_precision=False):
@@ -115,7 +115,7 @@ def main():
 
     # --- the keyword prefilter arm -----------------------------------------
     queue = {(r["source_id"], str(r["source_record_id"])): r
-             for r in (json.loads(l) for l in QUEUE.open(encoding="utf-8"))}
+             for r in pipeline.read_queue()}
     pairs, missing = [], []
     for r in scorable:
         q = queue.get((r["source_id"], str(r["source_record_id"])))

@@ -2,7 +2,8 @@
 
 Approved by the curator 2026-11-25. Worked on branch `development/pipeline-0.2`.
 
-Status: P0 and P1 done (2026-11-25).
+Status: P0, P1 and P2 done (2026-11-25). The columns built so far are listed in
+`0.2/ledger/README.md`.
 
 ## 1. Why
 
@@ -93,9 +94,9 @@ Grouped by the step that owns them, in pipeline order. **R** = on every record r
 |---|---|---|
 | identity (load) | R | `record_key`, `source_id`, `source_key`, `title`, `date`, `url`, `loaded_on`, `fetched_at`, `content_hash`, `external_ma_label` |
 | prefilter | R | `queued`, `queue_basis`, `flags`, `keyword_terms`, `label_values` |
-| reading (enrich_context) | R | `read_depth`, `agent_count`, `<fact>_status` ×7, `context_ref` |
-| model (extract_gate) | R | `gate_prompt`, the 13 answers, `confidence`, `gate_ref` |
-| rules (derive) | R | `is_attack`, `presumption_fires`, `counterfactual`, `by_presumption`, `gate1`, `rules_status`, `why_a_person` |
+| reading (readiness, from what enrich_context wrote) | R | `read_depth`, `agent_count`, `<fact>_status` ×7, `context_ref` |
+| model (derive, from what extract_gate wrote) | R | `gate_prompt`, `gate_run_date`, the 12 answers, `confidence`, `gate_ref` |
+| rules (derive) | R | `rules_version`, `is_attack`, `presumption_fires`, `counterfactual`, `by_presumption`, `gate1`, `rules_status`, `why_a_person`, `labels_settled`, and the record-level labels the rules derive: `rules_multi_agent`, `rules_evidence_type`, `rules_failure_mode`, `rules_instances_presumed`. `scope_proposed` and `scope_why` are written here too. |
 | record scope label | R | `scope_proposed`, `scope_why`, `scope_decision`, `scope_final`, `scope_decided_on` |
 | duplicate label | R | `duplicate_of_proposed`, `duplicate_of_why`, `duplicate_of_decision`, `duplicate_of_final`, `duplicate_of_decided_on` |
 | incident key (sheet 1) | R | `mig_key`, `canonical` |

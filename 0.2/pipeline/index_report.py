@@ -235,7 +235,7 @@ def rules_reason(v, g):
 def not_in_index_rows():
     records = run.latest_records()
     attested = run.dossier_source_refs()
-    queue = {run.row_pair(r): r for r in run.read_jsonl(run.STATE / "queue.jsonl")}
+    queue = {run.row_pair(r): r for r in run.read_queue()}
     ctx = run.load_context()
     verdicts = run.read_verdicts()
     gates = run.proposal_rows("extract_gate")

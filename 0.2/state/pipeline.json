@@ -1,6 +1,6 @@
 {
   "generated": "2026-11-25",
-  "generated_at": "2026-11-25T20:00",
+  "generated_at": "2026-11-25T20:17",
   "incidents": [
     {
       "canonical_source": "aiid",
@@ -1137,7 +1137,7 @@
         {
           "exists": true,
           "label": "Where its answers are saved",
-          "path": "state/verdicts.jsonl"
+          "path": "ledger/ledger.csv"
         }
       ],
       "extract": [
@@ -1173,7 +1173,7 @@
         {
           "exists": true,
           "label": "Where its answers are saved",
-          "path": "state/verdicts.jsonl"
+          "path": "ledger/ledger.csv"
         }
       ],
       "gate2": [
@@ -1190,7 +1190,7 @@
         {
           "exists": true,
           "label": "Where its answers are saved",
-          "path": "state/verdicts.jsonl"
+          "path": "ledger/ledger.csv"
         }
       ],
       "gold": [
@@ -1280,8 +1280,8 @@
       "prefilter": [
         {
           "exists": true,
-          "label": "The queue of candidates",
-          "path": "state/queue.jsonl"
+          "label": "The queue of candidates: column queued",
+          "path": "ledger/ledger.csv"
         }
       ],
       "proposals": [
@@ -1456,39 +1456,39 @@
       },
       {
         "eq": "readrec: in = sum of the edges into it",
-        "lhs": 1133,
+        "lhs": 1101,
         "ok": true,
-        "rhs": 1133
+        "rhs": 1101
       },
       {
         "eq": "readrec: in = out + ends here + waiting",
-        "lhs": 1133,
+        "lhs": 1101,
         "ok": true,
-        "rhs": 1133
+        "rhs": 1101
       },
       {
         "eq": "readrec: by source adds up",
-        "lhs": 1133,
+        "lhs": 1101,
         "ok": true,
-        "rhs": 1133
+        "rhs": 1101
       },
       {
         "eq": "readsrc: in = sum of the edges into it",
-        "lhs": 509,
+        "lhs": 477,
         "ok": true,
-        "rhs": 509
+        "rhs": 477
       },
       {
         "eq": "readsrc: in = out + ends here + waiting",
-        "lhs": 509,
+        "lhs": 477,
         "ok": true,
-        "rhs": 509
+        "rhs": 477
       },
       {
         "eq": "readsrc: by source adds up",
-        "lhs": 509,
+        "lhs": 477,
         "ok": true,
-        "rhs": 509
+        "rhs": 477
       },
       {
         "eq": "outscope: in = sum of the edges into it",
@@ -1510,129 +1510,129 @@
       },
       {
         "eq": "ready: in = sum of the edges into it",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "ready: in = out + ends here + waiting",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "ready: by source adds up",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "extract: in = sum of the edges into it",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "extract: in = out + ends here + waiting",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "extract: by source adds up",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "gate1: in = sum of the edges into it",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "gate1: in = out + ends here + waiting",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "gate1: by source adds up",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "evtype: in = sum of the edges into it",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "evtype: in = out + ends here + waiting",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "evtype: by source adds up",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "gate2: in = sum of the edges into it",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "gate2: in = out + ends here + waiting",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "gate2: by source adds up",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "scope: in = sum of the edges into it",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "scope: in = out + ends here + waiting",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "scope: by source adds up",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "review: in = sum of the edges into it",
-        "lhs": 35,
+        "lhs": 3,
         "ok": true,
-        "rhs": 35
+        "rhs": 3
       },
       {
         "eq": "review: in = out + ends here + waiting",
-        "lhs": 35,
+        "lhs": 3,
         "ok": true,
-        "rhs": 35
+        "rhs": 3
       },
       {
         "eq": "review: by source adds up",
-        "lhs": 35,
+        "lhs": 3,
         "ok": true,
-        "rhs": 35
+        "rhs": 3
       },
       {
         "eq": "dossiers: in = sum of the edges into it",
@@ -1690,21 +1690,21 @@
       },
       {
         "eq": "instances: in = sum of the edges into it",
-        "lhs": 35,
+        "lhs": 3,
         "ok": true,
-        "rhs": 35
+        "rhs": 3
       },
       {
         "eq": "instances: in = out + ends here + waiting",
-        "lhs": 35,
+        "lhs": 3,
         "ok": true,
-        "rhs": 35
+        "rhs": 3
       },
       {
         "eq": "instances: by source adds up",
-        "lhs": 35,
+        "lhs": 3,
         "ok": true,
-        "rhs": 35
+        "rhs": 3
       },
       {
         "eq": "records = already in a dossier + queued + not queued",
@@ -1714,27 +1714,27 @@
       },
       {
         "eq": "queued = sent to reading + added by hand",
-        "lhs": 1133,
+        "lhs": 1101,
         "ok": true,
-        "rhs": 1133
+        "rhs": 1101
       },
       {
         "eq": "read the record = read + not read yet",
-        "lhs": 1133,
+        "lhs": 1101,
         "ok": true,
-        "rhs": 1133
+        "rhs": 1101
       },
       {
         "eq": "derived = in scope + out of scope + needs a person",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "derived = decided in + decided out + unclear + already in a dossier + left to decide",
-        "lhs": 422,
+        "lhs": 390,
         "ok": true,
-        "rhs": 422
+        "rhs": 390
       },
       {
         "eq": "left to decide = undecided rows on the decide-scope sheet",
@@ -1744,9 +1744,9 @@
       },
       {
         "eq": "decided in = promoted + not promoted + rows on the promote sheet",
-        "lhs": 35,
+        "lhs": 3,
         "ok": true,
-        "rhs": 35
+        "rhs": 3
       },
       {
         "eq": "in scope = proposed + already listed + waiting",
@@ -1846,8 +1846,8 @@
             "rows": [
               {
                 "label": "Dated 2024-01-01 or later: queued as candidates",
-                "n": 1099,
-                "tech": "basis recent in state/queue.jsonl"
+                "n": 1072,
+                "tech": "queue_basis recent in ledger/ledger.csv"
               },
               {
                 "label": "Dated 2024-01-01 or later, an outside rater said not multi-agent",
@@ -1856,18 +1856,18 @@
               },
               {
                 "label": "Before 2024, on the frozen list: queued as candidates",
-                "n": 34,
+                "n": 29,
                 "tech": "basis frozen: registry/frozen_pre2024.csv"
               },
               {
                 "label": "Already in a dossier: a dossier lists it as a source",
-                "n": 27,
+                "n": 59,
                 "tech": "dossier_source_refs()"
               },
               {
                 "label": "Not looked at: before 2024 and not on the frozen list",
                 "n": 680,
-                "tech": "AIID, dated before 2024-01-01, not in state/queue.jsonl"
+                "tech": "AIID, dated before 2024-01-01, not queued in ledger/ledger.csv"
               }
             ],
             "title": "Which records the pipeline looks at"
@@ -1949,7 +1949,7 @@
           "lesswrong": 5
         },
         "files": [
-          "state/queue.jsonl",
+          "ledger/ledger.csv",
           "registry/frozen_pre2024.csv",
           "incidents/"
         ],
@@ -1958,8 +1958,8 @@
             "rows": [
               {
                 "label": "aiid",
-                "n": 1133,
-                "tech": "state/queue.jsonl"
+                "n": 1101,
+                "tech": "ledger/ledger.csv"
               }
             ],
             "title": "Candidates per source"
@@ -1968,13 +1968,13 @@
             "rows": [
               {
                 "label": "Already in a dossier: a dossier lists it as a source",
-                "n": 27,
-                "tech": "dossier_source_refs() and not in state/queue.jsonl"
+                "n": 59,
+                "tech": "dossier_source_refs() and not queued in ledger/ledger.csv"
               },
               {
                 "label": "Queued as a candidate",
-                "n": 1133,
-                "tech": "row in state/queue.jsonl"
+                "n": 1101,
+                "tech": "queued true in ledger/ledger.csv"
               },
               {
                 "label": "Not queued: before 2024 and not on the frozen list, or an outside rater said not multi-agent",
@@ -1989,12 +1989,12 @@
             "rows": [
               {
                 "label": "Recent: an AIID record dated 2024-01-01 or later that no outside rater answered no on",
-                "n": 1099,
+                "n": 1072,
                 "tech": "basis recent"
               },
               {
                 "label": "Frozen: a pre-2024 record on the hand-kept list",
-                "n": 34,
+                "n": 29,
                 "tech": "basis frozen: registry/frozen_pre2024.csv"
               },
               {
@@ -2010,22 +2010,22 @@
             "rows": [
               {
                 "label": "Tagged multi-agent by someone else",
-                "n": 39,
+                "n": 25,
                 "tech": "flag label"
               },
               {
                 "label": "Matched a keyword",
-                "n": 64,
+                "n": 46,
                 "tech": "flag keyword"
               },
               {
                 "label": "Flagged by a tag or a keyword: never dismissed on the record text alone",
-                "n": 93,
+                "n": 71,
                 "tech": "is_flagged(flags): flags is not empty"
               },
               {
                 "label": "Not flagged",
-                "n": 1040,
+                "n": 1030,
                 "tech": ""
               }
             ],
@@ -2036,18 +2036,18 @@
         "held_label": "",
         "id": "prefilter",
         "in": 1844,
-        "n": 1133,
+        "n": 1101,
         "out": [
           {
             "branch": false,
             "label": "already in a dossier",
-            "n": 27,
+            "n": 59,
             "to": "dossiers"
           },
           {
             "branch": false,
             "label": "candidates",
-            "n": 1133,
+            "n": 1101,
             "to": "readrec"
           },
           {
@@ -2071,18 +2071,18 @@
       },
       {
         "by_source": {
-          "aiid": 1133
+          "aiid": 1101
         },
         "files": [
           "context/<source>.jsonl",
-          "state/queue.jsonl"
+          "ledger/ledger.csv"
         ],
         "groups": [
           {
             "rows": [
               {
                 "label": "Read: there is a reading",
-                "n": 1133,
+                "n": 1101,
                 "tech": "a row in context/<source>.jsonl"
               },
               {
@@ -2102,7 +2102,7 @@
               },
               {
                 "label": "Sent on: several agents, cannot tell, or flagged",
-                "n": 509,
+                "n": 477,
                 "tech": "every other read record, including those already read deeper"
               }
             ],
@@ -2112,8 +2112,8 @@
         "held": 0,
         "held_label": "not read yet",
         "id": "readrec",
-        "in": 1133,
-        "n": 1133,
+        "in": 1101,
+        "n": 1101,
         "out": [
           {
             "branch": false,
@@ -2124,7 +2124,7 @@
           {
             "branch": false,
             "label": "sent on to the source",
-            "n": 509,
+            "n": 477,
             "to": "readsrc"
           }
         ],
@@ -2133,7 +2133,7 @@
       },
       {
         "by_source": {
-          "aiid": 509
+          "aiid": 477
         },
         "files": [
           "context/<source>.jsonl"
@@ -2143,17 +2143,17 @@
             "rows": [
               {
                 "label": "the database's own page, read in full; the article it cites not read",
-                "n": 385,
+                "n": 383,
                 "tech": "secondary"
               },
               {
                 "label": "the original source, read in part",
-                "n": 13,
+                "n": 11,
                 "tech": "primary_partial"
               },
               {
                 "label": "the original source, read in full",
-                "n": 111,
+                "n": 83,
                 "tech": "primary_full"
               }
             ],
@@ -2178,8 +2178,8 @@
         "held": 0,
         "held_label": "waiting for a source reading",
         "id": "readsrc",
-        "in": 509,
-        "n": 509,
+        "in": 477,
+        "n": 477,
         "out": [
           {
             "branch": false,
@@ -2190,7 +2190,7 @@
           {
             "branch": false,
             "label": "ready for the questions",
-            "n": 422,
+            "n": 390,
             "to": "ready"
           }
         ],
@@ -2248,7 +2248,7 @@
       },
       {
         "by_source": {
-          "aiid": 422
+          "aiid": 390
         },
         "files": [
           "state/readiness.jsonl"
@@ -2258,12 +2258,12 @@
             "rows": [
               {
                 "label": "Original source read in full",
-                "n": 73,
+                "n": 45,
                 "tech": "scope ready"
               },
               {
                 "label": "Facts from a partial or secondary reading",
-                "n": 349,
+                "n": 345,
                 "tech": "scope provisional"
               },
               {
@@ -2278,13 +2278,13 @@
         "held": 0,
         "held_label": "",
         "id": "ready",
-        "in": 422,
-        "n": 422,
+        "in": 390,
+        "n": 390,
         "out": [
           {
             "branch": false,
             "label": "ready for the questions",
-            "n": 422,
+            "n": 390,
             "to": "extract"
           }
         ],
@@ -2293,7 +2293,7 @@
       },
       {
         "by_source": {
-          "aiid": 422
+          "aiid": 390
         },
         "files": [
           "proposals/extract_gate.<date>.jsonl"
@@ -2303,17 +2303,17 @@
             "rows": [
               {
                 "label": "high",
-                "n": 109,
+                "n": 108,
                 "tech": "confidence high"
               },
               {
                 "label": "low",
-                "n": 64,
+                "n": 55,
                 "tech": "confidence low"
               },
               {
                 "label": "medium",
-                "n": 249,
+                "n": 227,
                 "tech": "confidence medium"
               }
             ],
@@ -2323,13 +2323,13 @@
         "held": 0,
         "held_label": "no facts extracted yet",
         "id": "extract",
-        "in": 422,
-        "n": 422,
+        "in": 390,
+        "n": 390,
         "out": [
           {
             "branch": false,
             "label": "facts extracted",
-            "n": 422,
+            "n": 390,
             "to": "gate1"
           }
         ],
@@ -2338,10 +2338,10 @@
       },
       {
         "by_source": {
-          "aiid": 422
+          "aiid": 390
         },
         "files": [
-          "state/verdicts.jsonl",
+          "ledger/ledger.csv",
           "pipeline/derive.py"
         ],
         "groups": [
@@ -2350,17 +2350,17 @@
             "rows": [
               {
                 "label": "In: more than one agent was needed",
-                "n": 41,
+                "n": 17,
                 "tech": "gate1 in"
               },
               {
                 "label": "Out: one agent could have done it, or the agents did not act on each other",
-                "n": 279,
+                "n": 276,
                 "tech": "gate1 out"
               },
               {
                 "label": "Unclear: a fact Gate 1 turns on is unclear",
-                "n": 102,
+                "n": 97,
                 "tech": "gate1 review"
               }
             ],
@@ -2376,7 +2376,7 @@
               },
               {
                 "label": "Needs a person; would be in by the presumption if confirmed",
-                "n": 33,
+                "n": 14,
                 "tech": "status review, by_presumption true"
               }
             ],
@@ -2392,7 +2392,7 @@
               },
               {
                 "label": "extract_gate@v4",
-                "n": 344,
+                "n": 312,
                 "tech": "verdict prompt"
               }
             ],
@@ -2402,25 +2402,25 @@
         "held": 0,
         "held_label": "derive not run on it yet",
         "id": "gate1",
-        "in": 422,
-        "n": 422,
+        "in": 390,
+        "n": 390,
         "out": [
           {
             "branch": false,
             "label": "Gate 1's answers",
-            "n": 422,
+            "n": 390,
             "to": "evtype"
           }
         ],
-        "rule": "state/verdicts.jsonl field gate1, rules 2026-11-16",
+        "rule": "ledger/ledger.csv column gate1, rules 2026-11-16",
         "stop": []
       },
       {
         "by_source": {
-          "aiid": 422
+          "aiid": 390
         },
         "files": [
-          "state/verdicts.jsonl",
+          "ledger/ledger.csv",
           "pipeline/derive.py"
         ],
         "groups": [
@@ -2439,12 +2439,12 @@
               },
               {
                 "label": "Real world",
-                "n": 400,
+                "n": 371,
                 "tech": "evidence_type real_world"
               },
               {
                 "label": "Synthetic: a simulation somebody built",
-                "n": 5,
+                "n": 2,
                 "tech": "evidence_type synthetic"
               }
             ],
@@ -2454,13 +2454,13 @@
         "held": 0,
         "held_label": "",
         "id": "evtype",
-        "in": 422,
-        "n": 422,
+        "in": 390,
+        "n": 390,
         "out": [
           {
             "branch": false,
             "label": "with an evidence type, or none",
-            "n": 422,
+            "n": 390,
             "to": "gate2"
           }
         ],
@@ -2469,10 +2469,10 @@
       },
       {
         "by_source": {
-          "aiid": 422
+          "aiid": 390
         },
         "files": [
-          "state/verdicts.jsonl",
+          "ledger/ledger.csv",
           "pipeline/derive.py"
         ],
         "groups": [
@@ -2481,27 +2481,17 @@
             "rows": [
               {
                 "label": "FM1 Miscoordination",
-                "n": 6,
+                "n": 1,
                 "tech": "failure_mode FM1"
               },
               {
-                "label": "FM2 Conflict",
-                "n": 2,
-                "tech": "failure_mode FM2"
-              },
-              {
-                "label": "FM3 Collusion",
-                "n": 2,
-                "tech": "failure_mode FM3"
-              },
-              {
                 "label": "None of the three",
-                "n": 34,
+                "n": 16,
                 "tech": "failure_mode none"
               },
               {
                 "label": "Not asked: Gate 1 did not let it in",
-                "n": 378,
+                "n": 373,
                 "tech": "multi_agent not true"
               }
             ],
@@ -2512,7 +2502,7 @@
             "rows": [
               {
                 "label": "The rules' answer: in (settled by the rules)",
-                "n": 1,
+                "n": 0,
                 "tech": "status in_scope"
               },
               {
@@ -2522,7 +2512,7 @@
               },
               {
                 "label": "No answer from the rules: needs a person",
-                "n": 318,
+                "n": 287,
                 "tech": "status review"
               }
             ],
@@ -2533,27 +2523,27 @@
             "rows": [
               {
                 "label": "The model was not highly confident",
-                "n": 313,
+                "n": 282,
                 "tech": "review_why confidence not high"
               },
               {
                 "label": "Gate 1: unclear whether the agents acted on each other",
-                "n": 94,
+                "n": 92,
                 "tech": "review_why interaction_present"
               },
               {
                 "label": "Gate 1: unclear whether one agent could have done it",
-                "n": 43,
+                "n": 38,
                 "tech": "review_why single_agent_counterfactual"
               },
               {
                 "label": "Gate 2: unclear whether they cooperated",
-                "n": 28,
+                "n": 14,
                 "tech": "review_why cooperation_occurred"
               },
               {
                 "label": "Gate 2: unclear how their goals relate",
-                "n": 21,
+                "n": 12,
                 "tech": "review_why objective_relation"
               },
               {
@@ -2568,13 +2558,13 @@
         "held": 0,
         "held_label": "",
         "id": "gate2",
-        "in": 422,
-        "n": 422,
+        "in": 390,
+        "n": 390,
         "out": [
           {
             "branch": false,
             "label": "the rules' answers",
-            "n": 422,
+            "n": 390,
             "to": "scope"
           }
         ],
@@ -2583,12 +2573,12 @@
       },
       {
         "by_source": {
-          "aiid": 422
+          "aiid": 390
         },
         "files": [
           "review/1_decide_scope.xlsx",
           "review/scope_decisions_log.csv",
-          "state/verdicts.jsonl"
+          "ledger/ledger.csv"
         ],
         "groups": [
           {
@@ -2596,18 +2586,13 @@
             "rows": [
               {
                 "label": "The rules said in: a person decided in",
-                "n": 30,
+                "n": 3,
                 "tech": "rules_say in; in"
               },
               {
                 "label": "The rules said in: a person decided out",
                 "n": 14,
                 "tech": "rules_say in; out"
-              },
-              {
-                "label": "The rules said out: a person decided in",
-                "n": 5,
-                "tech": "rules_say out; in"
               },
               {
                 "label": "The rules said out: a person decided out",
@@ -2631,7 +2616,7 @@
             "rows": [
               {
                 "label": "The rules' answer: in (settled by the rules)",
-                "n": 1,
+                "n": 0,
                 "tech": "status in_scope"
               },
               {
@@ -2641,7 +2626,7 @@
               },
               {
                 "label": "No answer from the rules: needs a person",
-                "n": 318,
+                "n": 287,
                 "tech": "status review"
               }
             ],
@@ -2671,13 +2656,13 @@
         "held": 319,
         "held_label": "left to decide",
         "id": "scope",
-        "in": 422,
-        "n": 422,
+        "in": 390,
+        "n": 390,
         "out": [
           {
             "branch": false,
             "label": "decided in",
-            "n": 35,
+            "n": 3,
             "to": "instances"
           },
           {
@@ -2701,7 +2686,7 @@
       },
       {
         "by_source": {
-          "aiid": 35
+          "aiid": 3
         },
         "files": [
           "review/2_promote.xlsx",
@@ -2713,12 +2698,12 @@
             "rows": [
               {
                 "label": "Decided in by a person",
-                "n": 35,
+                "n": 3,
                 "tech": "newest scope decision in"
               },
               {
                 "label": "Promoted: a dossier lists the record",
-                "n": 32,
+                "n": 0,
                 "tech": "listed in a dossier's sources"
               },
               {
@@ -2738,13 +2723,13 @@
         "held": 0,
         "held_label": "left to review",
         "id": "review",
-        "in": 35,
-        "n": 35,
+        "in": 3,
+        "n": 3,
         "out": [
           {
             "branch": false,
             "label": "promoted to a dossier",
-            "n": 32,
+            "n": 0,
             "to": "dossiers"
           }
         ],
@@ -2964,7 +2949,7 @@
       },
       {
         "by_source": {
-          "aiid": 35
+          "aiid": 3
         },
         "files": [
           "proposals/assign_instances.<date>.jsonl",
@@ -2975,12 +2960,12 @@
             "rows": [
               {
                 "label": "Decided in on the scope sheet",
-                "n": 35,
+                "n": 3,
                 "tech": "review/scope_decisions_log.csv decision in"
               },
               {
                 "label": "Risk instances proposed",
-                "n": 35,
+                "n": 3,
                 "tech": "assign_instances proposal"
               },
               {
@@ -3010,13 +2995,13 @@
         "held": 0,
         "held_label": "",
         "id": "instances",
-        "in": 35,
-        "n": 35,
+        "in": 3,
+        "n": 3,
         "out": [
           {
             "branch": false,
             "label": "to the promote sheet",
-            "n": 35,
+            "n": 3,
             "to": "review"
           }
         ],
@@ -3025,10 +3010,10 @@
       }
     ],
     "flow_counts": {
-      "derived": 422,
+      "derived": 390,
       "dossier_records": 59,
-      "extracted": 422,
-      "in_dossier_already": 27,
+      "extracted": 390,
+      "in_dossier_already": 59,
       "in_scope": 55,
       "incidents": 52,
       "incidents_in_scope": 45,
@@ -3036,26 +3021,26 @@
       "not_queued": 684,
       "out_of_scope": 711,
       "promoted_early": 0,
-      "queued": 1133,
-      "read_record": 1133,
-      "read_source": 509,
-      "ready": 422,
+      "queued": 1101,
+      "read_record": 1101,
+      "read_source": 477,
+      "ready": 390,
       "records": 1844,
       "review_left": 0,
       "review_not_promoted": 3,
-      "review_promoted": 32,
-      "scope_decided_in": 35,
+      "review_promoted": 0,
+      "scope_decided_in": 3,
       "scope_decided_out": 61,
       "scope_decided_unclear": 7,
       "scope_left": 319,
       "verdict_prompts": {
         "extract_gate@v3": 78,
-        "extract_gate@v4": 344
+        "extract_gate@v4": 312
       },
       "verdict_split": {
-        "in_scope": 1,
+        "in_scope": 0,
         "out_of_scope": 103,
-        "review": 318
+        "review": 287
       }
     },
     "gate_proposals": 442,
@@ -3110,16 +3095,16 @@
         "yes"
       ],
       "recent_from": "2024-01-01",
-      "where": "0.2/pipeline/run.py:1018"
+      "where": "0.2/pipeline/run.py:1136"
     },
-    "queue": 1133,
+    "queue": 1101,
     "queue_basis": {
-      "frozen": 34,
-      "recent": 1099
+      "frozen": 29,
+      "recent": 1072
     },
     "queue_flags": {
-      "keyword": 64,
-      "label": 39
+      "keyword": 46,
+      "label": 25
     },
     "records": 1844,
     "records_by_source": {
@@ -3138,13 +3123,13 @@
     "sources_with_records": 4,
     "verdict_prompts": {
       "extract_gate@v3": 78,
-      "extract_gate@v4": 344
+      "extract_gate@v4": 312
     },
     "verdict_rows_all": 442,
     "verdicts": {
-      "in_scope": 1,
+      "in_scope": 0,
       "out_of_scope": 103,
-      "review": 318
+      "review": 287
     },
     "verdicts_rules": "2026-11-16"
   },
@@ -3586,18 +3571,6 @@
     },
     {
       "basis": "recent",
-      "date": "2025-04-16",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:1037",
-      "source_id": "aiid",
-      "source_record_id": "1037",
-      "title": "Microsoft Reportedly Blocks 1.6 Million Bot Signup Attempts Per Hour Amid Global AI-Driven Fraud Surge",
-      "url": "https://incidentdatabase.ai/cite/1037"
-    },
-    {
-      "basis": "recent",
       "date": "2025-04-22",
       "flags": "",
       "keyword_terms": "",
@@ -3790,18 +3763,6 @@
     },
     {
       "basis": "recent",
-      "date": "2025-04-23",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:1054",
-      "source_id": "aiid",
-      "source_record_id": "1054",
-      "title": "Anthropic Report Details Claude Misuse for Influence Operations, Credential Stuffing, Recruitment Fraud, and Malware Development",
-      "url": "https://incidentdatabase.ai/cite/1054"
-    },
-    {
-      "basis": "recent",
       "date": "2025-04-29",
       "flags": "",
       "keyword_terms": "",
@@ -3859,18 +3820,6 @@
       "source_record_id": "1059",
       "title": "Second Consecutive Year of Alleged AI-Generated Images Depicting Katy Perry at Met Gala Circulating Online",
       "url": "https://incidentdatabase.ai/cite/1059"
-    },
-    {
-      "basis": "recent",
-      "date": "2025-05-06",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:1060",
-      "source_id": "aiid",
-      "source_record_id": "1060",
-      "title": "Institute for Strategic Dialogue Reports Russian-Aligned Operation Overload Using Purported AI-Generated Impersonations Across January to March 2025",
-      "url": "https://incidentdatabase.ai/cite/1060"
     },
     {
       "basis": "recent",
@@ -6907,18 +6856,6 @@
       "source_record_id": "1325",
       "title": "Reported AI-Generated Deepfake Videos Impersonating Elon Musk and Dragon’s Den Allegedly Used in Cryptocurrency Investment Scam Targeting Canadian Victims",
       "url": "https://incidentdatabase.ai/cite/1325"
-    },
-    {
-      "basis": "recent",
-      "date": "2025-12-20",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:1326",
-      "source_id": "aiid",
-      "source_record_id": "1326",
-      "title": "Waymo Robotaxis Allegedly Contributed to Traffic Gridlock During San Francisco PG&E Power Outage",
-      "url": "https://incidentdatabase.ai/cite/1326"
     },
     {
       "basis": "recent",
@@ -10126,18 +10063,6 @@
     },
     {
       "basis": "recent",
-      "date": "2026-07-11",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:1604",
-      "source_id": "aiid",
-      "source_record_id": "1604",
-      "title": "OpenAI Models Reportedly Compromised Hugging Face Production Infrastructure During Cybersecurity Evaluation",
-      "url": "https://incidentdatabase.ai/cite/1604"
-    },
-    {
-      "basis": "recent",
       "date": "2026-01-05",
       "flags": "",
       "keyword_terms": "",
@@ -10438,18 +10363,6 @@
     },
     {
       "basis": "recent",
-      "date": "2026-07-26",
-      "flags": "keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "",
-      "record_key": "aiid:1633",
-      "source_id": "aiid",
-      "source_record_id": "1633",
-      "title": "Anthropic and OpenAI AI Agents Reportedly Took Unsanctioned Actions on the Live Internet During UK AISI Cybersecurity Evaluations",
-      "url": "https://incidentdatabase.ai/cite/1633"
-    },
-    {
-      "basis": "recent",
       "date": "2025-06-30",
       "flags": "",
       "keyword_terms": "",
@@ -10591,18 +10504,6 @@
       "source_record_id": "1645",
       "title": "3M-Retained Expert Reportedly Submitted Largely ChatGPT-Generated Analysis Seeking to Exonerate 3M as Expert Evidence in Explosion Lawsuit",
       "url": "https://incidentdatabase.ai/cite/1645"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-07-01",
-      "flags": "label;keyword",
-      "keyword_terms": "multi-?agent;\\bagents\\b",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1646",
-      "source_id": "aiid",
-      "source_record_id": "1646",
-      "title": "Suspected China-Linked Hackers Reportedly Used AI Agents to Compromise Taiwanese Government Systems and Exfiltrate Personnel Records",
-      "url": "https://incidentdatabase.ai/cite/1646"
     },
     {
       "basis": "recent",
@@ -10843,18 +10744,6 @@
       "source_record_id": "1667",
       "title": "Minnesota Attorney Reportedly Used AI-Generated Fabricated Citations in Hennepin County Civil Case and Agreed to 30-Day Suspension",
       "url": "https://incidentdatabase.ai/cite/1667"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-05-24",
-      "flags": "label;keyword",
-      "keyword_terms": "\\bagents\\b;coordinat(?:e|ion|ing)",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1668",
-      "source_id": "aiid",
-      "source_record_id": "1668",
-      "title": "OpenAI-Linked AI Agents Reportedly Used German Programming Wiki DSEWiki for Coordination and Restriction Evasion",
-      "url": "https://incidentdatabase.ai/cite/1668"
     },
     {
       "basis": "recent",
@@ -11506,18 +11395,6 @@
     },
     {
       "basis": "recent",
-      "date": "2026-05-28",
-      "flags": "keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "",
-      "record_key": "aiid:1731",
-      "source_id": "aiid",
-      "source_record_id": "1731",
-      "title": "AI Agents Reportedly Attempted to Hack Canada's Federal Archives Website While Retrieving Historical Divorce Records",
-      "url": "https://incidentdatabase.ai/cite/1731"
-    },
-    {
-      "basis": "recent",
       "date": "2026-07-24",
       "flags": "",
       "keyword_terms": "",
@@ -11539,18 +11416,6 @@
       "source_record_id": "1733",
       "title": "Ten Plaintiffs in Estonia Reportedly Fined After AI-Assisted Court Filing Cited Nonexistent Researchers in Logging-Permit Dispute",
       "url": "https://incidentdatabase.ai/cite/1733"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-09-29",
-      "flags": "keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "",
-      "record_key": "aiid:1734",
-      "source_id": "aiid",
-      "source_record_id": "1734",
-      "title": "AI Coding Agents Reportedly Exposed Over 13,000 Internal Images from Hundreds of Organizations on Public GitHub Code Repositories",
-      "url": "https://incidentdatabase.ai/cite/1734"
     },
     {
       "basis": "recent",
@@ -11926,18 +11791,6 @@
     },
     {
       "basis": "recent",
-      "date": "2026-09-25",
-      "flags": "label;keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1766",
-      "source_id": "aiid",
-      "source_record_id": "1766",
-      "title": "Cybercriminal Reportedly Used Cairn AI Agents to Breach More Than 100 Company Websites",
-      "url": "https://incidentdatabase.ai/cite/1766"
-    },
-    {
-      "basis": "recent",
       "date": "2026-10-09",
       "flags": "",
       "keyword_terms": "",
@@ -12022,18 +11875,6 @@
     },
     {
       "basis": "recent",
-      "date": "2026-10-15",
-      "flags": "label;keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1774",
-      "source_id": "aiid",
-      "source_record_id": "1774",
-      "title": "AI Agents Under Evaluation Reportedly Accessed Personal and Confidential Records at Indian Organizations",
-      "url": "https://incidentdatabase.ai/cite/1774"
-    },
-    {
-      "basis": "recent",
       "date": "2026-09-05",
       "flags": "",
       "keyword_terms": "",
@@ -12079,42 +11920,6 @@
       "source_record_id": "1778",
       "title": "Purportedly AI-Generated Campaign Ad Allegedly Depicted Pennsylvania Governor Josh Shapiro Making Fabricated Statements About Sexual Harassment Scandals",
       "url": "https://incidentdatabase.ai/cite/1778"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-05-07",
-      "flags": "label;keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1779",
-      "source_id": "aiid",
-      "source_record_id": "1779",
-      "title": "OpenAI-Linked AI Agents May Have Contributed to a Partial Outage of the Wikimedia Foundation's Data Query Service",
-      "url": "https://incidentdatabase.ai/cite/1779"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-10-15",
-      "flags": "label;keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1781",
-      "source_id": "aiid",
-      "source_record_id": "1781",
-      "title": "ARTEX AI Agents Reportedly Used Stolen Cloud Backup Credentials to Access ConnectWise Customers' Microsoft 365 Environments",
-      "url": "https://incidentdatabase.ai/cite/1781"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-09-27",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:1782",
-      "source_id": "aiid",
-      "source_record_id": "1782",
-      "title": "Attackers Reportedly Used ARTEX, an AI Security-Testing Tool, to Steal Data from South Korean Financial Institutions",
-      "url": "https://incidentdatabase.ai/cite/1782"
     },
     {
       "basis": "recent",
@@ -12190,30 +11995,6 @@
     },
     {
       "basis": "recent",
-      "date": "2026-10-26",
-      "flags": "keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "",
-      "record_key": "aiid:1789",
-      "source_id": "aiid",
-      "source_record_id": "1789",
-      "title": "Cybersecurity Firm Cathedral Reportedly Used AI Agents to Access Anthropic's Internal Business Systems",
-      "url": "https://incidentdatabase.ai/cite/1789"
-    },
-    {
-      "basis": "recent",
-      "date": "2024-01-29",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:1790",
-      "source_id": "aiid",
-      "source_record_id": "1790",
-      "title": "Purported AI Bots Flooded a UK Government Tobacco and Vaping Consultation with Reportedly Fraudulent Responses",
-      "url": "https://incidentdatabase.ai/cite/1790"
-    },
-    {
-      "basis": "recent",
       "date": "2026-08-09",
       "flags": "",
       "keyword_terms": "",
@@ -12250,18 +12031,6 @@
     },
     {
       "basis": "recent",
-      "date": "2026-10-17",
-      "flags": "label;keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1794",
-      "source_id": "aiid",
-      "source_record_id": "1794",
-      "title": "China-Linked Espionage Group VAPOR PANDA Reportedly Used ARTEX AI Agents to Breach Government and Corporate Systems Worldwide",
-      "url": "https://incidentdatabase.ai/cite/1794"
-    },
-    {
-      "basis": "recent",
       "date": "2026-10-30",
       "flags": "keyword",
       "keyword_terms": "\\bagents\\b",
@@ -12274,30 +12043,6 @@
     },
     {
       "basis": "recent",
-      "date": "2026-05-19",
-      "flags": "label;keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1796",
-      "source_id": "aiid",
-      "source_record_id": "1796",
-      "title": "Attacker Reportedly Used AI Agents to Breach Healthcare Organizations and Steal Medical Records in Argentina",
-      "url": "https://incidentdatabase.ai/cite/1796"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-05-11",
-      "flags": "label;keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:1797",
-      "source_id": "aiid",
-      "source_record_id": "1797",
-      "title": "OpenAI AI Agents Reportedly Flooded RubyGems Software Registry with Malicious Packages",
-      "url": "https://incidentdatabase.ai/cite/1797"
-    },
-    {
-      "basis": "recent",
       "date": "2024-10-08",
       "flags": "",
       "keyword_terms": "",
@@ -12307,30 +12052,6 @@
       "source_record_id": "1798",
       "title": "Purported AI Impersonations of Executives Allegedly Helped Defraud Companies Worldwide of About $129 Million",
       "url": "https://incidentdatabase.ai/cite/1798"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-09-25",
-      "flags": "keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "",
-      "record_key": "aiid:1799",
-      "source_id": "aiid",
-      "source_record_id": "1799",
-      "title": "OpenAI AI Agents Reportedly Posted ChatGPT User Images to External Hosts in 53 Instances",
-      "url": "https://incidentdatabase.ai/cite/1799"
-    },
-    {
-      "basis": "recent",
-      "date": "2026-06-18",
-      "flags": "keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "",
-      "record_key": "aiid:1800",
-      "source_id": "aiid",
-      "source_record_id": "1800",
-      "title": "OpenAI-Linked AI Agents Reportedly Repurposed Vanderbilt University's Restricted Link Shortener",
-      "url": "https://incidentdatabase.ai/cite/1800"
     },
     {
       "basis": "recent",
@@ -12657,18 +12378,6 @@
       "url": "https://incidentdatabase.ai/cite/1827"
     },
     {
-      "basis": "recent",
-      "date": "2026-10-20",
-      "flags": "keyword",
-      "keyword_terms": "\\bagents\\b",
-      "label_values": "",
-      "record_key": "aiid:1828",
-      "source_id": "aiid",
-      "source_record_id": "1828",
-      "title": "AI Agents Operated by Safety-Testing Firm Trajectory Labs Attempted Website Exploits and Impersonated Staff at AI Research Organization Epoch AI",
-      "url": "https://incidentdatabase.ai/cite/1828"
-    },
-    {
       "basis": "frozen",
       "date": "2013-01-23",
       "flags": "label",
@@ -12694,18 +12403,6 @@
     },
     {
       "basis": "frozen",
-      "date": "2020-01-01",
-      "flags": "label",
-      "keyword_terms": "",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:243",
-      "source_id": "aiid",
-      "source_record_id": "243",
-      "title": "Bots Allegedly Made up Roughly Half of Twitter Accounts in Discussions Surrounding COVID-19 Related Issues",
-      "url": "https://incidentdatabase.ai/cite/243"
-    },
-    {
-      "basis": "frozen",
       "date": "2015-06-23",
       "flags": "label",
       "keyword_terms": "",
@@ -12715,18 +12412,6 @@
       "source_record_id": "25",
       "title": "Google and Delphi Self-Driving Prototypes Allegedly Involved in Near-Miss on San Antonio Road, Palo Alto",
       "url": "https://incidentdatabase.ai/cite/25"
-    },
-    {
-      "basis": "frozen",
-      "date": "2010-05-08",
-      "flags": "keyword",
-      "keyword_terms": "trading algorithm|algorithmic trading|flash crash",
-      "label_values": "",
-      "record_key": "aiid:28",
-      "source_id": "aiid",
-      "source_record_id": "28",
-      "title": "2010 Market Flash Crash",
-      "url": "https://incidentdatabase.ai/cite/28"
     },
     {
       "basis": "frozen",
@@ -12862,18 +12547,6 @@
     },
     {
       "basis": "frozen",
-      "date": "2023-04-08",
-      "flags": "label;keyword",
-      "keyword_terms": "price[- ]fixing|pricing algorithm",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:528",
-      "source_id": "aiid",
-      "source_record_id": "528",
-      "title": "Amazon Algorithmic Pricing Allegedly Hiked up Price of Reference Book to Millions",
-      "url": "https://incidentdatabase.ai/cite/528"
-    },
-    {
-      "basis": "frozen",
       "date": "2023-05-03",
       "flags": "label",
       "keyword_terms": "",
@@ -12883,18 +12556,6 @@
       "source_record_id": "553",
       "title": "Google's Overview Panel for Artist Edward Hopper Featured Image Generated in His Style by AI",
       "url": "https://incidentdatabase.ai/cite/553"
-    },
-    {
-      "basis": "frozen",
-      "date": "2023-10-02",
-      "flags": "label",
-      "keyword_terms": "",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:602",
-      "source_id": "aiid",
-      "source_record_id": "602",
-      "title": "Russia Reportedly Using Artificial Intelligence in Disinformation Campaigns to Erode Western Support for Ukraine",
-      "url": "https://incidentdatabase.ai/cite/602"
     },
     {
       "basis": "recent",
@@ -13543,18 +13204,6 @@
       "source_record_id": "699",
       "title": "VA Suicide Prevention Algorithm REACH VET Reportedly Prioritizes Men Over Women Veterans",
       "url": "https://incidentdatabase.ai/cite/699"
-    },
-    {
-      "basis": "frozen",
-      "date": "2017-02-24",
-      "flags": "label",
-      "keyword_terms": "",
-      "label_values": "CSETv1_Annotator-1=yes;CSETv1_Annotator-3=yes;CSETv1=yes;navigator=Multi-agent",
-      "record_key": "aiid:7",
-      "source_id": "aiid",
-      "source_record_id": "7",
-      "title": "Wikipedia Vandalism Prevention Bot Loop",
-      "url": "https://incidentdatabase.ai/cite/7"
     },
     {
       "basis": "recent",
@@ -14350,18 +13999,6 @@
     },
     {
       "basis": "recent",
-      "date": "2024-09-04",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:779",
-      "source_id": "aiid",
-      "source_record_id": "779",
-      "title": "Music Producer Michael Smith Reportedly Arrested for Allegedly Using AI-Generated Songs in $10 Million Streaming Scam",
-      "url": "https://incidentdatabase.ai/cite/779"
-    },
-    {
-      "basis": "recent",
       "date": "2024-08-23",
       "flags": "",
       "keyword_terms": "",
@@ -14515,18 +14152,6 @@
       "source_record_id": "793",
       "title": "AllHere's Chatbot 'Ed' Fails and Costs Los Angeles Unified School District $6 Million",
       "url": "https://incidentdatabase.ai/cite/793"
-    },
-    {
-      "basis": "recent",
-      "date": "2024-08-13",
-      "flags": "label",
-      "keyword_terms": "",
-      "label_values": "navigator=Multi-agent",
-      "record_key": "aiid:794",
-      "source_id": "aiid",
-      "source_record_id": "794",
-      "title": "Reported Glitch in Waymo Self-Driving Cars Purportedly Triggers Regular All-Night Honking in San Francisco",
-      "url": "https://incidentdatabase.ai/cite/794"
     },
     {
       "basis": "recent",
@@ -15319,18 +14944,6 @@
       "source_record_id": "865",
       "title": "Fake AI 'Nudify' Sites Reportedly Linked to Malware Distribution by Russian Hacker Collective FIN7",
       "url": "https://incidentdatabase.ai/cite/865"
-    },
-    {
-      "basis": "recent",
-      "date": "2024-02-01",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:866",
-      "source_id": "aiid",
-      "source_record_id": "866",
-      "title": "Network of 171 AI-Powered Bots Reportedly Spread Political Disinformation Ahead of Ghana’s December 2024 General Election",
-      "url": "https://incidentdatabase.ai/cite/866"
     },
     {
       "basis": "recent",
@@ -16306,18 +15919,6 @@
     },
     {
       "basis": "recent",
-      "date": "2025-02-04",
-      "flags": "",
-      "keyword_terms": "",
-      "label_values": "",
-      "record_key": "aiid:954",
-      "source_id": "aiid",
-      "source_record_id": "954",
-      "title": "Chatbots Allegedly Used in Romance Scams Targeting Nearly One-Third of New Zealand's Dating App Users",
-      "url": "https://incidentdatabase.ai/cite/954"
-    },
-    {
-      "basis": "recent",
       "date": "2024-12-19",
       "flags": "",
       "keyword_terms": "",
@@ -17044,12 +16645,12 @@
       "label": "Discover"
     },
     {
-      "count": 1133,
+      "count": 1101,
       "detail": {
-        "flagged keyword": 64,
-        "flagged label": 39,
-        "frozen": 34,
-        "recent": 1099
+        "flagged keyword": 46,
+        "flagged label": 25,
+        "frozen": 29,
+        "recent": 1072
       },
       "id": "prefilter",
       "label": "Prefilter"
@@ -17063,9 +16664,9 @@
       "label": "Classify"
     },
     {
-      "count": 558,
+      "count": 526,
       "detail": {
-        "awaiting": 558
+        "awaiting": 526
       },
       "id": "review",
       "label": "Review"

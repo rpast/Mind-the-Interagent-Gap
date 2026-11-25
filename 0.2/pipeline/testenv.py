@@ -144,7 +144,7 @@ def _append_rows(rm, src, dest, keep):
 
 
 def standin_read(rm, run):
-    queued = {_key(r) for r in rm.read_jsonl(rm.STATE / "queue.jsonl")}
+    queued = {_key(r) for r in rm.read_queue()}
     have = set(rm.load_context())
     for src in sorted((STANDINS / "read" / "context").glob("*.jsonl")):
         dest = rm.CONTEXT / src.name

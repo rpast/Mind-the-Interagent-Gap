@@ -5,8 +5,8 @@ description: Screen queued incident records for multi-agent risk and assign inst
 
 # Classify incidents
 
-Enrich, then classify, the records in `0.2/state/queue.jsonl`, and append verdicts to
-`0.2/proposals/`. Read `0.2/docs/context_layer.md`, `0.2/docs/classifiers.md` and
+Enrich, then classify, the queued records (`queued` = `true` in
+`0.2/ledger/ledger.csv`), and append proposals to `0.2/proposals/`. Read `0.2/docs/context_layer.md`, `0.2/docs/classifiers.md` and
 `0.2/docs/definitions.md` before the first batch.
 
 **Read before you judge.** A record is classified only once its context row says enough has
@@ -16,7 +16,7 @@ been read. Thin record text is not a reason to answer `unclear`; it is a reason 
 
 **Every row you append carries `record_key`**, `"<source_id>:<source_record_id>"`, e.g.
 `"aiid:1604"`, beside the two fields: context rows and both kinds of proposal row alike.
-Take it from the queue row.
+Take it from the ledger row (column `record_key`).
 
 ## Before starting
 
@@ -36,9 +36,9 @@ Take it from the queue row.
    `0.2/prompts/enrich_context.v2.md` to the record text alone, no fetching, and append the
    row to `0.2/context/<source_id>.jsonl` with `record_key`,
    `provenance.method: enrich_context@v2`, `model` and `run_date`. Tell the prompt whether
-   the record is **flagged**: its queue row's `flags` is non-empty (`label`, `keyword` or both). Count
+   the record is **flagged**: its ledger row's `flags` is non-empty (`label`, `keyword` or both). Count
    agents, not AI systems: one product or operator can hold several agents.
-   - An unflagged record (its queue row's `flags` is empty) that comes out `agent_count` `one` or `none` is
+   - An unflagged record (its ledger row's `flags` is empty) that comes out `agent_count` `one` or `none` is
      finished: single-agent, out of scope, no further.
    - A flagged record that comes out `one` or `none` is **not** finished. It goes to the
      source pass like any other.
@@ -56,7 +56,7 @@ rows and confirm that no row judged `in` comes out `one` or `none`.
 
 ### Manual records
 
-Records from the `manual` source (queue `basis: "manual"`, context row `"manual": true`) were
+Records from the `manual` source (ledger `queue_basis` `manual`, context row `"manual": true`) were
 added by hand by the curator, who vouches that they are multi-agent. Their scope is `ready`
 on the curator's word. For them:
 
@@ -90,12 +90,14 @@ Then derive the labels: run
 python 0.2/pipeline/run.py derive
 ```
 
-It applies the rules to the newest `extract_gate` proposal of every record and writes
-`0.2/state/verdicts.jsonl`: per record a `status` (`in_scope`, `out_of_scope` or
-`review`), the `review_why` list, `by_presumption`, and the labels — under `labels` when
-settled, under `labels_if_confirmed` for a review item, so nothing reads them as settled.
-**Do not derive labels by hand**, and never copy them into a proposal. The verdicts file is
-generated state; it is rewritten on every run.
+It applies the rules to the newest `extract_gate` proposal of every record and writes the
+ledger's derive columns in `0.2/ledger/ledger.csv`: per record `rules_status`
+(`in_scope`, `out_of_scope` or `review`), `why_a_person`, `by_presumption`, the labels
+(`rules_multi_agent`, `rules_evidence_type`, `rules_failure_mode`,
+`rules_instances_presumed`) and `labels_settled`, `false` for a review item, so nothing
+reads them as settled. **Do not derive labels by hand**, never copy them into a
+proposal, and never write the ledger yourself: only `run.py` writes it, and these
+columns are rewritten on every run.
 
 The rules, for reference. `0.2/pipeline/derive.py` is the authority: where this list and
 that file disagree, the file is what runs. A security record is one whose
@@ -147,7 +149,7 @@ does not touch the dossier; a person copies what passes into it.
    `record_key`, `prompt_id`, `prompt_version`, `model` and `run_date`.
 4. If call 2 returns a quoted I28 or I29 on a record whose verdict carries the presumed
    pair, the quoted instance replaces the pair. Say so in the report; do not edit
-   `verdicts.jsonl`, which is generated. The person who writes the dossier records the
+   the ledger, which only `run.py` writes. The person who writes the dossier records the
    quoted instance and leaves `instances_presumed` empty: a quoted and a presumed instance
    never sit on the same record for the same id.
 

@@ -29,7 +29,8 @@ from collections import Counter
 from pathlib import Path
 
 TREE = Path(__file__).resolve().parents[1]
-QUEUE = TREE / "state" / "queue.jsonl"
+sys.path.insert(0, str(TREE / "pipeline"))
+import run as pipeline  # noqa: E402  the queue is the ledger's prefilter columns
 RECORDS = TREE / "records" / "aiid.jsonl"
 OUT = TREE / "gold" / "negative_sample.csv"
 
@@ -44,9 +45,9 @@ def main():
     ap.add_argument("--seed", type=int, default=20261113)
     args = ap.parse_args()
 
-    if not QUEUE.exists():
-        sys.exit(f"no queue at {QUEUE}; run `run.py prefilter` first")
-    queue = [json.loads(line) for line in QUEUE.open(encoding="utf-8") if line.strip()]
+    queue = pipeline.read_queue()
+    if not queue:
+        sys.exit("no queued records in the ledger; run `run.py prefilter` first")
     records = {}
     if RECORDS.exists():
         for line in RECORDS.open(encoding="utf-8"):

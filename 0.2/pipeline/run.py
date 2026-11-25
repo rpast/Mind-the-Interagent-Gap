@@ -14,7 +14,7 @@ Stages, in the order an update runs them:
     readiness  say, per record, whether enough has been read to classify it
     judge      (claude code skill /classify-incidents; see 0.2/docs/classifiers.md)
     derive     the labels, by rule (derive.py), from the newest extract_gate proposal
-               of each record -> 0.2/state/verdicts.jsonl
+               of each record -> 0.2/ledger/ledger.csv
     review     two spreadsheets in 0.2/review/: a person decides scope on sheet 1, then
                says on sheet 2 which in-scope records get a dossier; this step reads
                the filled sheets, logs the decisions, scaffolds the dossiers, and writes
@@ -77,18 +77,20 @@ except ImportError:  # pragma: no cover
 # The labelling rules live in one file beside this one, derive.py, and nowhere else.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import derive as rules  # noqa: E402
+# The ledger, one row per record, holds every step's output: ledger.py.
+import ledger  # noqa: E402
 
 # Every path the stages read or write. They live in module globals, set in one place.
 # The test run (testenv.py) loads a second instance of this module and points that
 # one at a scratch workspace; this instance is set once, here, and never re-pointed.
 PATH_NAMES = ("TREE", "ROOT", "REGISTRY", "MIG_KEYS", "TAXONOMY", "RAW", "RECORDS",
               "INCIDENTS", "PROPOSALS", "CONTEXT", "STATE", "OUT", "RUN_FILE", "RUNS",
-              "REVIEW")
+              "REVIEW", "LEDGER")
 
 
 def set_paths(tree_dir):
     global TREE, ROOT, REGISTRY, MIG_KEYS, TAXONOMY, RAW, RECORDS, INCIDENTS, PROPOSALS, \
-        CONTEXT, STATE, OUT, RUN_FILE, RUNS, REVIEW
+        CONTEXT, STATE, OUT, RUN_FILE, RUNS, REVIEW, LEDGER
     TREE = Path(tree_dir).resolve()
     ROOT = TREE.parent
     REGISTRY = TREE / "registry" / "sources.csv"
@@ -104,6 +106,7 @@ def set_paths(tree_dir):
     RUN_FILE = STATE / "run.json"
     RUNS = STATE / "runs"           # one retained log per run: <run id>.json
     REVIEW = TREE / "review"         # the two sheets a person fills in, and their logs
+    LEDGER = TREE / "ledger" / "ledger.csv"   # one row per record: every step's output
 
 
 set_paths(Path(__file__).resolve().parents[1])
@@ -620,7 +623,122 @@ def stage_normalise(source_ids):
             new = normalise_generic(sid)
         if new is not None:
             total += new
+    ledger_load()
     return total
+
+
+# ------------------------------------------------------------------- ledger
+#
+# Each step writes its own columns of ledger/ledger.csv (ledger.py). The readers below
+# give the rest of the pipeline the rows it used to read from the queue and verdicts
+# files (until 0.2), rebuilt from the ledger.
+
+def ledger_load(backfill=False):
+    """The load columns, for every record's newest version. A record's `loaded_on` is
+    set the first time it reaches the ledger and never changed. `backfill` (the one-off
+    migration only) sets a missing one from the record's fetch date instead of today."""
+    old = ledger.read(LEDGER)
+    updates = {}
+    for (sid, rid), rec in latest_records().items():
+        key = record_key(sid, rid)
+        first = (old.get(key) or {}).get("loaded_on") \
+            or (rec.get("fetched_at", "") if backfill else TODAY)
+        updates[key] = {
+            "record_key": key, "source_id": sid, "source_key": source_key(sid, rid),
+            "title": rec.get("title", ""), "date": rec.get("date", ""),
+            "url": rec.get("url", ""), "loaded_on": first,
+            "fetched_at": rec.get("fetched_at", ""),
+            "content_hash": rec.get("content_hash", ""),
+            "external_ma_label": [f"{l.get('namespace') or l.get('source')}={l.get('value')}"
+                                  for l in rec.get("external_labels") or []
+                                  if l.get("field") == MA_FIELD]}
+    ledger.write(LEDGER, "load", updates)
+    info(f"  ok    ledger: {len(updates)} records -> {LEDGER.relative_to(ROOT)}")
+    return len(updates)
+
+
+def prefilter_columns(q):
+    """A queue row as the ledger's prefilter columns."""
+    return {"queued": True, "queue_basis": q.get("basis", ""), "flags": q.get("flags", ""),
+            "keyword_terms": q.get("keyword_terms", ""),
+            "label_values": q.get("label_values", "")}
+
+
+def read_queue():
+    """The queued records, as the queue rows the prefilter makes: in (source_id,
+    source_record_id) order, with the record's date, title and url."""
+    rows = []
+    for key, r in ledger.read(LEDGER).items():
+        if r["queued"] != "true":
+            continue
+        sid, rid = split_key(key)
+        rows.append({"source_id": sid, "source_record_id": rid, "record_key": key,
+                     "date": r["date"], "title": r["title"], "basis": r["queue_basis"],
+                     "flags": r["flags"], "label_values": r["label_values"],
+                     "keyword_terms": r["keyword_terms"], "url": r["url"]})
+    rows.sort(key=lambda q: (q["source_id"], q["source_record_id"]))
+    return rows
+
+
+def reading_columns(pair, ctx):
+    """A context row as the ledger's reading columns: depth, count, each fact's status."""
+    facts = ctx.get("facts") or {}
+    return {"read_depth": best_depth(ctx), "agent_count": ctx.get("agent_count", ""),
+            **{f"{f}_status": (facts.get(f) or {}).get("status", "unread")
+               for f in CONTEXT_FACTS},
+            "context_ref": f"context/{pair[0]}.jsonl"}
+
+
+def derive_columns(gate, v, gate_ref=""):
+    """One record's extract_gate answers and the verdict the rules derived from them, as
+    the ledger's derive columns."""
+    labels = rules.labels_of(v)
+    return {
+        "gate_prompt": v.get("prompt", ""), "gate_run_date": v.get("run_date", ""),
+        **{f: gate.get(f) for f in ledger.GATE_FIELDS}, "gate_ref": gate_ref,
+        "rules_version": v.get("rules_version", ""),
+        "is_attack": bool(gate) and rules.is_security(gate),
+        "presumption_fires": bool(gate) and rules.presumption_fires(gate),
+        "counterfactual": labels.get("counterfactual_resolved"),
+        "by_presumption": bool(v.get("by_presumption")),
+        "gate1": v.get("gate1", ""), "rules_status": v.get("status", ""),
+        "why_a_person": v.get("review_why") or [],
+        "labels_settled": "labels" in v,
+        "rules_multi_agent": labels.get("multi_agent"),
+        "rules_evidence_type": labels.get("evidence_type"),
+        "rules_failure_mode": labels.get("failure_mode"),
+        "rules_instances_presumed": labels.get("instances_presumed") or [],
+        "scope_proposed": rules_say(v),
+        "scope_why": ("not settled: " + "; ".join(v["review_why"]) if v.get("review_why")
+                      else f"settled by the rules: {v.get('status', '')}"),
+    }
+
+
+def verdict_of(key, r):
+    """A ledger row's derive columns as the verdict derive.py returned."""
+    sid, rid = split_key(key)
+    labels = {"multi_agent": ledger.as_bool(r["rules_multi_agent"]),
+              "counterfactual_resolved": r["counterfactual"] or None,
+              "evidence_type": r["rules_evidence_type"] or None,
+              "failure_mode": r["rules_failure_mode"] or None,
+              "instances_presumed": ledger.as_list(r["rules_instances_presumed"])}
+    return {"record_key": key, "source_id": sid, "source_record_id": rid,
+            "prompt": r["gate_prompt"], "run_date": r["gate_run_date"],
+            "status": r["rules_status"], "gate1": r["gate1"],
+            "review_why": ledger.as_list(r["why_a_person"]),
+            "by_presumption": r["by_presumption"] == "true",
+            "rules_version": r["rules_version"],
+            ("labels" if r["labels_settled"] == "true" else "labels_if_confirmed"): labels}
+
+
+def proposal_files(prompt_id):
+    """(source_id, source_record_id) -> the proposals file its newest row is in."""
+    out = {}
+    for path in sorted(PROPOSALS.glob(f"{prompt_id}.*.jsonl")) if PROPOSALS.exists() else []:
+        for row in read_jsonl(path):
+            if row.get("record_key") or row.get("source_id") is not None:
+                out[row_pair(row)] = f"proposals/{path.name}"
+    return out
 
 
 def append_records(source_id, incoming):
@@ -1086,9 +1204,9 @@ def stage_prefilter():
             "keyword_terms": ";".join(terms),
             "url": rec.get("url", ""),
         })
-    STATE.mkdir(parents=True, exist_ok=True)
-    write_jsonl(STATE / "queue.jsonl", rows)
-    info(f"  ok    prefilter: {len(rows)} candidates of {len(records)} records")
+    ledger.write(LEDGER, "prefilter", {r["record_key"]: prefilter_columns(r) for r in rows})
+    info(f"  ok    prefilter: {len(rows)} candidates of {len(records)} records "
+         f"-> {LEDGER.relative_to(ROOT)}")
     for basis, n in sorted(basis_counts(rows).items()):
         info(f"          {basis}: {n}")
     for flag, n in sorted(flag_counts(rows).items()):
@@ -1124,7 +1242,7 @@ def is_flagged(flags):
 
 def queue_flags(queue=None):
     """(source_id, source_record_id) -> flagged, for every queued record."""
-    queue = read_jsonl(STATE / "queue.jsonl") if queue is None else queue
+    queue = read_queue() if queue is None else queue
     return {row_pair(r): is_flagged(r.get("flags")) for r in queue}
 
 
@@ -1210,6 +1328,25 @@ def readiness(ctx, flagged=False):
     return out
 
 
+def write_reading_columns(context=None):
+    """Every record's reading, from its newest context row, into the ledger. A context
+    row for a record the ledger does not hold is reported and left out."""
+    context = load_context() if context is None else context
+    known = ledger.read(LEDGER)
+    updates, stray = {}, []
+    for pair, ctx in context.items():
+        key = record_key(*pair)
+        if key in known:
+            updates[key] = reading_columns(pair, ctx)
+        else:
+            stray.append(key)
+    ledger.write(LEDGER, "readiness", updates)
+    if stray:
+        info(f"  warn  ledger: {len(stray)} context row(s) for records not loaded, "
+             f"e.g. {stray[0]}")
+    return len(updates)
+
+
 def out_of_scope(verdict):
     """The single-agent shortcut held: scope settled, nothing else arises."""
     return verdict["scope"]["level"] == "ready" \
@@ -1220,7 +1357,7 @@ def stage_readiness():
     """Report, for every record awaiting a decision, whether it can be classified."""
     records = latest_records()
     context = load_context()
-    queue = read_jsonl(STATE / "queue.jsonl")
+    queue = read_queue()
     flags = queue_flags(queue)
     pools = {"queue": [row_pair(r) for r in queue],
              "dossiers": sorted(dossier_source_refs())}
@@ -1240,6 +1377,7 @@ def stage_readiness():
                 bucket[verdict[d]["level"]] = bucket.get(verdict[d]["level"], 0) + 1
     STATE.mkdir(parents=True, exist_ok=True)
     write_jsonl(STATE / "readiness.jsonl", rows)
+    write_reading_columns(context)
     for pool, keys in pools.items():
         info(f"  {pool}: {len(keys)} records")
         for d in DECISIONS:
@@ -1253,10 +1391,9 @@ def stage_readiness():
 # ------------------------------------------------------------------- derive
 #
 # Proposals hold model output only. The labels are derived from them by rule
-# (derive.py), every time, into state/verdicts.jsonl: generated state, never edited
+# (derive.py), every time, into the ledger's derive columns: never edited by hand
 # and never written back into a proposal.
 
-VERDICTS = "verdicts.jsonl"
 INSTANCES_DUE = "instances_due.jsonl"
 
 
@@ -1275,19 +1412,22 @@ def proposal_rows(prompt_id):
 def stage_derive():
     """Apply the rules to the newest extract_gate proposal of every record."""
     gates = proposal_rows("extract_gate")
-    rows, split = [], {s: 0 for s in rules.STATUSES}
+    refs = proposal_files("extract_gate")
+    rows, split, updates = [], {s: 0 for s in rules.STATUSES}, {}
     for (sid, rid), gate in sorted(gates.items()):
         v = rules.derive(gate, manual=(sid == MANUAL))
         split[v["status"]] += 1
-        rows.append({"record_key": record_key(sid, rid), "source_id": sid,
-                     "source_record_id": rid,
-                     "prompt": f"{gate.get('prompt_id', '')}@{gate.get('prompt_version', '')}",
-                     "run_date": gate.get("run_date", ""), **v})
-    STATE.mkdir(parents=True, exist_ok=True)
-    write_jsonl(STATE / VERDICTS, rows)
+        v = {"record_key": record_key(sid, rid), "source_id": sid,
+             "source_record_id": rid,
+             "prompt": f"{gate.get('prompt_id', '')}@{gate.get('prompt_version', '')}",
+             "run_date": gate.get("run_date", ""), **v}
+        rows.append(v)
+        updates[v["record_key"]] = derive_columns(gate, v, refs.get((sid, rid), ""))
+    ledger.write(LEDGER, "derive", updates)
+    write_reading_columns()
     presumed = sum(1 for r in rows if r["by_presumption"])
     info(f"  ok    derive: {len(rows)} verdict(s), rules {rules.RULES_VERSION} -> "
-         f"{(STATE / VERDICTS).relative_to(ROOT)}")
+         f"{LEDGER.relative_to(ROOT)}")
     info(f"          in scope {split['in_scope']}  out of scope {split['out_of_scope']}  "
          f"review {split['review']}  (of the review items, {presumed} would be in scope "
          f"only by the attack presumption if a person confirms them)")
@@ -1295,8 +1435,10 @@ def stage_derive():
 
 
 def read_verdicts():
-    """state/verdicts.jsonl, keyed (source_id, source_record_id)."""
-    return {row_pair(r): r for r in read_jsonl(STATE / VERDICTS)}
+    """Every record's verdict, rebuilt from the ledger's derive columns, keyed
+    (source_id, source_record_id)."""
+    return {split_key(k): verdict_of(k, r) for k, r in ledger.read(LEDGER).items()
+            if r["rules_status"]}
 
 
 def instances_due():
@@ -2731,7 +2873,7 @@ def index_rows():
 def pipeline_state(index_rows):
     reg = registry()
     records = latest_records()
-    queue = read_jsonl(STATE / "queue.jsonl")
+    queue = read_queue()
     proposals = sum(len(read_jsonl(p)) for p in sorted(PROPOSALS.glob("*.jsonl"))) \
         if PROPOSALS.exists() else 0
 
@@ -2816,7 +2958,7 @@ MAP_ARTIFACTS = {
                ("Their records", "records/manual.jsonl"),
                ("The curator's flag on each", "context/manual.jsonl")],
     "normalise": [("Records, one file per source", "records/")],
-    "prefilter": [("The queue of candidates", "state/queue.jsonl")],
+    "prefilter": [("The queue of candidates: column queued", "ledger/ledger.csv")],
     "outscope": [("The readings that settled it", "context/"),
                  ("The readiness report", "state/readiness.jsonl")],
     "readrec": [("Readings, one file per source", "context/"),
@@ -2831,13 +2973,13 @@ MAP_ARTIFACTS = {
                 ("Where its output will be saved", "proposals/")],
     "gate1": [("The written rule", "docs/definitions.md"),
               ("The rule in code", "pipeline/derive.py"),
-              ("Where its answers are saved", "state/verdicts.jsonl")],
+              ("Where its answers are saved", "ledger/ledger.csv")],
     "gate2": [("The written rule", "docs/definitions.md"),
               ("The rule in code", "pipeline/derive.py"),
-              ("Where its answers are saved", "state/verdicts.jsonl")],
+              ("Where its answers are saved", "ledger/ledger.csv")],
     "evtype": [("The four evidence types", "taxonomy/evidence_types.csv"),
                ("The rule in code", "pipeline/derive.py"),
-               ("Where its answers are saved", "state/verdicts.jsonl")],
+               ("Where its answers are saved", "ledger/ledger.csv")],
     "instances": [("The named patterns", "taxonomy/instances.csv"),
                   ("The instructions the model follows", "prompts/assign_instances.v2.md"),
                   ("Where its output will be saved", "proposals/"),
@@ -3128,7 +3270,7 @@ def map_flow(reg, records, queue, context, index_rows):
                       "frozen list: pre-2024 candidates analysed before 2026-11-17.",
               "rows": rows(
                   (f"Dated {RECENT_FROM} or later: queued as candidates", len(f_recent),
-                   "basis recent in state/queue.jsonl"),
+                   "queue_basis recent in ledger/ledger.csv"),
                   (f"Dated {RECENT_FROM} or later, an outside rater said not multi-agent",
                    len(f_said_no), "outside_says_no(): a Multiple AI Interaction label, none yes or maybe"),
                   ("Before 2024, on the frozen list: queued as candidates", len(f_frozen),
@@ -3136,9 +3278,9 @@ def map_flow(reg, records, queue, context, index_rows):
                   ("Already in a dossier: a dossier lists it as a source", len(f_dossier),
                    "dossier_source_refs()"),
                   ("Not looked at: before 2024 and not on the frozen list", len(f_old),
-                   f"AIID, dated before {RECENT_FROM}, not in state/queue.jsonl"),
+                   f"AIID, dated before {RECENT_FROM}, not queued in ledger/ledger.csv"),
                   *([("Not looked at: a source the prefilter does not queue", len(f_other),
-                      "not in state/queue.jsonl, not behind a dossier")] if f_other else []))}],
+                      "not queued in ledger/ledger.csv, not behind a dossier")] if f_other else []))}],
          "files": ["raw/aiid/", "records/<source>.jsonl", "registry/frozen_pre2024.csv"],
          "rule": "records of every source but manual: latest_records(). Looked at: "
                  f"AIID dated {RECENT_FROM} or later, or on registry/frozen_pre2024.csv"},
@@ -3164,11 +3306,11 @@ def map_flow(reg, records, queue, context, index_rows):
          "held": 0, "pop": allkeys,
          "groups": [
              {"title": "Candidates per source", "rows": rows(
-                 *[(sid, n, "state/queue.jsonl") for sid, n in by_source(queued).items()])},
+                 *[(sid, n, "ledger/ledger.csv") for sid, n in by_source(queued).items()])},
              {"title": "Every record goes one of three ways", "rows": rows(
                  ("Already in a dossier: a dossier lists it as a source", len(to_dossier),
-                  "dossier_source_refs() and not in state/queue.jsonl"),
-                 ("Queued as a candidate", len(queued), "row in state/queue.jsonl"),
+                  "dossier_source_refs() and not queued in ledger/ledger.csv"),
+                 ("Queued as a candidate", len(queued), "queued true in ledger/ledger.csv"),
                  ("Not queued: before 2024 and not on the frozen list, or an outside "
                   "rater said not multi-agent", len(not_queued),
                   "neither in the queue nor behind a dossier"))},
@@ -3188,7 +3330,7 @@ def map_flow(reg, records, queue, context, index_rows):
                   ("Flagged by a tag or a keyword: never dismissed on the record text alone",
                    flagged, "is_flagged(flags): flags is not empty"),
                   ("Not flagged", len(queued) - flagged, ""))}],
-         "files": ["state/queue.jsonl", "registry/frozen_pre2024.csv", "incidents/"],
+         "files": ["ledger/ledger.csv", "registry/frozen_pre2024.csv", "incidents/"],
          "rule": "stage_prefilter(): queued = recent AIID, frozen pre-2024 or manual; flagged = an outside label or a keyword; records behind a dossier are left out"},
         {"id": "readrec", "n": len(read_any), "in": len(to_readrec),
          "out": [E("outscope", oos_record, "screened out on the record text"),
@@ -3203,7 +3345,7 @@ def map_flow(reg, records, queue, context, index_rows):
                   "out_of_scope(readiness()) at depth record"),
                  ("Sent on: several agents, cannot tell, or flagged", len(to_readsrc),
                   "every other read record, including those already read deeper"))}],
-         "files": ["context/<source>.jsonl", "state/queue.jsonl"],
+         "files": ["context/<source>.jsonl", "ledger/ledger.csv"],
          "rule": "queued records, not added by hand; read = has a context row"},
         {"id": "readsrc", "n": len(read_deeper), "in": len(to_readsrc),
          "out": [E("outscope", oos_source, "screened out on the source"),
@@ -3277,8 +3419,8 @@ def map_flow(reg, records, queue, context, index_rows):
               "note": "Each answer rests on the facts of one extract_gate run. Older "
                       "answers keep the prompt version they were made with.",
               "rows": rows(*[(p, n, "verdict prompt") for p, n in sorted(prompts_used.items())])}],
-         "files": ["state/verdicts.jsonl", "pipeline/derive.py"],
-         "rule": f"state/verdicts.jsonl field gate1, rules {rules.RULES_VERSION}"},
+         "files": ["ledger/ledger.csv", "pipeline/derive.py"],
+         "rule": f"ledger/ledger.csv column gate1, rules {rules.RULES_VERSION}"},
         {"id": "evtype", "n": len(derived), "in": len(derived),
          "out": [E("gate2", derived, "with an evidence type, or none")],
          "stop": [], "held": 0, "pop": derived,
@@ -3288,7 +3430,7 @@ def map_flow(reg, records, queue, context, index_rows):
                              "were confirmed. None sends an in-scope record to a person.",
                      "rows": rows(
              *[(ET_WORDS.get(v, v), n, f"evidence_type {v}") for v, n in sorted(et.items())])}],
-         "files": ["state/verdicts.jsonl", "pipeline/derive.py"],
+         "files": ["ledger/ledger.csv", "pipeline/derive.py"],
          "rule": "labels_of(verdict).evidence_type over the records Gate 1 answered"},
         {"id": "gate2", "n": len(derived), "in": len(derived),
          "out": [E("scope", derived, "the rules' answers")],
@@ -3311,7 +3453,7 @@ def map_flow(reg, records, queue, context, index_rows):
                              "than the records that need a person.",
                      "rows": rows(*[(WHY_WORDS.get(w, w), n, f"review_why {w}")
                                     for w, n in sorted(whys.items(), key=lambda x: -x[1])])}],
-         "files": ["state/verdicts.jsonl", "pipeline/derive.py"],
+         "files": ["ledger/ledger.csv", "pipeline/derive.py"],
          "rule": f"labels_of(verdict).failure_mode and status, rules {rules.RULES_VERSION}"},
         {"id": "scope", "n": len(derived), "in": len(derived),
          "out": [E("instances", dec_in, "decided in"),
@@ -3334,7 +3476,7 @@ def map_flow(reg, records, queue, context, index_rows):
                         ("Decisions in the log, newest per record", len(
                             newest_by_key(read_log("scope"))), "review/scope_decisions_log.csv"))}],
          "files": ["review/1_decide_scope.xlsx", "review/scope_decisions_log.csv",
-                   "state/verdicts.jsonl"],
+                   "ledger/ledger.csv"],
          "rule": "records with a derived label; decided = the newest row of "
                  "review/scope_decisions_log.csv (a hand-added record counts as decided in); "
                  "run.py review reads the sheet"},
@@ -3491,7 +3633,7 @@ def pipeline_map(reg, records, queue, proposals, index_rows):
     context = load_context()
     flow, checks, counts = map_flow(reg, records, queue, context, index_rows)
     # the rules' answers over the records that reached Gate 1 (the gate1 box), not every
-    # row of verdicts.jsonl: a verdict can outlive a record's readiness
+    # verdict in the ledger: a verdict can outlive a record's readiness
     verdicts = dict(counts.get("verdict_split") or {s: 0 for s in rules.STATUSES})
     verdict_rows_all = len(read_verdicts())
     scope = {"in": 0, "out": 0, "unclear": 0}
@@ -3707,6 +3849,8 @@ def stage_check():
 
     # --- the person's decision logs (0.2/review/) --------------------------
     check_review_logs(records, problems, warnings)
+    # --- the ledger (0.2/ledger/ledger.csv) ---------------------------------
+    check_ledger(records, problems, warnings)
     for wline in warnings:
         info(f"  warn  {wline}")
 
@@ -3718,6 +3862,57 @@ def stage_check():
         return 1
     info(f"  ok    check: {len(all_dossiers())} dossiers, no problems")
     return 0
+
+
+def check_ledger(records, problems, warnings):
+    """One row per loaded record, matching it; the column lists in step with run.py's;
+    each owner's columns in step with what that step would write now. A step whose
+    columns lag its inputs (new context rows, new proposals) is a warning: run it."""
+    rel = LEDGER.relative_to(ROOT)
+    if CONTEXT_FACTS != ledger.CONTEXT_FACTS:
+        problems.append("ledger.CONTEXT_FACTS differs from run.CONTEXT_FACTS")
+    if ledger.GATE_FIELDS != [f for f in MODEL_FIELDS if f != "uncertainty_reason"]:
+        problems.append("ledger.GATE_FIELDS differs from run.MODEL_FIELDS")
+    try:
+        rows = ledger.read(LEDGER)
+    except ledger.LedgerError as e:
+        problems.append(str(e))
+        return
+    if not rows and records:
+        problems.append(f"{rel}: missing; run normalise")
+        return
+    keys = {record_key(*p) for p in records}
+    for k in sorted(keys - set(rows), key=natural)[:5]:
+        problems.append(f"{rel}: no row for record {k}; run normalise")
+    for k in sorted(set(rows) - keys, key=natural)[:5]:
+        problems.append(f"{rel}: a row for {k}, which is not a loaded record")
+    for (sid, rid), rec in records.items():
+        r = rows.get(record_key(sid, rid))
+        if r and r["content_hash"] != rec.get("content_hash"):
+            warnings.append(f"{rel}: {record_key(sid, rid)} lags its newest record "
+                            f"version; run normalise")
+            break
+    for k, r in rows.items():
+        if not r["loaded_on"]:
+            problems.append(f"{rel}: {k} has no loaded_on")
+            break
+    gates = proposal_rows("extract_gate")
+    derived = {record_key(*p) for p in gates}
+    have = {k for k, r in rows.items() if r["rules_status"]}
+    if derived != have:
+        warnings.append(f"{rel}: derive columns lag the extract_gate proposals "
+                        f"({len(derived - have)} without, {len(have - derived)} stale); "
+                        f"run derive")
+    else:
+        for pair, gate in gates.items():
+            v = rules.derive(gate, manual=(pair[0] == MANUAL))
+            if v["status"] != rows[record_key(*pair)]["rules_status"]:
+                warnings.append(f"{rel}: {record_key(*pair)} status differs from the "
+                                f"rules {rules.RULES_VERSION}; run derive")
+                break
+    read = {record_key(*p) for p in load_context()} & set(rows)
+    if read != {k for k, r in rows.items() if r["read_depth"]}:
+        warnings.append(f"{rel}: reading columns lag the context rows; run readiness")
 
 
 def check_env(records=None, reg=None, context=None):
@@ -3921,8 +4116,8 @@ def check_rows():
             if pair in last and last[pair] == row.get("content_hash"):
                 problems.append(f"{where}: a version identical to the one before it")
             last[pair] = row.get("content_hash")
-    for path, required in ((STATE / "queue.jsonl", True), (STATE / "readiness.jsonl", True),
-                           (STATE / VERDICTS, True), (STATE / INSTANCES_DUE, True)):
+    for path, required in ((STATE / "readiness.jsonl", True),
+                           (STATE / INSTANCES_DUE, True)):
         for n, row in enumerate(read_jsonl(path), 1):
             key_ok(f"{path.relative_to(ROOT)}:{n}", row, required)
     for folder in (CONTEXT, PROPOSALS):
@@ -4444,7 +4639,7 @@ class UpdateRun:
                 self.count(step, label, by_flag[flag])
 
     def step_read(self, step, override):
-        queue = read_jsonl(STATE / "queue.jsonl")
+        queue = read_queue()
         context = load_context()
         unread = record_only = deeper = 0
         for row in queue:
@@ -4478,7 +4673,7 @@ class UpdateRun:
 
     def judgeable(self):
         """Queued records with scope decidable and not already out of scope."""
-        queue = read_jsonl(STATE / "queue.jsonl")
+        queue = read_queue()
         context = load_context()
         out = []
         for row in queue:
@@ -4745,7 +4940,7 @@ def main():
 
     sub.add_parser("readiness")
     sub.add_parser("derive", help="derive the labels from the extract_gate proposals, "
-                                  "by rule, into state/verdicts.jsonl")
+                                  "by rule, into ledger/ledger.csv")
     sub.add_parser("instances-due", help="list the records a person put in scope "
                                          "that have no risk-instance proposal")
     sub.add_parser("review", help="read the filled review sheets in 0.2/review/, log the "

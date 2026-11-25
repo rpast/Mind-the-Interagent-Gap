@@ -29,8 +29,13 @@ Project-level files stay at the root: `resources/` (source documents),
   decide-scope sheet, kept by its dossier (`0.2/incidents/<mig_key>.md`), never changed or
   reused. `source_key` is the key the source itself uses (AIID's `794`), blank when it has
   none. Never name an incident by its source (no `AIID-nnnn` ids). `record_key`
-  (`aiid:794`) is only the pipeline's internal join key on its own files; no sheet, log,
-  dossier or report shows it.
+  (`aiid:794`) is only the pipeline's internal join key on its own files, the ledger
+  among them; no sheet, log, dossier or report shows it.
+- `0.2/ledger/ledger.csv` is the ledger: one row per record ever loaded, one column per
+  value a step produced for it (loaded, queued, read, the model's answers, the rules'
+  labels). It is the source of truth for those columns. Only `run.py` writes it, each step
+  its own columns (`0.2/pipeline/ledger.py`); never edit it by hand. Query it directly. See
+  `0.2/ledger/README.md`.
 - `0.2/registry/sources.csv` is the source registry: the machine-readable spine the pipeline
   reads. `RESOURCES.md` is the human lead list. `docs/sources.txt` is the per-row audit
   trail. A source may appear in all three, but each note belongs to exactly one.
@@ -68,12 +73,12 @@ with `.venv/bin/python` instead of `python`.
    AIID baseline from the saved snapshot. `--discover` is a placeholder, not built yet.
 2. Run `/classify-incidents` in Claude Code to read the sources and write proposals. It
    runs `python 0.2/pipeline/run.py derive`, which derives the labels by rule
-   (`0.2/pipeline/derive.py`) into `0.2/state/verdicts.jsonl`, and assigns instances to the
+   (`0.2/pipeline/derive.py`) into the ledger, and assigns instances to the
    records `python 0.2/pipeline/run.py instances-due` lists.
 3. Decide on the sheets in `0.2/review/` (`python 0.2/pipeline/run.py review` writes
    them): fill `decision` in `1_decide_scope.xlsx` (in, out, unclear), run `review`, then
    fill `promote` in `2_promote.xlsx` (yes makes the blank dossier). Check against
-   `0.2/proposals/` and `0.2/state/verdicts.jsonl`; promote what passes the
+   `0.2/proposals/` and the ledger's derive columns; promote what passes the
    inclusion test. Before promoting, check each record against the existing dossiers and
    `OPEN.md` for duplicates: a record that is already an incident is added to that
    dossier's `sources`, not promoted. The dossier keeps its `mig_key`; if AIID becomes
