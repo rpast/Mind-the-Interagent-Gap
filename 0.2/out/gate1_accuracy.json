@@ -1,0 +1,80 @@
+{
+  "gold_rows": 58,
+  "scorable": 55,
+  "excluded_unclear": [
+    "G-007",
+    "G-025",
+    "G-031"
+  ],
+  "classifier_run": {
+    "input": "mvp/out/calibration/extract_gate_v3_gold_20261115.jsonl",
+    "rules_version": "2026-11-16",
+    "rows": 55,
+    "review_items": 49,
+    "wrong": [
+      "G-002 FP by presumption",
+      "G-011 FN",
+      "G-012 FN",
+      "G-014 FP",
+      "G-056 FP by presumption"
+    ]
+  },
+  "predictors": {
+    "ceiling_hand_curation": {
+      "n": 23,
+      "tp": 19,
+      "fp": 4,
+      "fn": 0,
+      "tn": 0,
+      "precision": 0.8260869565217391,
+      "recall": 1.0,
+      "accuracy": 0.8260869565217391,
+      "f1": 0.9047619047619047
+    },
+    "aiid_csetv1": {
+      "n": 5,
+      "tp": 1,
+      "fp": 4,
+      "fn": 0,
+      "tn": 0,
+      "precision": 0.2,
+      "recall": 1.0,
+      "accuracy": 0.2,
+      "f1": 0.33333333333333337
+    },
+    "keyword_arm": {
+      "n": 32,
+      "tp": 2,
+      "fp": 16,
+      "fn": 1,
+      "tn": 13,
+      "precision": 0.1111111111111111,
+      "recall": 0.6666666666666666,
+      "accuracy": 0.46875,
+      "f1": 0.1904761904761905
+    },
+    "classifier": {
+      "n": 55,
+      "tp": 20,
+      "fp": 3,
+      "fn": 2,
+      "tn": 30,
+      "precision": 0.8695652173913043,
+      "recall": 0.9090909090909091,
+      "accuracy": 0.9090909090909091,
+      "f1": 0.888888888888889,
+      "review_items": 49
+    },
+    "classifier_settled": {
+      "n": 6,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "tn": 3,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "f1": 1.0
+    }
+  }
+}

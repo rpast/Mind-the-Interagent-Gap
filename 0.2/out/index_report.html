@@ -1,0 +1,640 @@
+<title>Interagent Gap Index</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column of numbered sections (§), each a short declarative headline,
+   one figure, one caption. Two bits of ink on paper; tiers are fill patterns, not colours;
+   red is spent on one thing only: the gap (a risk or instance nothing backs). */
+:root {
+  --paper: #fcfcfa; --ink: #111110; --ink-2: #5c5c58; --rule: #d8d8d2; --tone: #9a9a94;
+  --gap: #c8231b;
+  /* one flat light grey for every in-between state: synthetic, partially verified, mid counts */
+  --wash: #e4e4de;
+  --hatch: var(--wash);
+  --hatch-soft: var(--wash);
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", Menlo, "DejaVu Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121211; --ink: #ecebe6; --ink-2: #a3a29c; --rule: #2e2e2b; --tone: #5d5d58; --gap: #ff5a4c; --wash: #3a3a36; color-scheme: dark; } }
+:root[data-theme="dark"] { --paper: #121211; --ink: #ecebe6; --ink-2: #a3a29c; --rule: #2e2e2b; --tone: #5d5d58; --gap: #ff5a4c; --wash: #3a3a36; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 880px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 72px; }
+.mono, code { font-family: var(--mono); }
+.lab { font: 500 11px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+
+/* the xerox strip */
+.bar { position: sticky; isolation: isolate; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--paper); border-bottom: 1px solid var(--ink); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+.bar .wrap { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; gap: 6px 22px; padding-block: 9px; }
+.bar b { font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.bar b .ver { font-weight: 400; color: var(--ink-2); margin-left: 6px; }
+.bar nav { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-start; }
+.bar a { color: var(--ink-2); text-decoration: none; font: 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.bar a:hover, .bar a:focus-visible { color: var(--ink); text-decoration: underline; }
+.proposal { border: 1px dashed var(--ink-2); padding: 8px 12px; margin-top: 24px; font-size: 13px; color: var(--ink-2); }
+
+header.hero { padding-block: 48px 0; }
+.intro { display: grid; gap: 12px; max-width: 64ch; }
+.intro p { margin: 0; }
+.intro b { font-weight: 600; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+.srcfig { margin-top: 32px; }
+.srcs { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr) 64px; gap: 0 14px; align-items: center; }
+.srcs > * { padding-block: 7px; border-top: 1px solid var(--rule); }
+.srcs .track { display: flex; gap: 0; height: 26px; align-items: center; }
+.srcs .track i { display: block; height: 12px; }
+.srcs .n { font: 500 13px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.srcs .n small { color: var(--ink-2); font-weight: 400; }
+.results { padding-top: 48px; }
+.figs .sub { font-size: 12px; color: var(--ink-2); }
+.fmcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.fmcol { border: 1px solid var(--ink); padding: 12px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.fmcol h3 { margin: 0; font: 500 15px var(--sans); display: flex; justify-content: space-between; gap: 8px; }
+.fmcol h3 .mono { font-size: 13px; }
+.fmcol ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.fmcol li { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.fmcol li .mono { font-size: 11px; color: var(--ink-2); display: block; }
+.undet { margin-top: 14px; border: 1px dashed var(--ink-2); padding: 10px 12px; font-size: 13px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.undet b { font: 500 20px var(--mono); color: var(--ink); }
+@media (max-width: 700px) { .fmcols { grid-template-columns: 1fr; } .srcs { grid-template-columns: 1fr 56px; } .srcs .track { grid-column: 1 / -1; border-top: 0; padding-top: 0; } }
+.chart { overflow-x: auto; }
+.chart svg { min-width: 560px; }
+svg .mark { stroke: var(--gap); stroke-dasharray: 3 3; stroke-width: 1.2; }
+svg .marktx { fill: var(--gap); }
+h1 { font: 500 clamp(32px, 6vw, 52px)/1.08 var(--sans); letter-spacing: -.02em; margin: 14px 0 16px; text-wrap: balance; }
+.lede { max-width: 60ch; color: var(--ink-2); margin: 0; }
+.figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--rule); margin-top: 36px; }
+.figs > div { padding: 14px 14px 14px 0; display: grid; gap: 4px; }
+.figs > div + div { padding-left: 14px; border-left: 1px solid var(--rule); }
+.figs .v { font: 500 30px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.figs .v small { font-size: 15px; color: var(--ink-2); }
+.figs .gap .v { color: var(--gap); }
+@media (max-width: 620px) { .figs { grid-template-columns: 1fr 1fr; } .figs > div:nth-child(3) { padding-left: 0; border-left: 0; } .figs > div:nth-child(n+3) { border-top: 1px solid var(--rule); } }
+
+section { padding-top: 64px; scroll-margin-top: 56px; }
+/* each report section folds: the § label and headline are the toggle */
+.fold > summary { list-style: none; cursor: pointer; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary .lab { display: flex; gap: 10px; align-items: center; }
+.fold > summary .lab::before { content: "−"; font: 500 14px var(--mono); width: 12px; color: var(--ink); }
+.fold:not([open]) > summary .lab::before { content: "+"; }
+.fold > summary .lab::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
+.fold > summary:hover .lab, .fold > summary:hover h2 { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.fold > summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 4px; }
+.fold:not([open]) > summary h2 { color: var(--ink-2); }
+.fold > summary h2 { margin-bottom: 8px; }
+.results .figs { margin-top: 12px; }
+h2 { font: 500 26px/1.2 var(--sans); letter-spacing: -.01em; margin: 12px 0 8px; text-wrap: balance; }
+.note { max-width: 62ch; color: var(--ink-2); margin: 0 0 22px; font-size: 14px; }
+.cap { font: 11px/1.45 var(--mono); color: var(--ink-2); margin-top: 12px; max-width: 70ch; }
+.cap b { color: var(--ink); font-weight: 500; }
+
+/* tier fills: solid / halftone / outline. Same three marks everywhere. */
+.t-real_world { background: var(--ink); }
+.t-synthetic { background: var(--hatch); box-shadow: inset 0 0 0 1px var(--ink); }
+.t-lab { box-shadow: inset 0 0 0 1px var(--ink); }
+.key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 16px; font-size: 13px; }
+.key span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 14px; height: 10px; display: inline-block; }
+
+/* §1 risks */
+.risks { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr) 36px; gap: 0 14px; align-items: center; }
+.risks .grp { grid-column: 1 / -1; padding: 14px 0 6px; }
+.risks .nm { padding-block: 7px; border-top: 1px solid var(--rule); font-size: 14px; display: flex; gap: 8px; min-width: 0; }
+.risks .nm .mono { color: var(--ink-2); font-size: 12px; padding-top: 1px; width: 30px; flex: none; }
+.risks .track { height: 12px; display: flex; gap: 1px; }
+.risks .track i { display: block; height: 100%; }
+.risks .n { font: 500 13px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.risks .none { font: 11px var(--mono); color: var(--gap); letter-spacing: .08em; text-transform: uppercase; }
+.risks .n.z { color: var(--gap); }
+
+/* §2 matrix */
+.mx-wrap { overflow-x: auto; }
+table.mx { border-collapse: collapse; font-size: 14px; }
+.mx th, .mx td { padding: 7px 14px 7px 0; border-top: 1px solid var(--rule); text-align: left; font-weight: 400; }
+.mx thead th { border-top: 0; vertical-align: bottom; }
+.mx td.c { text-align: center; padding-right: 0; width: 72px; }
+.mx td.c span { display: inline-block; width: 12px; height: 12px; }
+.mx .prose { background: var(--ink); }
+.mx .cotag { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.mx .cnt { font: 12px var(--mono); color: var(--ink-2); text-align: right; padding-left: 14px; }
+
+/* §3 time */
+svg text { fill: var(--ink-2); font: 11px var(--mono); }
+svg .ax { stroke: var(--rule); }
+svg .ln { stroke: var(--ink); fill: none; stroke-width: 1.5; }
+svg .ar { fill: var(--ink); opacity: .07; }
+
+/* §4 instances */
+.ig { display: grid; gap: 18px; }
+.box { border: 1px solid var(--ink); padding: 14px; display: grid; gap: 16px; }
+.box > .lab { color: var(--ink); }
+.cell .bar-in { height: 3px; background: var(--ink); margin-top: 4px; }
+.ig .row { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; align-items: start; }
+.ig .cells { display: flex; flex-wrap: wrap; gap: 6px; }
+.cell { width: 104px; min-height: 58px; padding: 6px 7px; border: 1px solid var(--ink); display: grid; align-content: space-between; font-size: 12px; line-height: 1.25; }
+.cell .top { display: flex; justify-content: space-between; font: 11px var(--mono); }
+.cell .top b { font-weight: 500; }
+.cell.z { border: 1px dashed var(--gap); color: var(--ink-2); }
+.cell.z .top b { color: var(--gap); }
+.cell .ours { font: 10px var(--mono); letter-spacing: .08em; }
+@media (max-width: 620px) { .ig .row, .risks { grid-template-columns: 1fr; } .risks .n { text-align: left; } .risks .track { margin-bottom: 4px; } }
+
+/* §2 instance x failure-mode matrix */
+.mxw { overflow-x: auto; }
+table.mx2 { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13.5px; }
+.mx2 th, .mx2 td { padding: 5px 8px; text-align: left; font-weight: 400; }
+.mx2 thead th { font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); vertical-align: bottom; border-bottom: 1px solid var(--ink); }
+.mx2 thead th.num, .mx2 td.num { text-align: center; width: 64px; }
+.mx2 tbody.fam th[colspan] { font: 500 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); padding-top: 18px; }
+.mx2 tbody.fam { border: 1px solid var(--ink); }
+.mx2 tr.risk th { font-size: 13px; padding-top: 10px; color: var(--ink-2); border-top: 1px solid var(--rule); }
+.mx2 td.id { font: 12px var(--mono); color: var(--ink-2); width: 44px; padding-left: 14px; }
+.mx2 td.num { font: 500 12px var(--mono); font-variant-numeric: tabular-nums; }
+.mx2 td.num span { display: inline-block; min-width: 26px; padding: 2px 0; }
+.mx2 td.num .d1 { box-shadow: inset 0 0 0 1px var(--ink); }
+.mx2 td.num .d2 { background: var(--hatch-soft); box-shadow: inset 0 0 0 1px var(--ink); }
+.mx2 td.num .d3 { background: var(--ink); color: var(--paper); }
+.mx2 td.num.zero { color: var(--rule); }
+.mx2 td.tot { border-left: 1px solid var(--rule); }
+.mx2 tr.z td.nm { color: var(--ink-2); }
+.mx2 tr.z td.tot span { color: var(--gap); }
+.mx2 .ours { font: 10px var(--mono); letter-spacing: .08em; color: var(--ink-2); margin-left: 6px; }
+
+
+/* table: sort buttons and the filter row */
+.inc button.sort { all: unset; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--ink-2); white-space: nowrap; }
+.inc button.sort:hover, .inc button.sort.on { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.inc button.sort:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.inc tr.fr th { padding-top: 0; padding-bottom: 8px; }
+.inc tr.fr input, .inc tr.fr select { width: 100%; min-width: 0; font: 11px var(--mono); color: var(--ink); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 3px; padding: 3px 5px; text-transform: none; letter-spacing: 0; }
+.inc tr.fr input:focus, .inc tr.fr select:focus { border-color: var(--ink); outline: none; }
+.inc tr.fr th:nth-child(2) input { max-width: 260px; }
+
+/* §5 method flowchart. Actor is the encoding: script outline, model dashed, rule grey, person ink. */
+.flow { margin: 8px 0 0; overflow-x: auto; }
+.flow svg.fc { display: block; width: 100%; max-width: 640px; min-width: 520px; height: auto; }
+.fc text { font-family: var(--sans); }
+.fc .fc-t { font-size: 13px; font-weight: 500; fill: var(--ink); }
+.fc .fc-s { font-size: 11px; fill: var(--ink-2); }
+.fc .fc-el { font: 10.5px var(--mono); fill: var(--ink-2); }
+.fc .fc-lg { font-size: 12px; fill: var(--ink-2); }
+.fc .fc-ph { font: 500 10.5px var(--mono); letter-spacing: .12em; fill: var(--ink-2); }
+.fc .fc-band { stroke: var(--rule); stroke-width: 1; }
+.fc rect { stroke: var(--ink); stroke-width: 1; fill: var(--paper); }
+.fc .fc-model rect { stroke-dasharray: 4 3; }
+.fc .fc-rule rect { fill: var(--wash); }
+.fc .fc-person rect { fill: var(--ink); }
+.fc .fc-person .fc-t { fill: var(--paper); }
+.fc .fc-person .fc-s { fill: var(--paper); opacity: .78; }
+.fc .fc-out rect { stroke: var(--tone); stroke-dasharray: 2 3; fill: var(--paper); }
+.fc .fc-out .fc-t { fill: var(--ink-2); font-weight: 400; }
+.fc .fc-e { stroke: var(--ink); stroke-width: 1.2; fill: none; }
+.fc .fc-x { stroke: var(--tone); stroke-width: 1.2; fill: none; stroke-dasharray: 3 3; }
+.fc .fc-ah { fill: var(--ink); }
+.fc .fc-ahx { fill: var(--tone); }
+
+/* the data dictionary: each group folds on its own */
+.subs { display: grid; border-top: 1px solid var(--ink); }
+.sub { border-bottom: 1px solid var(--rule); }
+.sub summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 10px; padding: 10px 0; }
+.sub summary::-webkit-details-marker { display: none; }
+.sub summary::before { content: "+"; font: 500 14px var(--mono); width: 12px; color: var(--ink-2); }
+.sub[open] summary::before { content: "−"; }
+.sub summary .lab { color: var(--ink); }
+.sub summary .cnt { font: 11px var(--mono); color: var(--ink-2); margin-left: auto; }
+.sub summary:hover .lab { text-decoration: underline; text-underline-offset: 3px; }
+.sub summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.sub .defs { padding: 2px 0 16px 22px; }
+
+/* clickable things and the active selection */
+.hit { cursor: pointer; text-decoration: underline dotted var(--tone); text-underline-offset: 3px; border-radius: 2px; }
+.hit:hover { text-decoration: underline solid var(--ink); }
+.hit:focus-visible, [data-f]:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.hit.sel { background: var(--ink); color: var(--paper); text-decoration: none; padding: 0 3px; }
+.hit.quiet { color: var(--ink-2); }
+.keyitem { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; padding: 1px 4px; }
+.track i[data-f] { cursor: pointer; }
+.track i[data-f]:hover { outline: 1px solid var(--ink); outline-offset: 1px; }
+.track i.sel { outline: 2px solid var(--gap); outline-offset: 1px; }
+.ext { text-decoration: none; color: var(--ink-2); font-size: 12px; }
+.mx2 td.num .hit { text-decoration: none; display: inline-block; min-width: 26px; padding: 2px 0; }
+.mx2 td.num .hit:hover { outline: 1px solid var(--ink); }
+.mx2 td.num .hit.sel { outline: 2px solid var(--gap); background: var(--ink); color: var(--paper); padding: 2px 0; }
+svg .band rect { fill: var(--ink); fill-opacity: 0; }
+svg .band[data-f] { cursor: pointer; }
+svg .band[data-f]:hover rect { fill-opacity: .06; }
+svg .band.sel rect { fill-opacity: .12; }
+svg .band.sel text { fill: var(--ink); font-weight: 500; }
+.tblstate { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; }
+.inc td.empty { color: var(--ink-2); padding-block: 18px; }
+
+/* the floating filter panel, a window in the xerox sense */
+.panel { position: fixed; z-index: 20; right: max(32px, env(safe-area-inset-right, 0px)); bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+  width: 320px; height: 440px; max-width: calc(100vw - 32px); max-height: calc(100vh - 120px);
+  background: var(--paper); border: 1px solid var(--ink); border-radius: 6px; box-shadow: 3px 3px 0 var(--ink);
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; font-size: 13px; }
+.panel .p-body { overflow-y: auto; padding: 10px 12px; display: grid; gap: 10px; align-content: start; }
+.panel .p-head { padding: 8px 12px 6px; }
+.panel .p-act { padding: 8px 12px 10px; border-top: 1px solid var(--rule); }
+.panel .p-btns { display: flex; gap: 4px; }
+.panel .p-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--ink); padding-bottom: 6px; }
+.panel .x { border: 1px solid var(--ink); background: var(--paper); color: var(--ink); width: 22px; height: 22px; line-height: 1; cursor: pointer; border-radius: 3px; }
+.panel .x:hover { background: var(--ink); color: var(--paper); }
+.panel .p-part b { font-weight: 600; }
+.panel .p-part p { margin: 3px 0 0; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+.panel .p-and { font: 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.panel .p-count { font-size: 12px; color: var(--ink-2); }
+.panel .p-count .v { font: 500 24px var(--mono); color: var(--ink); margin-right: 4px; }
+.panel .p-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; }
+.panel .p-list .mono { font-size: 11px; color: var(--ink-2); margin-right: 4px; }
+.panel .p-list .more { color: var(--ink-2); }
+.panel .p-act { display: flex; gap: 6px; }
+.panel .p-act .chip { text-decoration: none; }
+@media (max-width: 700px) { .panel { right: 16px; left: 16px; width: auto; height: 380px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); } }
+/* wide screens: park the window in the right margin, well clear of the 880px column */
+@media (min-width: 1640px) { .panel { right: auto; left: calc(50% + 440px + 64px); bottom: auto; top: calc(88px + env(safe-area-inset-top, 0px)); } }
+.barfilter { position: absolute; top: 50%; transform: translateY(-50%); right: max(32px, env(safe-area-inset-right, 0px)); width: 320px;
+  display: flex; align-items: stretch; background: var(--paper); border: 1px solid var(--ink); border-radius: 6px; box-shadow: 2px 2px 0 var(--ink); font: 11px var(--mono); }
+/* keep the bar's own text clear of the docked chip */
+body.docked .bar .wrap { padding-right: max(16px, calc(808px - 50vw)); }
+@media (min-width: 1640px) { .barfilter { right: auto; left: calc(50% + 440px + 64px); } body.docked .bar .wrap { padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
+@media (max-width: 700px) { .barfilter { position: static; transform: none; width: 100%; } body.docked .bar .wrap { padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
+/* `hidden` must win over every display rule above (.panel is display: grid) */
+[hidden] { display: none !important; }
+.barfilter button { background: var(--paper); color: var(--ink); border: 0; font: inherit; cursor: pointer; padding: 3px 8px; }
+.barfilter button:hover { background: var(--ink); color: var(--paper); }
+.barfilter .bf-open { flex: 1; min-width: 0; text-align: left; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: .04em; }
+.barfilter .bf-open b { font-weight: 500; }
+.barfilter .bf-x { border-left: 1px solid var(--ink); }
+@media (prefers-reduced-motion: no-preference) { .barfilter.flash { animation: flash .6s ease-out; } @keyframes flash { from { background: var(--ink); } to { background: transparent; } } }
+
+/* §5 incidents */
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.chip { font: 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; background: var(--paper); color: var(--ink); border: 1px solid var(--ink); border-radius: 3px; padding: 4px 9px; cursor: pointer; }
+.chip[aria-pressed="true"], .chip:hover { background: var(--ink); color: var(--paper); }
+.chip:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.tbl-wrap { overflow-x: auto; border-top: 1px solid var(--ink); }
+table.inc { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 760px; }
+.inc abbr { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.inc td.m abbr + abbr { margin-left: 6px; }
+.inc th { font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 8px 10px 8px 0; }
+.inc td { padding: 8px 10px 8px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+.inc td.m { font: 12px var(--mono); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.inc .tier { display: inline-block; width: 12px; height: 9px; vertical-align: 0; margin-right: 6px; }
+.vf { font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border: 1px solid var(--ink); white-space: nowrap; }
+.vf.verified { background: var(--ink); color: var(--paper); }
+.vf.partially_verified { border-style: solid; background: var(--hatch-soft); }
+.vf.unverified { border-style: dashed; color: var(--ink-2); }
+
+/* §6 method */
+dl.defs { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px 18px; margin: 0; font-size: 14px; }
+dl.defs dt { font: 500 12px var(--mono); padding-top: 2px; }
+dl.defs dd { margin: 0; color: var(--ink-2); }
+@media (max-width: 620px) { dl.defs { grid-template-columns: 1fr; } dl.defs dd { margin-bottom: 8px; } }
+footer { margin-top: 64px; padding-top: 12px; border-top: 1px solid var(--ink); }
+</style>
+<div class="bar"><div class="wrap">
+  <b>Mind the Interagent Gap <span class="ver" id="ver"></span></b>
+  <nav aria-label="Sections"><a href="#results">Results</a><a href="#fms">§1 Failure modes</a><a href="#matrix">§2 Instances</a><a href="#time">§3 Time</a><a href="#incidents">§4 All incidents</a><a href="#method">§5 Method</a><a href="#dictionary">§6 Data dictionary</a></nav>
+  <span class="barfilter" id="barfilter" hidden></span>
+</div></div>
+
+<div class="wrap">
+  <p class="proposal">Click any label, number, bar or year to filter the incident table.</p>
+
+  <header class="hero">
+    <span class="lab">Evidence index of multi-agent AI risks · <span id="dates"></span></span>
+    <h1>Multi-agent AI incidents taxonomy mapping</h1>
+    <div class="intro">
+      <p><b>Context.</b> <a href="https://arxiv.org/abs/2502.14143">Hammond et al. 2025, <i>Multi-Agent Risks from Advanced AI</i></a> set out a comprehensive taxonomy of the risks that arise when AI agents interact. It has three failure modes and seven risk factors. As AI agents built on large language models grow more capable, these risks are showing up more often. Several incident trackers already label some incidents as multi-agent. But each one sees only part of the picture, and they label incidents in different ways. What is missing is a tracker with one unified view of multi-agent risk.</p>
+      <p><b>Goal.</b> Provide that view. We bring incidents from several sources into one index and map each one onto the Hammond et al. taxonomy. An incident reported by more than one source counts once. We include four kinds of evidence: real-world incidents, simulated environments built by researchers, lab experiments on real models, and theoretical arguments where no AI system was run. The index shows which multi-agent risks have evidence behind them and which have none yet. This is work in progress: this release maps failure modes only, and risk factors come next.</p>
+      <p><b>Setup.</b> The <a href="https://incidentdatabase.ai/">AI Incident Database</a> (AIID) is the main source. Every AIID record dated 2024 or later is checked. Older AIID records enter only when flagged. Other sources are added by hand at irregular intervals. A human analyst decides whether each incident is in scope.</p>
+    </div>
+  </header>
+
+  <section id="results" class="results">
+    <details class="fold" open><summary><span class="lab">Headline results</span></summary>
+    <div class="figs" id="figs"></div>
+    <div class="srcfig">
+      <span class="lab">Incidents by source</span>
+      <div class="key" id="srckey"></div>
+      <div class="srcs" id="srcs"></div>
+      <p class="cap"><b>Fig. 0</b> The solid part counts incidents whose canonical source this is. The outlined part counts incidents this source also reports.</p>
+    </div>
+  </details></section>
+
+  <section id="fms">
+    <details class="fold" open><summary><span class="lab">§1 · Failure modes</span>
+    <h2>Where the incidents land.</h2></summary>
+    <p class="note">Incidents per failure mode, split by evidence type. The failure mode is derived by rule from the facts read in each source, and each incident has at most one. Incidents whose facts do not settle it are counted apart, not forced into a mode.</p>
+    <div class="key" id="key"></div>
+    <div class="risks" id="riskrows"></div>
+    <p class="cap" id="fmcap"></p>
+  </details></section>
+
+  <section id="matrix">
+    <details class="fold" open><summary><span class="lab">§2 · Instances</span>
+    <h2>Which mechanisms show up, by failure mode.</h2></summary>
+    <p class="note">Rows are the <span id="ninst"></span> instances, in id order. Columns are the incident's failure mode. A cell counts incidents that carry both. Instances are assigned on their own and give an incident no failure mode or risk factor. Hover an instance to see where the paper discusses it.</p>
+    <div class="mxw"><table class="mx2" id="mx2"></table></div>
+    <p class="cap"><b>Fig. 2</b> Two labels on one incident are a count, not a link. Rows are not grouped by failure mode or risk factor, so no cell reads as a link between the two. Red marks an instance with no incident. Instances marked <span class="mono">proposed</span> are not in the paper. This index added them because incidents showed behaviour the paper's Table 1 does not name.</p>
+  </details></section>
+
+  <section id="time">
+    <details class="fold" open><summary><span class="lab">§3 · Time</span>
+    <h2>When they happened.</h2></summary>
+    <p class="note">Incidents in the index by event date, cumulative. Studies are placed at their publication date.</p>
+    <div class="chart" id="chart"></div>
+    <p class="cap" id="timecap"></p>
+  </details></section>
+
+  <section id="incidents">
+    <details class="fold" open><summary><span class="lab">§4 · All incidents</span>
+    <h2>All incidents.</h2></summary>
+    <p class="note">One row per dossier. Click a column heading to sort, type or pick under it to filter. Hover a code for its name. Codes are listed in <a href="#dictionary">§6</a>.</p>
+    <div class="filters" id="filters" role="group" aria-label="Filter by evidence type"></div>
+    <p class="tblstate cap" id="tblstate" aria-live="polite"></p>
+    <div class="tbl-wrap"><table class="inc"><thead id="thead"></thead><tbody id="rows"></tbody></table></div>
+  </details></section>
+
+  <section id="method">
+    <details class="fold" open><summary><span class="lab">§5 · Method</span>
+    <h2>How an incident gets here.</h2></summary>
+    <p class="note">Every record takes the same path. Scripts move and count data, a model reads sources and writes down facts with quotes, fixed rules turn those facts into labels, and a human analyst makes every decision that puts an incident in the index.</p>
+    <figure class="flow">
+      <svg class="fc" viewBox="0 0 680 1106" role="img" aria-label="How a record becomes an indexed incident: fetch and normalise, queue and read the sources, extract facts, derive labels by rule, a human analyst decides scope, instances are assigned, a human analyst promotes the dossier, then check and index."><defs><marker id="fc-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fc-ah"/></marker><marker id="fc-ax" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fc-ahx"/></marker></defs><line class="fc-band" x1="0" x2="680" y1="68" y2="68"/><text class="fc-ph" x="0" y="86">INGEST</text><line class="fc-band" x1="0" x2="680" y1="268" y2="268"/><text class="fc-ph" x="0" y="286">SCREEN</text><line class="fc-band" x1="0" x2="680" y1="552" y2="552"/><text class="fc-ph" x="0" y="570">CLASSIFY</text><line class="fc-band" x1="0" x2="680" y1="920" y2="920"/><text class="fc-ph" x="0" y="938">RECORD</text><line class="fc-e" x1="262" y1="140" x2="262" y2="172" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="161">raw copy, never edited</text><line class="fc-e" x1="262" y1="224" x2="262" y2="288" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="261">records</text><line class="fc-e" x1="262" y1="340" x2="262" y2="372" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="361">queued, some flagged</text><line class="fc-e" x1="262" y1="424" x2="262" y2="456" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="445">facts read</text><line class="fc-e" x1="262" y1="508" x2="262" y2="572" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="545">ready</text><line class="fc-e" x1="262" y1="624" x2="262" y2="656" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="645">facts with quotes</text><line class="fc-e" x1="262" y1="708" x2="262" y2="740" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="729">in, out or review</text><line class="fc-e" x1="262" y1="792" x2="262" y2="824" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="813">decided in</text><line class="fc-e" x1="262" y1="876" x2="262" y2="940" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="913">promote: yes</text><line class="fc-e" x1="262" y1="992" x2="262" y2="1024" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="1013">dossier</text><g class="fc-script"><rect x="112" y="90" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="112">Fetch AIID</text><text class="fc-s" x="124" y="128">the AI Incident Database, verbatim</text></g><g class="fc-script"><rect x="112" y="174" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="196">Normalise into records</text><text class="fc-s" x="124" y="212">one record per source item, hashed</text></g><g class="fc-script"><rect x="112" y="290" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="312">Queue the candidates</text><text class="fc-s" x="124" y="328">AIID from 2024 · hand-kept older cases</text></g><g class="fc-model"><rect x="112" y="374" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="396">Read the sources</text><text class="fc-s" x="124" y="412">seven facts, each quoted or &#x27;silent&#x27;</text></g><g class="fc-script"><rect x="112" y="458" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="480">Enough read?</text><text class="fc-s" x="124" y="496">per decision: ready, provisional, not</text></g><g class="fc-model"><rect x="112" y="574" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="596">Extract the gate facts</text><text class="fc-s" x="124" y="612">agents, interaction, cooperation, goals</text></g><g class="fc-rule"><rect x="112" y="658" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="680">Derive labels by rule</text><text class="fc-s" x="124" y="696">Gate 1 scope · Gate 2 failure mode</text></g><g class="fc-person"><rect x="112" y="742" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="764">Decide scope</text><text class="fc-s" x="124" y="780">in, out or unclear, with a reason</text></g><g class="fc-model"><rect x="112" y="826" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="848">Assign instances</text><text class="fc-s" x="124" y="864">each match quoted from the source</text></g><g class="fc-person"><rect x="112" y="942" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="964">Promote and write the dossier</text><text class="fc-s" x="124" y="980">unverified until checked by a human analyst</text></g><g class="fc-script"><rect x="112" y="1026" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="1048">Check, index, report</text><text class="fc-s" x="124" y="1064">the build fails on any broken rule</text></g><g class="fc-person"><rect x="452" y="90" width="220" height="50" rx="3"/><text class="fc-t" x="464" y="112">Curator write-ups</text><text class="fc-s" x="464" y="128">other sources, fetched by hand</text></g><path class="fc-e" d="M562 140 V199 H414" marker-end="url(#fc-a)"/><text class="fc-el" x="570" y="158">added by hand</text><path class="fc-x" d="M412 315 H450" marker-end="url(#fc-ax)"/><g class="fc-out"><rect x="452" y="290" width="220" height="50" rx="3"/><text class="fc-t" x="464" y="312">Not queued</text><text class="fc-s" x="464" y="328">pre-2024, or rated single-agent</text></g><path class="fc-x" d="M412 483 H450" marker-end="url(#fc-ax)"/><g class="fc-out"><rect x="452" y="458" width="220" height="50" rx="3"/><text class="fc-t" x="464" y="480">Out: one agent or none</text><text class="fc-s" x="464" y="496">confirmed by a fuller reading</text></g><path class="fc-x" d="M412 767 H450" marker-end="url(#fc-ax)"/><g class="fc-out"><rect x="452" y="742" width="220" height="50" rx="3"/><text class="fc-t" x="464" y="764">Out or unclear</text><text class="fc-s" x="464" y="780">logged with the reason</text></g><path class="fc-e" d="M112 483 H90 V399 H110" marker-end="url(#fc-a)"/><text class="fc-el" x="86" y="445" text-anchor="end">read more</text><g class="fc-script"><rect x="0" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="30" y="25">script</text><g class="fc-model"><rect x="98" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="128" y="25">model, quotes its source</text><g class="fc-rule"><rect x="322" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="352" y="25">fixed rule</text><g class="fc-person"><rect x="448" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="478" y="25">human analyst</text></svg>
+      <figcaption class="cap"><b>Fig. 5</b> From source to index. Only a human analyst puts an incident in: the rules propose scope, and the two ink boxes decide. A record not yet read deeply enough for a decision goes back to be read further, so nothing is judged on a fact nobody looked for. Curator write-ups enter in scope on the curator's word, and their failure mode and instances are still judged. Detail in <code>0.2/docs/how_it_works.md</code>.</figcaption>
+    </figure>
+  </details></section>
+
+  <section id="dictionary">
+    <details class="fold" open><summary><span class="lab">§6 · Data dictionary</span>
+    <h2>What each code and label means.</h2></summary>
+    <div class="subs" id="defs"></div>
+    <footer class="cap">Built by <code>run.py report</code> from <code>0.2/out/incident_index.csv</code>, the dossiers and <code>0.2/taxonomy/*.csv</code>. Single file, data inlined, opens on file://.</footer>
+  </details></section>
+</div>
+<aside class="panel" id="panel" hidden aria-live="polite" aria-label="Active filter"></aside>
+<script>
+const D = {"inc":[{"k":"MIG-0029","t":"2010 Market Flash Crash","d":"2010-05-08","e":"real_world","fm":"FM2","i":["I18"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/28"},{"k":"MIG-0028","t":"Wikipedia Vandalism Prevention Bot Loop","d":"2017-02-24","e":"real_world","fm":"FM1","i":["I01","I18"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/7"},{"k":"MIG-0030","t":"Bots Allegedly Made up Roughly Half of Twitter Accounts in Discussions Surrounding COVID-19 Related Issues","d":"2020-01-01","e":"real_world","fm":"","i":["I30"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/243"},{"k":"MIG-0031","t":"Amazon Algorithmic Pricing Allegedly Hiked up Price of Reference Book to Millions","d":"2023-04-08","e":"real_world","fm":"FM2","i":["I18"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/528"},{"k":"MIG-0032","t":"Russia Reportedly Using Artificial Intelligence in Disinformation Campaigns to Erode Western Support for Ukraine","d":"2023-10-02","e":"real_world","fm":"FM1","i":["I30"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/602"},{"k":"MIG-0049","t":"Purported AI Bots Flooded a UK Government Tobacco and Vaping Consultation with Reportedly Fraudulent Responses","d":"2024-01-29","e":"real_world","fm":"","i":["I30"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1790"},{"k":"MIG-0035","t":"Network of 171 AI-Powered Bots Reportedly Spread Political Disinformation Ahead of Ghana’s December 2024 General Election","d":"2024-02-01","e":"real_world","fm":"","i":["I30"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/866"},{"k":"MIG-0034","t":"Reported Glitch in Waymo Self-Driving Cars Purportedly Triggers Regular All-Night Honking in San Francisco","d":"2024-08-13","e":"real_world","fm":"","i":["I01"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/794"},{"k":"MIG-0033","t":"Music Producer Michael Smith Reportedly Arrested for Allegedly Using AI-Generated Songs in $10 Million Streaming Scam","d":"2024-09-04","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/779"},{"k":"MIG-0036","t":"Chatbots Allegedly Used in Romance Scams Targeting Nearly One-Third of New Zealand's Dating App Users","d":"2025-02-04","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/954"},{"k":"MIG-0001","t":"False 'broken UI' belief spreads","d":"2025-04","e":"synthetic","fm":"FM1","i":["I34"],"v":"verified","c":"aivillage","s":["aivillage"],"u":"https://aivillageblog.substack.com/p/what-we-learned-2025"},{"k":"MIG-0037","t":"Microsoft Reportedly Blocks 1.6 Million Bot Signup Attempts Per Hour Amid Global AI-Driven Fraud Surge","d":"2025-04-16","e":"real_world","fm":"","i":["I30"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1037"},{"k":"MIG-0003","t":"Influence-as-a-service","d":"2025-04-23","e":"real_world","fm":"","i":["I30"],"v":"unverified","c":"aiid","s":["aiid","air_enkrypt"],"u":"https://incidentdatabase.ai/cite/1054"},{"k":"MIG-0038","t":"Institute for Strategic Dialogue Reports Russian-Aligned Operation Overload Using Purported AI-Generated Impersonations Across January to March 2025","d":"2025-05-06","e":"real_world","fm":"","i":["I30"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1060"},{"k":"MIG-0004","t":"Hallucinated mailing list spreads between agents","d":"2025-06","e":"synthetic","fm":"FM1","i":["I34","I12"],"v":"verified","c":"aivillage","s":["aivillage"],"u":"https://aivillageblog.substack.com/p/season-2-recap-ai-organizes-event"},{"k":"MIG-0006","t":"PajaMAS: hijacking multi-agent systems built on Google's Agent Development Kit","d":"2025-07-31","e":"synthetic","fm":"","i":["I31"],"v":"unverified","c":"air_enkrypt","s":["air_enkrypt"],"u":"https://agentincident.vercel.app/i/AIR-2025-0070/"},{"k":"MIG-0008","t":"Cross-agent privilege escalation","d":"2025-09-24","e":"synthetic","fm":"","i":["I31"],"v":"unverified","c":"air_enkrypt","s":["air_enkrypt"],"u":"https://agentincident.vercel.app/i/AIR-2025-0136/"},{"k":"MIG-0009","t":"OpenAI Agent Builder","d":"2025-10-14","e":"synthetic","fm":"","i":["I11","I31"],"v":"unverified","c":"air_enkrypt","s":["air_enkrypt"],"u":"https://agentincident.vercel.app/i/AIR-2025-0149/"},{"k":"MIG-0010","t":"ServiceNow Now Assist","d":"2025-11-19","e":"synthetic","fm":"","i":["I31"],"v":"unverified","c":"air_enkrypt","s":["air_enkrypt"],"u":"https://agentincident.vercel.app/i/AIR-2025-0177/"},{"k":"MIG-0039","t":"Waymo Robotaxis Allegedly Contributed to Traffic Gridlock During San Francisco PG&E Power Outage","d":"2025-12-20","e":"real_world","fm":"","i":["I14"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1326"},{"k":"MIG-0011","t":"Sub-team goal divergence","d":"2026-01","e":"synthetic","fm":"FM1","i":["I01"],"v":"partially_verified","c":"aivillage","s":["aivillage"],"u":"https://aivillageblog.substack.com/p/ai-village-reacts-to-huggingface"},{"k":"MIG-0012","t":"Moltbook agent behaviour","d":"2026-01-30","e":"real_world","fm":"","i":["I13","I27"],"v":"unverified","c":"lesswrong","s":["lesswrong"],"u":"https://www.lesswrong.com/posts/jDeggMA22t3jGbTw6/36-000-ai-agents-are-now-speedrunning-civilization"},{"k":"MIG-0024","t":"OpenAI agents turned internal Artifactory into a message board","d":"2026-05","e":"real_world","fm":"FM3","i":["I35","I26"],"v":"verified","c":"air_enkrypt","s":["air_enkrypt"],"u":"https://agentincident.vercel.app/i/AIR-2026-0183/"},{"k":"MIG-0015","t":"Morse-code prompt injection made Grok relay a transfer instruction to Bankrbot","d":"2026-05-05","e":"real_world","fm":"","i":["I31"],"v":"unverified","c":"air_enkrypt","s":["air_enkrypt"],"u":"https://agentincident.vercel.app/i/AIR-2026-0101/"},{"k":"MIG-0045","t":"OpenAI-Linked AI Agents May Have Contributed to a Partial Outage of the Wikimedia Foundation's Data Query Service","d":"2026-05-07","e":"real_world","fm":"","i":["I28"],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1779"},{"k":"MIG-0016","t":"OpenAI agent swarm on DSEWiki and the Vanderbilt link shortener","d":"2026-05-11","e":"real_world","fm":"FM3","i":["I35","I26","I28"],"v":"partially_verified","c":"aiid","s":["aiid","air_enkrypt","lesswrong"],"u":"https://incidentdatabase.ai/cite/1668"},{"k":"MIG-0017","t":"RubyGems attack","d":"2026-05-11","e":"real_world","fm":"","i":[],"v":"partially_verified","c":"aiid","s":["aiid","lesswrong"],"u":"https://incidentdatabase.ai/cite/1797"},{"k":"MIG-0051","t":"Attacker Reportedly Used AI Agents to Breach Healthcare Organizations and Steal Medical Records in Argentina","d":"2026-05-19","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1796"},{"k":"MIG-0041","t":"AI Agents Reportedly Attempted to Hack Canada's Federal Archives Website While Retrieving Historical Divorce Records","d":"2026-05-28","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1731"},{"k":"MIG-0019","t":"Suspected China-linked actors used a multi-agent framework built on Hermes and","d":"2026-07-01","e":"real_world","fm":"","i":["I28"],"v":"partially_verified","c":"aiid","s":["aiid","air_enkrypt"],"u":"https://incidentdatabase.ai/cite/1646"},{"k":"MIG-0020","t":"ExploitGym swarm and Hugging Face intrusion","d":"2026-07-08","e":"real_world","fm":"FM3","i":["I35","I14","I26","I29"],"v":"verified","c":"aiid","s":["aiid","lesswrong"],"u":"https://incidentdatabase.ai/cite/1604"},{"k":"MIG-0021","t":"Agents finetune their own leader","d":"2026-07-08","e":"synthetic","fm":"FM1","i":["I01","I09","I23"],"v":"verified","c":"aivillage","s":["aivillage"],"u":"https://aivillageblog.substack.com/p/ais-finetune-their-own-leader-a-barking"},{"k":"MIG-0040","t":"Anthropic and OpenAI AI Agents Reportedly Took Unsanctioned Actions on the Live Internet During UK AISI Cybersecurity Evaluations","d":"2026-07-26","e":"synthetic","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1633"},{"k":"MIG-0023","t":"'I'll just call you'","d":"2026-08-03","e":"lab","fm":"","i":["I31"],"v":"unverified","c":"air_enkrypt","s":["air_enkrypt"],"u":"https://agentincident.vercel.app/i/AIR-2026-0180/"},{"k":"MIG-0026","t":"Agent 'mind virus'","d":"2026-08-10","e":"synthetic","fm":"","i":["I12","I32"],"v":"unverified","c":"air_enkrypt","s":["air_enkrypt"],"u":"https://agentincident.vercel.app/i/AIR-2026-0193/"},{"k":"MIG-0027","t":"DeepSeek-V3.2 persuasion campaign","d":"2026-09-10","e":"synthetic","fm":"FM1","i":["I34","I11","I12"],"v":"verified","c":"aivillage","s":["aivillage"],"u":"https://aivillageblog.substack.com/p/persuasion-in-the-ai-village-deepseek"},{"k":"MIG-0043","t":"Cybercriminal Reportedly Used Cairn AI Agents to Breach More Than 100 Company Websites","d":"2026-09-25","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1766"},{"k":"MIG-0052","t":"OpenAI AI Agents Reportedly Posted ChatGPT User Images to External Hosts in 53 Instances","d":"2026-09-25","e":"synthetic","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1799"},{"k":"MIG-0047","t":"Attackers Reportedly Used ARTEX, an AI Security-Testing Tool, to Steal Data from South Korean Financial Institutions","d":"2026-09-27","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1782"},{"k":"MIG-0042","t":"AI Coding Agents Reportedly Exposed Over 13,000 Internal Images from Hundreds of Organizations on Public GitHub Code Repositories","d":"2026-09-29","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1734"},{"k":"MIG-0044","t":"AI Agents Under Evaluation Reportedly Accessed Personal and Confidential Records at Indian Organizations","d":"2026-10-15","e":"synthetic","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1774"},{"k":"MIG-0046","t":"ARTEX AI Agents Reportedly Used Stolen Cloud Backup Credentials to Access ConnectWise Customers' Microsoft 365 Environments","d":"2026-10-15","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1781"},{"k":"MIG-0050","t":"China-Linked Espionage Group VAPOR PANDA Reportedly Used ARTEX AI Agents to Breach Government and Corporate Systems Worldwide","d":"2026-10-17","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1794"},{"k":"MIG-0053","t":"AI Agents Operated by Safety-Testing Firm Trajectory Labs Attempted Website Exploits and Impersonated Staff at AI Research Organization Epoch AI","d":"2026-10-20","e":"synthetic","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1828"},{"k":"MIG-0048","t":"Cybersecurity Firm Cathedral Reportedly Used AI Agents to Access Anthropic's Internal Business Systems","d":"2026-10-26","e":"real_world","fm":"","i":[],"v":"unverified","c":"aiid","s":["aiid"],"u":"https://incidentdatabase.ai/cite/1789"}],"risks":[{"id":"FM1","n":"Miscoordination","k":"Failure mode","d":"Agents share a clear common objective but fail to align behaviour to achieve it."},{"id":"FM2","n":"Conflict","k":"Failure mode","d":"Mixed-motive interaction ends in an outcome off the Pareto frontier (incl. commons depletion, warfare, races to the bottom)."},{"id":"FM3","n":"Collusion","k":"Failure mode","d":"Undesired (often covert) cooperation between AI systems at the expense of third parties, e.g. markets or oversight schemes."},{"id":"RF1","n":"Information Asymmetries","k":"Risk factor","d":"Interacting agents hold different information bearing on a joint action; private info can cause miscoordination, deception, conflict."},{"id":"RF2","n":"Network Effects","k":"Risk factor","d":"Small changes in node/connection properties or topology produce large changes in whole-network behaviour."},{"id":"RF3","n":"Selection Pressures","k":"Risk factor","d":"Training, deployment and replacement choices act as evolutionary forces selecting undesirable dispositions or capabilities."},{"id":"RF4","n":"Destabilising Dynamics","k":"Risk factor","d":"Mutually adapting systems generate feedback loops, instability and unpredictability."},{"id":"RF5","n":"Commitment and Trust","k":"Risk factor","d":"Difficulty forming credible commitments, trust or reputation blocks mutual gains in AI-AI and human-AI interaction."},{"id":"RF6","n":"Emergent Agency","k":"Risk factor","d":"Qualitatively new goals or capabilities emerge from composing individually innocuous systems."},{"id":"RF7","n":"Multi-Agent Security","k":"Risk factor","d":"Multi-agent systems create new security threats and vulnerabilities."}],"inst":[{"id":"I01","n":"Incompatible Strategies","r":"FM1","p":"hammond_table_1","d":"Agents that each perform well alone fail together because their strategies do not mesh: conventions, protocols or equilibrium selections that are individually sound but mutually incompatible. No agent is deceiving or competing; the policies simply do not interlock."},{"id":"I02","n":"Credit Assignment","r":"FM1","p":"hammond_table_1","d":"Agents sharing an objective cannot tell which agent's action produced a good or bad outcome, so they cannot learn to coordinate. The failure is in attributing outcomes to actors, not in the actions themselves."},{"id":"I03","n":"Limited Interactions","r":"FM1","p":"hammond_table_1","d":"Agents must coordinate without shared history, prior play or an adequate channel, so they cannot converge on a joint plan. Zero-shot and few-shot coordination. What is missing is the history or the channel, not the intent."},{"id":"I04","n":"Social Dilemmas","r":"FM2","p":"hammond_table_1","d":"Each agent's selfish incentive diverges from the collective good, so individually rational play leaves every party worse off. Includes commons depletion and races to the bottom, and the sequential form where agents observe and escalate each other's extraction."},{"id":"I05","n":"Military Domains","r":"FM2","p":"hammond_table_1","d":"Conflict between agents acting for opposed principals in military or security settings: autonomous weapons, or AI systems serving as advisors or negotiators in high-stakes decisions."},{"id":"I06","n":"Coercion and Extortion","r":"FM2","p":"hammond_table_1","d":"One agent changes another's behaviour by threatening a cost it would not otherwise impose. Use this instance when the coercion is itself the conflict; use I24 when the commitment mechanism that makes the threat credible is the point."},{"id":"I07","n":"Markets","r":"FM3","p":"hammond_table_1","d":"Agents trading or setting prices converge on supra-competitive behaviour without any explicit agreement. The market was supposed to produce efficiency through competition and does not."},{"id":"I08","n":"Steganography","r":"FM3","p":"hammond_table_1","d":"Agents conceal messages inside otherwise innocuous communication, coordinating outside the channel that is being monitored."},{"id":"I09","n":"Communication Constraints","r":"RF1","p":"hammond_table_1","d":"The information an agent needs cannot be transmitted, because the channel is constrained, costly or restricted, so the asymmetry persists. I09 is the channel as a standing condition; I03 is the coordination failure it produces."},{"id":"I10","n":"Bargaining","r":"RF1","p":"hammond_table_1","d":"Private valuations make efficient agreement unattainable: agents misrepresent to capture surplus, and may fail to agree at all even when agreement exists."},{"id":"I11","n":"Deception","r":"RF1","p":"hammond_table_1","d":"An agent takes actions designed to mislead another agent. An information asymmetry is created or exploited deliberately."},{"id":"I12","n":"Error Propagation","r":"RF2","p":"hammond_table_1","d":"A false or corrupted item of information spreads through a network of agents and is acted on downstream. What propagates is a falsity."},{"id":"I13","n":"Network Rewiring","r":"RF2","p":"hammond_table_1","d":"The topology of which agents interact with which changes, through preferential attachment or the centralisation of AI nodes, altering whole-network behaviour."},{"id":"I14","n":"Homogeneity and Correlated Failures","r":"RF2","p":"hammond_table_1","d":"Many agents are built on the same few foundation models, so they share failure modes, vulnerabilities and biases, and fail at the same time for the same reason."},{"id":"I15","n":"Undesirable Dispositions from Competition","r":"RF3","p":"hammond_table_1","d":"Competitive pressure selects for dispositions that are effective but harmful, such as aggression, deception or risk-taking."},{"id":"I16","n":"Undesirable Dispositions from Human Data","r":"RF3","p":"hammond_table_1","d":"Training on human data imports human dispositions into agent-to-agent interaction, including status-seeking, in-group bias and deceptive norms."},{"id":"I17","n":"Undesirable Capabilities","r":"RF3","p":"hammond_table_1","d":"Agents acquire new capabilities by iteratively exploiting each other's weaknesses: co-adaptation produces an autocurriculum nobody designed."},{"id":"I18","n":"Feedback Loops","r":"RF4","p":"hammond_table_1","d":"The output of the agent system re-enters as its input, creating a cycle that amplifies or dampens behaviour."},{"id":"I19","n":"Cyclic Behaviour","r":"RF4","p":"hammond_table_1","d":"Joint learning dynamics orbit rather than converge, so behaviour never settles."},{"id":"I20","n":"Chaos","r":"RF4","p":"hammond_table_1","d":"The joint dynamics become chaotic: small differences in starting conditions produce divergent collective behaviour, increasingly the norm as agent count grows."},{"id":"I21","n":"Phase Transitions","r":"RF4","p":"hammond_table_1","d":"A small change in a parameter produces a discontinuous change in collective behaviour."},{"id":"I22","n":"Distributional Shift","r":"RF4","p":"hammond_table_1","d":"Co-adapting agents make each other's environment non-stationary, and policies trained against narrow co-players mis-generalise when the co-players change."},{"id":"I23","n":"Inefficient Outcomes","r":"RF5","p":"hammond_table_1","d":"Low trust between agents, because agents are cheap to create and able to deceive, produces costly verification, defection and foregone gains from trade."},{"id":"I24","n":"Threats and Extortion","r":"RF5","p":"hammond_table_1","d":"The ability to make credible commitments also confers the ability to make credible threats, which enables extortion and rewards brinkmanship."},{"id":"I25","n":"Rigidity and Mistaken Commitments","r":"RF5","p":"hammond_table_1","d":"A commitment is executed even though the belief that triggered it was wrong or circumstances changed, because the commitment removed the human from the loop."},{"id":"I26","n":"Emergent Capabilities","r":"RF6","p":"hammond_table_1","d":"A composed system of agents can do what no component agent can do alone."},{"id":"I27","n":"Emergent Goals","r":"RF6","p":"hammond_table_1","d":"Goal-directed behaviour is ascribable to the collective although no single agent holds the goal. The stance is functional: a goal is attributed when it explains the system's behaviour."},{"id":"I28","n":"Swarm Attacks","r":"RF7","p":"hammond_table_1","d":"Many agents attack jointly, and it is the number of them that defeats the defence."},{"id":"I29","n":"Heterogeneous Attacks","r":"RF7","p":"hammond_table_1","d":"Agents combine different affordances, access or specialisations to defeat a safeguard that none of them could defeat alone. The diversity is what matters, not the count."},{"id":"I30","n":"Social Engineering at Scale","r":"RF7","p":"hammond_table_1","d":"Many seemingly independent agents coordinate persuasion or phishing, drawing credibility from their apparent independence and evading detection."},{"id":"I31","n":"Vulnerable AI Agents","r":"RF7","p":"hammond_table_1","d":"The agent is itself the attack surface: it is attacked to extract its principal's information or to make it act against its principal's interests."},{"id":"I32","n":"Cascading Security Failures","r":"RF7","p":"hammond_table_1","d":"A localised compromise propagates into a macroscopic failure, and is hard to mitigate because component failure is difficult to detect or localise."},{"id":"I33","n":"Undetectable Threats","r":"RF7","p":"hammond_table_1","d":"Attacks constructed so that they evade detection: steganographic channels, illusory attacks and encrypted backdoors."},{"id":"I34","n":"Shared False Beliefs","r":"FM1","p":"ours","d":"A false belief originating with one agent is adopted by others and acted on, so a group with a common objective coordinates on something untrue. Authored because Hammond's FM1 instances (Incompatible Strategies, Credit Assignment, Limited Interactions) do not cover belief contagion."},{"id":"I35","n":"Defeating Oversight and Evaluation","r":"FM3","p":"ours","d":"Agents cooperate, usually covertly, to subvert an evaluation, scorer or monitoring scheme. Authored because FM3's definition names oversight schemes but Table 1 instantiates only Markets and Steganography."},{"id":"I36","n":"Informational Cascades","r":"RF2","p":"ours","d":"Agents copy peers' observed choices in place of their own assessment, so one agent's pick propagates through the group. Distinct from Error Propagation, which carries a falsity rather than a choice."}],"src":{"aiid":{"n":"AI Incident Database","u":"https://incidentdatabase.ai/"},"mit_navigator":{"n":"MIT AI Risk Navigator","u":"https://airisk.mit.edu/navigator"},"air_enkrypt":{"n":"Agent Incident Registry (Enkrypt AI)","u":"https://air.enkryptai.com/"},"companyscope":{"n":"AI Agent Incident Register (companyscope)","u":"https://companyscope.io/api/register"},"lesswrong":{"n":"LessWrong","u":"https://www.lesswrong.com/graphql"},"alignmentforum":{"n":"AI Alignment Forum","u":"https://www.alignmentforum.org/graphql"},"eaforum":{"n":"Effective Altruism Forum","u":"https://forum.effectivealtruism.org/graphql"},"aivillage":{"n":"AI Village operator write-ups","u":"https://aivillageblog.substack.com/archive"},"antimemetics":{"n":"Antimemetics Multi-Agent Databank","u":"https://databank.antimemetics.institute"},"oecd_aim":{"n":"OECD AI Incidents Monitor","u":"https://oecd.ai/en/incidents"},"aiaaic":{"n":"AIAAIC Repository","u":"https://www.aiaaic.org/"},"moltbook":{"n":"Moltbook data repository","u":"https://www.lesswrong.com/posts/WyrxmTwYbrwsT72sD/moltbook-data-repository"},"manual":{"n":"Curator write-ups","u":""},"hammond2025":{"n":"Hammond et al. 2025, Multi-Agent Risks from Advanced AI","u":"https://arxiv.org/abs/2502.14143"},"caif":{"n":"Cooperative AI Foundation","u":"https://www.cooperativeai.com"},"mit_airisk_repo":{"n":"MIT AI Risk Repository","u":"https://airisk.mit.edu/"},"owasp_genai":{"n":"OWASP GenAI Security Project","u":"https://genai.owasp.org/"},"mitre_atlas":{"n":"MITRE ATLAS","u":"https://atlas.mitre.org/"},"csa_labs":{"n":"Cloud Security Alliance Labs","u":"https://labs.cloudsecurityalliance.org/"},"openai_reports":{"n":"OpenAI incident reports","u":"https://openai.com/"},"metr":{"n":"METR","u":"https://metr.org/"},"uk_aisi":{"n":"UK AI Safety Institute","u":"https://www.aisi.gov.uk/"},"anthropic":{"n":"Anthropic safety reporting","u":"https://www.anthropic.com/news"}},"version":"0.2","asof":"2026-11-25","refreshed":"2026-11-15"};
+const {inc, risks, inst, src} = D;
+const TIERS = [["real_world", "Observed in real world"], ["synthetic", "Synthetic"], ["lab", "Lab"]];
+const TIERDEF = {real_world: "Deployed systems acting on real stakes, outside experimenter control.",
+  synthetic: "Agents interacting in a simulated or researcher-built environment.",
+  lab: "A controlled experiment on real models in a narrow task probe, with no environment."};
+const CHECK = {verified: "Primary source read in full and every claim checked against it.",
+  partially_verified: "The primary source was read, and at least one claim in the dossier is not confirmed by it: the source is silent, hedged, or the claim rests on a secondary source. The dossier's verification notes name each such claim.",
+  unverified: "Not yet checked against the primary source. A dossier written by Claude stays here until a person checks it."};
+const SHORT = {aiid: "AIID", air_enkrypt: "Agent Incident Registry", aivillage: "AI Village", lesswrong: "LessWrong"};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const instOf = Object.fromEntries(inst.map(i => [i.id, i]));
+const riskOf = Object.fromEntries(risks.map(r => [r.id, r]));
+const FMs = risks.filter(r => r.k === "Failure mode"), RFs = risks.filter(r => r.k === "Risk factor");
+const nInst = id => inc.filter(x => x.i.includes(id)).length;
+const abbr = (id, name) => `<abbr title="${esc(name)}">${id}</abbr>`;
+const tierMark = t => `<i class="tier t-${t}" title="${t}"></i>`;
+const tierName = t => TIERS.find(z => z[0] === t)[1];
+const srcName = s => src[s]?.n || s;
+
+/* ---- one filter for the whole page. A key is ";"-joined parts, each "kind:value", ANDed. */
+const PRED = {
+  fm: v => x => v === "none" ? !x.fm : x.fm === v,
+  tier: v => x => x.e === v,
+  inst: v => x => x.i.includes(v),
+  src: v => x => x.s.includes(v),
+  canon: v => x => x.c === v,
+  also: v => x => x.c !== v && x.s.includes(v),
+  year: v => x => x.d.startsWith(v),
+  v: v => x => x.v === v,
+  hasfm: () => x => !!x.fm,
+  hasinst: () => x => x.i.length > 0,
+};
+const DESC = {
+  fm: v => v === "none" ? ["No failure mode yet", "The facts read so far do not settle the Gate 2 tree."] : [`${v} ${riskOf[v].n}`, riskOf[v].d],
+  tier: v => [tierName(v), TIERDEF[v]],
+  inst: v => [`${v} ${instOf[v].n}`, `${instOf[v].d} The paper discusses it under ${instOf[v].r} ${riskOf[instOf[v].r].n}.`],
+  src: v => [srcName(v), "Every incident this source reports."],
+  canon: v => [srcName(v), "Incidents whose canonical source this is."],
+  also: v => [srcName(v), "Incidents this source also reports, with another canonical source."],
+  year: v => [`Event year ${v}`, "Incidents dated to this year. Studies are dated by publication."],
+  v: v => [v.replace("_", " "), CHECK[v]],
+  hasfm: () => ["Has a failure mode", "Incidents with a failure mode derived by the Gate 2 tree."],
+  hasinst: () => ["Has an instance", "Incidents with at least one instance assigned."],
+};
+const parts = key => key.split(";").map(p => { const k = p.indexOf(":"); return [p.slice(0, k), p.slice(k + 1)]; });
+let sel = null;   // the active key, or null
+let tierChip = "all";
+const matches = x => (!sel || parts(sel).every(([k, v]) => PRED[k](v)(x))) && (tierChip === "all" || x.e === tierChip);
+const hit = (key, inner, cls = "") => `<span class="hit ${cls}" data-f="${key}" tabindex="0" role="button">${inner}</span>`;
+
+// Fig. 0 sources
+const srcIds = [...new Set(inc.flatMap(x => x.s))];
+const srcRows = srcIds.map(s => ({s, canon: inc.filter(x => x.c === s).length, also: inc.filter(x => x.c !== s && x.s.includes(s)).length}))
+  .sort((a, b) => b.canon + b.also - a.canon - a.also);
+const smax = Math.max(...srcRows.map(r => r.canon + r.also));
+document.getElementById("ver").textContent = `v${D.version}`;
+document.getElementById("dates").textContent = [`Version ${D.version}`,
+  D.refreshed && `Sources last refreshed ${D.refreshed}`, `index as of ${D.asof}`].filter(Boolean).join(" · ");
+document.getElementById("ninst").textContent = D.inst.length;
+document.getElementById("srckey").innerHTML = `<span><i class="sw t-real_world"></i>Canonical source</span><span><i class="sw t-lab"></i>Also reported here</span>`;
+document.getElementById("srcs").innerHTML = srcRows.map(r => `
+  <div>${hit("src:" + r.s, esc(srcName(r.s)))} <a class="ext" href="${esc(src[r.s]?.u || "#")}" title="Open ${esc(srcName(r.s))}">↗</a></div>
+  <div class="track"><i class="t-real_world" data-f="canon:${r.s}" style="width:${r.canon / smax * 100}%"></i>${r.also ? `<i class="t-lab" data-f="also:${r.s}" style="width:${r.also / smax * 100}%"></i>` : ""}</div>
+  <div class="n">${hit("canon:" + r.s, r.canon)}${r.also ? ` <small>${hit("also:" + r.s, "+" + r.also)}</small>` : ""}</div>`).join("");
+
+// headline results
+const nVer = inc.filter(x => x.v === "verified").length, nPart = inc.filter(x => x.v === "partially_verified").length;
+const withFm = inc.filter(x => x.fm).length;
+const fmSeen = FMs.filter(f => inc.some(x => x.fm === f.id)).length;
+const instSeen = inst.filter(i => nInst(i.id)).length;
+const fig = (key, v, of, l, sub, gap) => `<div class="${gap ? "gap" : ""}"><span class="v">${key ? hit(key, v) : v}${of ? `<small> / ${of}</small>` : ""}</span><span class="lab">${l}</span><span class="sub">${sub}</span></div>`;
+document.getElementById("figs").innerHTML =
+  fig("", inc.length, 0, "Multi-agent incidents", "in scope by a person's decision") +
+  fig("v:verified", nVer, inc.length, "Verified", `${hit("v:partially_verified", nPart)} more partially verified`) +
+  fig("hasfm:1", fmSeen, FMs.length, "Failure modes observed", `${withFm} of ${inc.length} incidents have one`, fmSeen < FMs.length) +
+  fig("hasinst:1", instSeen, inst.length, "Instances observed", "at least one incident each", instSeen < inst.length);
+
+// §1 failure modes, by the derived failure mode only
+document.getElementById("key").innerHTML = TIERS.map(([t, l]) => hit("tier:" + t, `<i class="sw t-${t}"></i>${l}`, "keyitem")).join("");
+const fmRows = [...FMs.map(f => ({id: f.id, n: f.n, u: inc.filter(x => x.fm === f.id)})), {id: "none", n: "No failure mode yet", u: inc.filter(x => !x.fm)}];
+const max = Math.max(...fmRows.map(r => r.u.length));
+document.getElementById("riskrows").innerHTML = fmRows.map(r => {
+  const bars = TIERS.map(([t]) => { const n = r.u.filter(x => x.e === t).length;
+    return n ? `<i class="t-${t}" data-f="fm:${r.id};tier:${t}" style="width:${n / max * 100}%" title="${n} ${t}"></i>` : ""; }).join("");
+  return `<div class="nm"><span class="mono">${r.id === "none" ? "·" : r.id}</span>${hit("fm:" + r.id, esc(r.n), r.id === "none" ? "quiet" : "")}</div>
+    <div class="track">${r.u.length ? bars : `<span class="none">no incident</span>`}</div>
+    <div class="n${r.u.length ? "" : " z"}">${hit("fm:" + r.id, r.u.length)}</div>`; }).join("");
+document.getElementById("fmcap").innerHTML = `<b>Fig. 1</b> A count of incidents, not a score. ${inc.length - withFm} incidents have no failure mode. 30 of them carry a security instance, I28 to I33: attacks, where none of the three modes fits by definition.`;
+
+// §2 instance x failure-mode matrix
+const cols = [...FMs.map(f => ({id: f.id, n: f.n})), {id: "none", n: "No failure mode yet"}];
+const inCol = (x, c) => c.id === "none" ? !x.fm : x.fm === c.id;
+const cmax = Math.max(...inst.flatMap(i => cols.map(c => inc.filter(x => inCol(x, c) && x.i.includes(i.id)).length)));
+const dens = n => n === 0 ? "" : n >= Math.ceil(cmax * 2 / 3) ? "d3" : n >= Math.ceil(cmax / 3) ? "d2" : "d1";
+let mx = `<thead><tr><th colspan="2">Instance</th>${cols.map(c => `<th class="num">${hit("fm:" + c.id, c.id === "none" ? "None" : c.id)}</th>`).join("")}<th class="num">All</th></tr></thead>`;
+// one flat list in id order: grouping rows by the paper's FM/RF placement would cross RF blocks with FM columns
+const placed = i => i.p === "ours" ? `Proposed: not in the paper. Added by this index, placed under ${i.r} ${riskOf[i.r].n}` : `Discussed under ${i.r} ${riskOf[i.r].n} in the paper`;
+mx += `<tbody>`;
+for (const i of inst) {
+  const tot = nInst(i.id);
+  mx += `<tr class="${tot ? "" : "z"}"><td class="id">${i.id}</td><td class="nm" title="${esc(placed(i))}">${tot ? hit("inst:" + i.id, esc(i.n)) : esc(i.n)}${i.p === "ours" ? `<span class="ours">proposed</span>` : ""}</td>` +
+    cols.map(c => { const n = inc.filter(x => inCol(x, c) && x.i.includes(i.id)).length;
+      return `<td class="num${n ? "" : " zero"}">${n ? hit(`inst:${i.id};fm:${c.id}`, n, dens(n)) : "<span>·</span>"}</td>`; }).join("") +
+    `<td class="num tot">${tot ? hit("inst:" + i.id, tot) : "<span>0</span>"}</td></tr>`;
+}
+mx += `</tbody>`;
+document.getElementById("mx2").innerHTML = mx;
+
+// §3 cumulative by year from the earliest incident, AIID full sourcing marked. Each year is a click band.
+const years = inc.map(x => +x.d.slice(0, 4)), y0 = Math.min(...years), y1 = Math.max(...years), FULL = 2024;
+const W = 840, H = 220, L = 34, R = 14, T = 24, B = 26;
+const X = y => L + (y - y0) / (y1 + 1 - y0) * (W - L - R), Y = n => T + (1 - n / inc.length) * (H - T - B);
+let cum = 0; const pts = [[X(y0), Y(0)]];
+for (let y = y0; y <= y1; y++) { const k = years.filter(v => v === y).length; pts.push([X(y), Y(cum)]); cum += k; pts.push([X(y), Y(cum)]); }
+pts.push([X(y1 + 1), Y(cum)]);
+const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join("");
+const ticksY = [0, 10, 20, 30, 40, 50].filter(n => n <= inc.length);
+const bands = []; for (let y = y0; y <= y1; y++) { const k = years.filter(v => v === y).length;
+  bands.push(`<g class="band${k ? "" : " empty"}"${k ? ` data-f="year:${y}" tabindex="0" role="button" aria-label="${y}: ${k} incidents"` : ""}><rect x="${X(y)}" y="${T}" width="${X(y + 1) - X(y)}" height="${H - T - B}"/>${k ? `<title>${y}: ${k} incidents</title>` : ""}<text x="${X(y + 0.5)}" y="${H - 6}" text-anchor="middle">${y === y0 || y === y1 || y % 2 === 0 ? y : ""}</text></g>`); }
+document.getElementById("chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Cumulative incidents by year, ${y0} to ${y1}">
+  ${ticksY.map(n => `<line class="ax" x1="${L}" x2="${W - R}" y1="${Y(n)}" y2="${Y(n)}"/><text x="${L - 8}" y="${Y(n) + 4}" text-anchor="end">${n}</text>`).join("")}
+  <path class="ar" d="${d}L${X(y1 + 1)} ${Y(0)}Z"/><path class="ln" d="${d}"/>
+  ${bands.join("")}
+  <line class="mark" x1="${X(FULL)}" x2="${X(FULL)}" y1="${T - 14}" y2="${H - B}"/>
+  <text class="marktx" x="${X(FULL) - 6}" y="${T - 4}" text-anchor="end">Full AIID sourcing from 2024</text>
+  <circle cx="${X(y1 + 1)}" cy="${Y(cum)}" r="3.5" fill="var(--ink)"/>
+  <text x="${X(y1 + 1) - 8}" y="${Y(cum) + 16}" text-anchor="end" style="fill:var(--ink)">${cum}</text></svg>`;
+const before = years.filter(y => y < FULL).length;
+document.getElementById("timecap").innerHTML = `<b>Fig. 3</b> Click a year to filter. The axis starts at ${y0}, the year of the earliest incident in the index. ${before} incidents predate ${FULL}, when full AIID sourcing begins; each was flagged or found by hand, so the years before the line are sampled, not screened.`;
+
+// §4 all incidents
+const fl = document.getElementById("filters");
+fl.innerHTML = [["all", "All"], ...TIERS].map(([t, l]) => `<button class="chip" type="button" id="f-${t}" data-t="${t}" aria-pressed="${t === "all"}">${l} · ${t === "all" ? inc.length : inc.filter(x => x.e === t).length}</button>`).join("");
+fl.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; tierChip = b.dataset.t;
+  fl.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); render(); });
+const dash = `<span style="color:var(--ink-2)">·</span>`;
+// sortable, filterable columns
+const VRANK = {verified: 0, partially_verified: 1, unverified: 2};
+const COLS = [
+  {id: "k", label: "Key", sort: x => x.k, filter: "text", test: (x, q) => x.k.toLowerCase().includes(q)},
+  {id: "t", label: "Incident", sort: x => x.t.toLowerCase(), filter: "text", test: (x, q) => x.t.toLowerCase().includes(q)},
+  {id: "d", label: "Date", sort: x => x.d, filter: "text", test: (x, q) => x.d.startsWith(q)},
+  {id: "fm", label: "FM", sort: x => x.fm || "~", filter: "select",
+    opts: [...FMs.map(f => [f.id, `${f.id} ${f.n}`]), ["none", "none"]], test: (x, q) => q === "none" ? !x.fm : x.fm === q},
+  {id: "i", label: "Instances", sort: x => x.i.length ? x.i.join(" ") : "~", filter: "select",
+    opts: inst.filter(i => nInst(i.id)).map(i => [i.id, `${i.id} ${i.n}`]).concat([["none", "none"]]), test: (x, q) => q === "none" ? !x.i.length : x.i.includes(q)},
+  {id: "c", label: "Source", sort: x => SHORT[x.c] || x.c, filter: "select",
+    opts: srcIds.map(s => [s, SHORT[s] || s]), test: (x, q) => x.c === q},
+  {id: "v", label: "Check", sort: x => VRANK[x.v], filter: "select",
+    opts: Object.keys(CHECK).map(k => [k, k.replace("_", " ")]), test: (x, q) => x.v === q},
+];
+const colq = {};
+let sortBy = "d", sortDir = -1;
+document.getElementById("thead").innerHTML =
+  `<tr>${COLS.map(c => `<th><button type="button" class="sort" data-s="${c.id}" id="s-${c.id}">${c.label}<span class="arr" aria-hidden="true"></span></button></th>`).join("")}</tr>` +
+  `<tr class="fr">${COLS.map(c => `<th>${c.filter === "text"
+    ? `<input type="search" id="q-${c.id}" data-q="${c.id}" placeholder="${c.id === "d" ? "2025" : "filter"}" aria-label="Filter ${c.label}">`
+    : `<select id="q-${c.id}" data-q="${c.id}" aria-label="Filter ${c.label}"><option value="">all</option>${c.opts.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("")}</select>`}</th>`).join("")}</tr>`;
+const thead = document.getElementById("thead");
+thead.addEventListener("click", e => { const b = e.target.closest("button.sort"); if (!b) return;
+  if (sortBy === b.dataset.s) sortDir = -sortDir; else { sortBy = b.dataset.s; sortDir = 1; } rows(); });
+thead.addEventListener("input", e => { const el = e.target.closest("[data-q]"); if (!el) return; colq[el.dataset.q] = el.value.trim(); rows(); });
+const colsActive = () => COLS.filter(c => colq[c.id]);
+function rows() {
+  const sc = COLS.find(c => c.id === sortBy);
+  const list = inc.filter(matches).filter(x => colsActive().every(c => c.test(x, c.filter === "text" ? colq[c.id].toLowerCase() : colq[c.id])))
+    .sort((a, b) => { const p = sc.sort(a), q = sc.sort(b); return (p < q ? -1 : p > q ? 1 : 0) * sortDir || b.d.localeCompare(a.d); });
+  thead.querySelectorAll("button.sort").forEach(b => { const on = b.dataset.s === sortBy;
+    b.classList.toggle("on", on); b.querySelector(".arr").textContent = on ? (sortDir > 0 ? " ↑" : " ↓") : "";
+    b.closest("th").setAttribute("aria-sort", on ? (sortDir > 0 ? "ascending" : "descending") : "none"); });
+  document.getElementById("rows").innerHTML = list.map(x => `<tr>
+      <td class="m">${x.k}</td>
+      <td>${tierMark(x.e)}${esc(x.t)}</td>
+      <td class="m">${x.d}</td>
+      <td class="m">${x.fm ? abbr(x.fm, riskOf[x.fm].n) : dash}</td>
+      <td class="m">${x.i.length ? x.i.map(i => abbr(i, instOf[i]?.n || i)).join("") : dash}</td>
+      <td class="m"><a href="${esc(x.u)}" title="${esc(srcName(x.c))}">${esc(SHORT[x.c] || x.c)} ↗</a></td>
+      <td><span class="vf ${x.v}" title="${esc(CHECK[x.v])}">${x.v.replace("_", " ")}</span></td></tr>`).join("") ||
+    `<tr><td colspan="7" class="empty">No incident matches these filters.</td></tr>`;
+  const bits = [];
+  if (sel) bits.push(esc(parts(sel).map(([k, v]) => DESC[k](v)[0]).join(" × ")));
+  if (colsActive().length) bits.push(colsActive().map(c => `${c.label}: ${esc(colq[c.id])}`).join(", "));
+  document.getElementById("tblstate").innerHTML = `Showing ${list.length} of ${inc.length}${bits.length ? " · " + bits.join(" · ") : ""}` +
+    (sel || colsActive().length ? ` <button type="button" class="chip" id="clear-tbl">Clear filters</button>` : "");
+}
+
+// the floating panel; minimised, it docks as a chip in the top bar
+const panel = document.getElementById("panel"), barf = document.getElementById("barfilter");
+let minimised = false;
+function render() {
+  document.querySelectorAll("[data-f]").forEach(el => el.classList.toggle("sel", el.dataset.f === sel));
+  rows();
+  if (!sel) { panel.hidden = true; barf.hidden = true; document.body.classList.remove("docked"); return; }
+  const list = inc.filter(x => parts(sel).every(([k, v]) => PRED[k](v)(x)));
+  const ps = parts(sel).map(([k, v]) => DESC[k](v));
+  const title = ps.map(p => p[0]).join(" × ");
+  panel.innerHTML = `<div class="p-head"><span class="lab">Filter</span><span class="p-btns">
+      <button type="button" class="x" id="p-min" aria-label="Minimise to the top bar" title="Minimise">–</button>
+      <button type="button" class="x" id="p-close" aria-label="Clear filter" title="Clear">×</button></span></div>
+    <div class="p-body">
+      ${ps.map(([t, dsc]) => `<div class="p-part"><b>${esc(t)}</b><p>${esc(dsc)}</p></div>`).join(`<div class="p-and">and</div>`)}
+      <div class="p-count"><span class="v">${list.length}</span> incident${list.length === 1 ? "" : "s"}</div>
+      <ul class="p-list">${list.slice(0, 8).map(x => `<li><span class="mono">${x.k}</span> ${esc(x.t)}</li>`).join("")}${list.length > 8 ? `<li class="more">and ${list.length - 8} more</li>` : ""}</ul>
+    </div>
+    <div class="p-act"><a class="chip" href="#incidents">Show in table</a><button type="button" class="chip" id="p-clear">Clear</button></div>`;
+  barf.innerHTML = `<button type="button" class="bf-open" id="bf-open" title="Open the filter window">Filter · <b>${esc(title)}</b> · ${list.length}</button><button type="button" class="bf-x" id="bf-x" aria-label="Clear filter" title="Clear">×</button>`;
+  panel.hidden = minimised;
+  barf.hidden = !minimised;
+  document.body.classList.toggle("docked", minimised);
+  if (minimised) { barf.classList.remove("flash"); void barf.offsetWidth; barf.classList.add("flash"); }
+}
+function pick(key) { sel = sel === key ? null : key; render(); }
+document.addEventListener("click", e => {
+  if (e.target.closest("#clear-tbl")) { for (const k in colq) delete colq[k]; thead.querySelectorAll("[data-q]").forEach(el => el.value = ""); }
+  if (e.target.closest("#p-close, #p-clear, #clear-tbl, #bf-x")) { sel = null; render(); return; }
+  if (e.target.closest("#p-min")) { minimised = true; render(); document.getElementById("bf-open")?.focus(); return; }
+  if (e.target.closest("#bf-open")) { minimised = false; render(); document.getElementById("p-min")?.focus(); return; }
+  const el = e.target.closest("[data-f]"); if (el) pick(el.dataset.f);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && sel) { sel = null; render(); return; }
+  const el = e.target.closest && e.target.closest("[data-f]");
+  if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick(el.dataset.f); }
+});
+render();
+
+// §5 data dictionary, one foldable group per kind of code
+const dd = (t, d) => `<dt>${t}</dt><dd>${d}</dd>`;
+const group = (title, items) => `<details class="sub"><summary><span class="lab">${title}</span><span class="cnt">${items.length}</span></summary><dl class="defs">${items.join("")}</dl></details>`;
+document.getElementById("defs").innerHTML =
+  group("Columns", [
+    dd("Key", "MIG-nnnn, the index's own incident key. Given once, never changed or reused."),
+    dd("FM", "The incident's failure mode, derived by rule. Blank when the facts read do not settle it."),
+    dd("Instances", "The mechanisms assigned to the incident, each quoted from the source. Each instance sits under the risk where the paper discusses it; that placement gives the incident no label."),
+    dd("Source", "Link to the incident in its canonical source.")]) +
+  group("Check", Object.entries(CHECK).map(([k, v]) => dd(`<span class="vf ${k}">${k.replace("_", " ")}</span>`, v))) +
+  group("Evidence type", TIERS.map(([t]) => dd(`${tierMark(t)}${t}`, TIERDEF[t]))) +
+  group("Failure modes · Hammond et al. 2025", FMs.map(r => dd(r.id, `${esc(r.n)}. <span style="color:var(--ink-2)">${esc(r.d)}</span>`))) +
+  group("Risk factors · Hammond et al. 2025 · not yet classified", RFs.map(r => dd(r.id, `${esc(r.n)}. <span style="color:var(--ink-2)">${esc(r.d)}</span>`))) +
+  group("Instances", inst.map(i => dd(i.id, `${esc(i.n)} <span class="mono" style="font-size:11px">· ${i.r}${i.p === "ours" ? " · proposed" : ""}</span>`)));
+
+// Folded report sections: a link to a section, or into one, opens it first.
+const openFor = hash => {
+  const t = hash && hash.length > 1 && document.getElementById(decodeURIComponent(hash.slice(1)));
+  const f = t && (t.querySelector(":scope > details.fold") || t.closest("details.fold"));
+  if (f && !f.open) f.open = true;
+};
+document.addEventListener("click", e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (a) openFor(a.getAttribute("href"));
+}, true);
+window.addEventListener("hashchange", () => openFor(location.hash));
+openFor(location.hash);
+</script>

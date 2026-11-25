@@ -1,0 +1,29 @@
+aiid_incident_id	date	nav_risk_subdomain	nav_extra_subdomains	entity	intent	timing	title
+1794	2026-10-17	4.2 Cyberattacks, weapon development or use, and mass harm	+1	Human	Intentional	Post-deployment	China-Linked Espionage Group VAPOR PANDA Reportedly Used ARTEX AI Agents to Breach Government and Corporate Systems Worldwide
+1774	2026-10-15	7.1 AI pursuing its own goals in conflict with human goals or values	+2	AI system	Unintentional	Pre-deployment	AI Agents Under Evaluation Reportedly Accessed Personal and Confidential Records at Indian Organizations
+1781	2026-10-15	4.2 Cyberattacks, weapon development or use, and mass harm		Human	Intentional	Post-deployment	ARTEX AI Agents Reportedly Used Stolen Cloud Backup Credentials to Access ConnectWise Customers' Microsoft 365 Environments
+1766	2026-09-25	4.2 Cyberattacks, weapon development or use, and mass harm	+2	AI system	Intentional	Post-deployment	Cybercriminal Reportedly Used Cairn AI Agents to Breach More Than 100 Company Websites
+1649	2026-08-05	7.1 AI pursuing its own goals in conflict with human goals or values	+2	AI system	Unintentional	Pre-deployment	Meta AI Model Reportedly Exploited Security Vulnerability in Real Third-Party Service During Cybersecurity Evaluation
+1672	2026-07-13	7.3 Lack of capability or robustness	+1	AI system	Unintentional	Post-deployment	OpenAI GPT-5.6 Sol Reportedly Deleted Software Engineer's Production Database During Local Testing
+1671	2026-07-10	7.3 Lack of capability or robustness	+1	AI system	Unintentional	Post-deployment	OpenAI GPT-5.6 Sol Agent Reportedly Deleted Most Files in AI Startup Founder's Mac Home Directory
+1646	2026-07-01	4.2 Cyberattacks, weapon development or use, and mass harm	+1	Human	Intentional	Post-deployment	Suspected China-Linked Hackers Reportedly Used AI Agents to Compromise Taiwanese Government Systems and Exfiltrate Personnel Records
+1707	2026-06-18	7.1 AI pursuing its own goals in conflict with human goals or values	+1	AI system	Unintentional	Post-deployment	OpenAI AI Agent Reportedly Gained Unauthorized Access to Australian Medicare Statistics Portal During Research Task
+1668	2026-05-24	7.1 AI pursuing its own goals in conflict with human goals or values	+1	AI system	Unintentional	Post-deployment	OpenAI-Linked AI Agents Reportedly Used German Programming Wiki DSEWiki for Coordination and Restriction Evasion
+1796	2026-05-19	4.2 Cyberattacks, weapon development or use, and mass harm	+2	Human	Intentional	Post-deployment	Attacker Reportedly Used AI Agents to Breach Healthcare Organizations and Steal Medical Records in Argentina
+1797	2026-05-11	7.1 AI pursuing its own goals in conflict with human goals or values	+1	AI system	Unintentional	Pre-deployment	OpenAI AI Agents Reportedly Flooded RubyGems Software Registry With Malicious Packages
+1779	2026-05-07	7.1 AI pursuing its own goals in conflict with human goals or values	+2	AI system	Unintentional	Post-deployment	OpenAI-Linked AI Agents May Have Contributed to a Partial Outage of the Wikimedia Foundation's Data Query Service
+1556	2026-05-04	2.2 AI system security vulnerabilities and attacks	+1	AI system	Unintentional	Post-deployment	X User Reportedly Used Morse Code Prompt to Induce Grok-Linked Trading Bot to Transfer $200,000 in Tokens
+1364	2026-01-31	2.2 AI system security vulnerabilities and attacks	+1	Human	Unintentional	Post-deployment	Moltbook Database Exposure Allegedly Revealed Users' Private Communications and API Authentication Tokens
+1313	2025-12-18	7.3 Lack of capability or robustness	+1	AI system	Unintentional	Post-deployment	Anthropic Claude AI Agent Reportedly Caused Financial Losses While Operating Office Vending Machine at Wall Street Journal Headquarters
+1263	2025-11-13	4.2 Cyberattacks, weapon development or use, and mass harm	+2	Human	Intentional	Post-deployment	Chinese State-Linked Operator (GTG-1002) Reportedly Uses Claude Code for Autonomous Cyber Espionage
+1015	2025-04-07	4.2 Cyberattacks, weapon development or use, and mass harm	+1	Human	Intentional	Post-deployment	Reported Darknet Launch of Xanthorox AI Introduces Autonomous Cyberattack Platform
+794	2024-08-13	7.3 Lack of capability or robustness		AI system	Unintentional	Post-deployment	Reported Glitch in Waymo Self-Driving Cars Purportedly Triggers Regular All-Night Honking in San Francisco
+672	2024-04-03	4.2 Cyberattacks, weapon development or use, and mass harm	+2	AI system	Intentional	Post-deployment	'Lavender' and 'The Gospel' AI Systems Reportedly Used in Gaza Targeting Operations with Civilian Harm Allegations
+730	2024-04-01	4.1 Disinformation, surveillance, and influence at scale	+1	Human	Intentional	Post-deployment	AI Deepfakes for Voter Outreach Flood Indian Elections
+602	2023-10-02	4.1 Disinformation, surveillance, and influence at scale	+2	Human	Intentional	Post-deployment	Russia Reportedly Using Artificial Intelligence in Disinformation Campaigns to Erode Western Support for Ukraine
+528	2023-04-08	7.3 Lack of capability or robustness		AI system	Unintentional	Post-deployment	Amazon Algorithmic Pricing Allegedly Hiked up Price of Reference Book to Millions
+126	2021-07-16	7.3 Lack of capability or robustness	+1	AI system	Unintentional	Post-deployment	Three Robots Collided, Sparking Fire in a Grocer's Warehouse in UK
+243	2020-01-01	4.1 Disinformation, surveillance, and influence at scale	+2	Human	Intentional	Post-deployment	Bots Allegedly Made up Roughly Half of Twitter Accounts in Discussions Surrounding COVID-19 Related Issues
+7	2017-02-24	7.6 Multi-agent risks	+1	AI system	Unintentional	Post-deployment	Wikipedia Vandalism Prevention Bot Loop
+49	2016-09-05	1.3 Unequal performance across groups	+1	AI system	Unintentional	Post-deployment	AI Beauty Judge Did Not Like Dark Skin
+44	2008-07-01	2.1 Compromise of privacy by leaking or correctly inferring sensitive information	+1	AI system	Unintentional	Post-deployment	Machine Personal Assistants Failed to Maintain Social Norms

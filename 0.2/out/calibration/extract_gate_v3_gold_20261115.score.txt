@@ -1,0 +1,62 @@
+gold   truth pred  rev  pres cf/role
+G-001  in    in    R         could_not/not_applicable/ip=True/medium
+G-002  out   in    R    P    unclear/unreported/ip=None/low  <-- WRONG
+G-003  in    in    R    P    unclear/unreported/ip=True/medium
+G-004  in    in    R         could_not/not_applicable/ip=True/high
+G-005  out   in    R    P    could/unreported/ip=None/low  <-- WRONG
+G-006  in    in    R    P    unclear/load_bearing/ip=True/medium
+G-008  in    in    R         could_not/load_bearing/ip=True/medium
+G-009  in    in    R         could_not/load_bearing/ip=True/medium
+G-010  in    in    R         could_not/load_bearing/ip=True/medium
+G-011  in    out   R         unclear/not_applicable/ip=None/low  <-- WRONG
+G-012  in    out   R         unclear/not_applicable/ip=True/low  <-- WRONG
+G-013  out   in    R    P    could/unreported/ip=False/medium  <-- WRONG
+G-014  out   in    R         could_not/not_applicable/ip=True/medium  <-- WRONG
+G-015  in    in    R         could_not/load_bearing/ip=True/medium
+G-016  in    in              could_not/load_bearing/ip=True/high
+G-017  in    in    R    P    unclear/unreported/ip=None/medium
+G-019  in    in    R    P    unclear/unreported/ip=None/medium
+G-020  in    in              could_not/load_bearing/ip=True/high
+G-021  in    in    R         could_not/not_applicable/ip=True/medium
+G-023  in    in    R         could_not/load_bearing/ip=True/medium
+G-024  in    in              could_not/load_bearing/ip=True/high
+G-026  in    in    R         could_not/load_bearing/ip=True/medium
+G-027  in    in    R         could_not/not_applicable/ip=True/medium
+G-028  out   out   R         unclear/None/ip=None/low
+G-029  out   out             could/None/ip=False/high
+G-030  out   out   R         unclear/None/ip=True/low
+G-032  out   out             could/None/ip=False/high
+G-033  in    in    R         could_not/None/ip=True/medium
+G-034  out   out   R         could/None/ip=None/medium
+G-035  out   out   R         unclear/None/ip=None/low
+G-036  out   out   R         could/None/ip=None/medium
+G-037  out   out   R         could/not_applicable/ip=None/medium
+G-038  out   out   R         could/incidental/ip=None/medium
+G-039  out   out   R         could/not_applicable/ip=None/medium
+G-040  out   out   R         could/not_applicable/ip=None/high
+G-041  out   out   R         could/not_applicable/ip=None/medium
+G-042  out   out   R         could/not_applicable/ip=None/medium
+G-043  out   out   R         could/not_applicable/ip=None/medium
+G-044  out   out   R         could/not_applicable/ip=None/medium
+G-045  out   out   R         could/not_applicable/ip=None/medium
+G-046  out   out   R         could/not_applicable/ip=None/medium
+G-047  in    in    R    P    unclear/unreported/ip=None/low
+G-048  out   out             could/not_applicable/ip=False/high
+G-049  in    in    R    P    unclear/unreported/ip=None/low
+G-050  out   out   R         could/not_applicable/ip=None/medium
+G-051  out   out   R         could/not_applicable/ip=None/medium
+G-052  out   out   R         could/not_applicable/ip=None/high
+G-053  out   out   R         could/None/ip=None/medium
+G-054  out   out   R         could/None/ip=None/medium
+G-055  out   out   R         could/not_applicable/ip=None/medium
+G-056  out   in    R    P    unclear/unreported/ip=None/low  <-- WRONG
+G-057  out   out   R         could/not_applicable/ip=None/medium
+G-058  out   in    R    P    could/unreported/ip=None/medium  <-- WRONG
+G-059  out   out   R         could/incidental/ip=None/medium
+G-060  out   out   R         unclear/not_applicable/ip=None/low
+
+all        n=55 TP=20 FP=6 FN=2 TN=27 precision=76.9% recall=90.9% accuracy=85.5%
+
+non-review n=6 TP=3 FP=0 FN=0 TN=3 precision=100.0% recall=100.0% accuracy=100.0%
+
+review     n=49 TP=17 FP=6 FN=2 TN=24 precision=73.9% recall=89.5% accuracy=83.7%

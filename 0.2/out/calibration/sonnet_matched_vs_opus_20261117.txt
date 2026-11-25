@@ -1,0 +1,86 @@
+=== extract_gate.v3: Opus vs Sonnet, per row (same record + context inputs) ===
+gold   truth opus  son    opus cf/role/conf  ->  sonnet cf/role/conf
+G-001  in    in    in     could_not/not_applicable/medium  ->  could_not/not_applicable/medium
+G-002  out   in*   in*    unclear/unreported/low+P  ->  unclear/unreported/low+P
+G-003  in    in    in     unclear/unreported/medium+P  ->  unclear/unreported/low+P
+G-004  in    in    in     could_not/not_applicable/high  ->  could_not/not_applicable/medium
+G-005  out   out   out    could/unreported/low  ->  could/incidental/medium
+G-006  in    in    in     unclear/load_bearing/medium  ->  unclear/load_bearing/medium
+G-008  in    in    in     could_not/load_bearing/medium  ->  could_not/load_bearing/medium
+G-009  in    in    in     could_not/load_bearing/medium  ->  could_not/load_bearing/medium
+G-010  in    in    in     could_not/load_bearing/medium  ->  could_not/load_bearing/medium
+G-011  in    out*  out*   unclear/not_applicable/low  ->  unclear/not_applicable/low
+G-012  in    out*  out*   unclear/not_applicable/low  ->  unclear/not_applicable/low
+G-013  out   out   out    could/unreported/medium  ->  could/incidental/medium
+G-014  out   in*   in*    could_not/not_applicable/medium  ->  could_not/not_applicable/medium
+G-015  in    in    in     could_not/load_bearing/medium  ->  could_not/load_bearing/medium
+G-016  in    in    in     could_not/load_bearing/high  ->  could_not/load_bearing/medium
+G-017  in    in    in     unclear/unreported/medium+P  ->  unclear/unreported/low+P
+G-019  in    in    in     unclear/unreported/medium+P  ->  unclear/unreported/low+P
+G-020  in    in    in     could_not/load_bearing/high  ->  could_not/load_bearing/high
+G-021  in    in    in     could_not/not_applicable/medium  ->  could_not/not_applicable/medium
+G-023  in    in    in     could_not/load_bearing/medium  ->  could_not/load_bearing/medium
+G-024  in    in    in     could_not/load_bearing/high  ->  could_not/load_bearing/high
+G-026  in    in    in     could_not/load_bearing/medium  ->  could_not/load_bearing/medium
+G-027  in    in    in     could_not/not_applicable/medium  ->  could_not/not_applicable/medium
+G-028  out   out   out    unclear/None/low  ->  unclear/not_applicable/low
+G-029  out   out   out    could/None/high  ->  could/not_applicable/medium
+G-030  out   out   out    unclear/None/low  ->  unclear/not_applicable/low
+G-032  out   out   out    could/None/high  ->  could/not_applicable/medium
+G-033  in    in    in     could_not/None/medium  ->  could_not/not_applicable/medium
+G-034  out   out   out    could/None/medium  ->  unclear/None/medium
+G-035  out   out   out    unclear/None/low  ->  unclear/None/low
+G-036  out   out   out    could/None/medium  ->  unclear/None/low
+G-037  out   out   out    could/not_applicable/medium  ->  unclear/not_applicable/low
+G-038  out   out   out    could/incidental/medium  ->  could/incidental/medium
+G-039  out   out   out    could/not_applicable/medium  ->  could/not_applicable/medium
+G-040  out   out   out    could/not_applicable/high  ->  could/not_applicable/medium
+G-041  out   out   out    could/not_applicable/medium  ->  unclear/not_applicable/medium
+G-042  out   out   out    could/not_applicable/medium  ->  unclear/not_applicable/low
+G-043  out   out   out    could/not_applicable/medium  ->  could/not_applicable/medium
+G-044  out   out   out    could/not_applicable/medium  ->  unclear/not_applicable/low
+G-045  out   out   out    could/not_applicable/medium  ->  could/not_applicable/medium
+G-046  out   out   out    could/not_applicable/medium  ->  unclear/not_applicable/low
+G-047  in    in    in     unclear/unreported/low+P  ->  unclear/unreported/low+P
+G-048  out   out   out    could/not_applicable/high  ->  could/not_applicable/high
+G-049  in    in    in     unclear/unreported/low+P  ->  unclear/unreported/low+P
+G-050  out   out   out    could/not_applicable/medium  ->  could/not_applicable/medium
+G-051  out   out   out    could/not_applicable/medium  ->  could/not_applicable/medium
+G-052  out   out   out    could/not_applicable/high  ->  could/not_applicable/medium
+G-053  out   out   out    could/None/medium  ->  unclear/None/low
+G-054  out   out   out    could/None/medium  ->  unclear/None/low
+G-055  out   out   out    could/not_applicable/medium  ->  could/not_applicable/medium
+G-056  out   in*   in*    unclear/unreported/low+P  ->  unclear/unreported/low+P
+G-057  out   out   out    could/not_applicable/medium  ->  could/not_applicable/high
+G-058  out   out   out    could/unreported/medium  ->  could/unreported/low
+G-059  out   out   out    could/incidental/medium  ->  could/incidental/medium
+G-060  out   out   out    unclear/not_applicable/low  ->  unclear/not_applicable/low
+
+rows compared 55; missing from Sonnet run: none
+Gate 1 label agreement Opus/Sonnet: 55/55
+field agreement: interaction_present 55/55, single_agent_counterfactual 46/55, multiplicity_role 48/55, n_ai_agents 51/55, setting 54/55, stakes 50/55, environment_controlled_by 41/55, cooperation_occurred 52/55, cooperation_expected 51/55, objective_relation 52/55, confidence 36/55
+status opus: {'review': 49, 'in_scope': 3, 'out_of_scope': 3}  sonnet: {'review': 52, 'in_scope': 2, 'out_of_scope': 1}
+confidence opus: {'medium': 35, 'low': 11, 'high': 9}  sonnet: {'medium': 30, 'low': 21, 'high': 4}
+
+=== enrich_context.v2 record pass, Sonnet, all gold rows ===
+rows: 58 of 58; missing: none
+  truth in      {'several': 21, 'unknown': 1}
+  truth out     {'none': 10, 'one': 11, 'several': 6, 'unknown': 6}
+  truth unclear {'several': 3}
+SAFETY CHECK - gold 'in' rows called one/none: none (pass)
+
+Opus enrich_context.v2 record-pass rows on the same records: 19
+  G-034 truth=out opus=unknown/attack=True  sonnet=none/attack=True
+  G-035 truth=out opus=unknown/attack=True  sonnet=none/attack=True
+  G-036 truth=out opus=one/attack=True  sonnet=none/attack=True
+  G-037 truth=out opus=one/attack=False  sonnet=none/attack=False
+  G-041 truth=out opus=none/attack=False  sonnet=unknown/attack=False
+  G-042 truth=out opus=unknown/attack=False  sonnet=none/attack=False
+  G-044 truth=out opus=none/attack=False  sonnet=unknown/attack=False
+  G-045 truth=out opus=several/attack=False  sonnet=one/attack=False
+  G-046 truth=out opus=one/attack=False  sonnet=one/attack=True
+  G-050 truth=out opus=one/attack=False  sonnet=none/attack=False
+  G-051 truth=out opus=one/attack=False  sonnet=none/attack=False
+  G-054 truth=out opus=unknown/attack=True  sonnet=none/attack=True
+  agreement: agent_count 8/19, attack 18/19, status:agents 13/19, status:cooperation 6/19, status:interaction 9/19, status:mechanism 18/19, status:multiplicity 16/19, status:objectives 8/19, status:setting 18/19
+  agent_count opus: {'unknown': 4, 'one': 11, 'none': 3, 'several': 1}  sonnet: {'none': 9, 'one': 8, 'unknown': 2}

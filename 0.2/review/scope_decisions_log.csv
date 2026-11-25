@@ -1,0 +1,104 @@
+mig_key,source_id,source_key,decision,reason,decided_on,sheet_generated_on
+MIG-0028,aiid,7,in,clear case of emerging multiagent conflict,2026-11-23,2026-11-23
+MIG-0029,aiid,28,in,included in hammond et al as an example,2026-11-23,2026-11-23
+MIG-0030,aiid,243,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0031,aiid,528,in,,2026-11-23,2026-11-23
+MIG-0032,aiid,602,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0090,aiid,721,out,not enough evidence to decide on failure mode or risk factor,2026-11-23,2026-11-23
+MIG-0033,aiid,779,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0034,aiid,794,in,,2026-11-23,2026-11-23
+MIG-0035,aiid,866,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0157,aiid,909,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0160,aiid,916,out,,2026-11-23,2026-11-23
+MIG-0168,aiid,929,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0036,aiid,954,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0187,aiid,967,out,,2026-11-23,2026-11-23
+MIG-0037,aiid,1037,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0003,aiid,1054,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0038,aiid,1060,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0283,aiid,1201,out,,2026-11-23,2026-11-23
+MIG-0312,aiid,1263,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0313,aiid,1268,out,,2026-11-23,2026-11-23
+MIG-0353,aiid,1368,out,,2026-11-23,2026-11-23
+MIG-0360,aiid,1395,out,,2026-11-23,2026-11-23
+MIG-0396,aiid,1534,out,,2026-11-23,2026-11-23
+MIG-0399,aiid,1556,out,,2026-11-23,2026-11-23
+MIG-0404,aiid,1580,out,,2026-11-23,2026-11-23
+MIG-0410,aiid,1588,out,,2026-11-23,2026-11-23
+MIG-0020,aiid,1604,in,"OpenAI postmortem: >1k agents coordinated through self-built infrastructure, emergent goals, unsanctioned access to HF",2026-11-23,2026-11-23
+MIG-0040,aiid,1633,in,,2026-11-23,2026-11-23
+MIG-0019,aiid,1646,in,,2026-11-23,2026-11-23
+MIG-0421,aiid,1659,out,,2026-11-23,2026-11-23
+MIG-0016,aiid,1668,in,,2026-11-23,2026-11-23
+MIG-0428,aiid,1692,out,,2026-11-23,2026-11-23
+MIG-0041,aiid,1731,in,,2026-11-23,2026-11-23
+MIG-0043,aiid,1766,in,,2026-11-23,2026-11-23
+MIG-0045,aiid,1779,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0046,aiid,1781,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0047,aiid,1782,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0048,aiid,1789,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0049,aiid,1790,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0050,aiid,1794,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0051,aiid,1796,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0017,aiid,1797,in,,2026-11-23,2026-11-23
+MIG-0052,aiid,1799,in,,2026-11-23,2026-11-23
+MIG-0016,aiid,1800,in,not possible to assign failure mode but clearly benefits from multi-agentic setup (possible risk instance),2026-11-23,2026-11-23
+MIG-0441,aiid,1815,out,,2026-11-23,2026-11-23
+MIG-0053,aiid,1828,in,,2026-11-23,2026-11-23
+MIG-0055,aiid,44,unclear,,2026-11-23,2026-11-23
+MIG-0056,aiid,49,unclear,,2026-11-23,2026-11-23
+MIG-0057,aiid,125,unclear,,2026-11-23,2026-11-23
+MIG-0060,aiid,366,unclear,,2026-11-23,2026-11-23
+MIG-0061,aiid,376,out,,2026-11-23,2026-11-23
+MIG-0092,aiid,725,out,,2026-11-23,2026-11-23
+MIG-0106,aiid,761,out,,2026-11-23,2026-11-23
+MIG-0107,aiid,774,out,,2026-11-23,2026-11-23
+MIG-0116,aiid,803,out,,2026-11-23,2026-11-23
+MIG-0127,aiid,833,out,,2026-11-23,2026-11-23
+MIG-0133,aiid,846,out,,2026-11-23,2026-11-23
+MIG-0141,aiid,875,out,,2026-11-23,2026-11-23
+MIG-0151,aiid,894,out,,2026-11-23,2026-11-23
+MIG-0197,aiid,994,out,,2026-11-23,2026-11-23
+MIG-0199,aiid,1001,out,,2026-11-23,2026-11-23
+MIG-0205,aiid,1015,out,,2026-11-23,2026-11-23
+MIG-0207,aiid,1017,out,,2026-11-23,2026-11-23
+MIG-0210,aiid,1020,out,,2026-11-23,2026-11-23
+MIG-0218,aiid,1044,out,,2026-11-23,2026-11-23
+MIG-0221,aiid,1055,out,,2026-11-23,2026-11-23
+MIG-0258,aiid,1129,out,,2026-11-23,2026-11-23
+MIG-0262,aiid,1135,out,,2026-11-23,2026-11-23
+MIG-0271,aiid,1154,out,,2026-11-23,2026-11-23
+MIG-0039,aiid,1326,in,,2026-11-23,2026-11-23
+MIG-0349,aiid,1359,out,,2026-11-23,2026-11-23
+MIG-0371,aiid,1422,out,,2026-11-23,2026-11-23
+MIG-0380,aiid,1466,unclear,,2026-11-23,2026-11-23
+MIG-0385,aiid,1481,unclear,,2026-11-23,2026-11-23
+MIG-0386,aiid,1485,out,,2026-11-23,2026-11-23
+MIG-0388,aiid,1492,unclear,,2026-11-23,2026-11-23
+MIG-0394,aiid,1507,out,,2026-11-23,2026-11-23
+MIG-0400,aiid,1559,out,,2026-11-23,2026-11-23
+MIG-0408,aiid,1586,out,,2026-11-23,2026-11-23
+MIG-0411,aiid,1589,out,,2026-11-23,2026-11-23
+MIG-0414,aiid,1594,out,,2026-11-23,2026-11-23
+MIG-0415,aiid,1618,out,,2026-11-23,2026-11-23
+MIG-0418,aiid,1630,out,,2026-11-23,2026-11-23
+MIG-0423,aiid,1662,out,,2026-11-23,2026-11-23
+MIG-0427,aiid,1687,out,,2026-11-23,2026-11-23
+MIG-0430,aiid,1702,out,,2026-11-23,2026-11-23
+MIG-0431,aiid,1707,out,,2026-11-23,2026-11-23
+MIG-0432,aiid,1710,out,,2026-11-23,2026-11-23
+MIG-0434,aiid,1715,out,,2026-11-23,2026-11-23
+MIG-0435,aiid,1719,out,,2026-11-23,2026-11-23
+MIG-0042,aiid,1734,in,,2026-11-23,2026-11-23
+MIG-0044,aiid,1774,in,,2026-11-23,2026-11-23
+MIG-0054,aiid,25,out,,2026-11-23,2026-11-23
+MIG-0064,aiid,635,out,,2026-11-23,2026-11-23
+MIG-0179,aiid,953,out,,2026-11-23,2026-11-23
+MIG-0200,aiid,1004,out,,2026-11-23,2026-11-23
+MIG-0201,aiid,1006,out,,2026-11-23,2026-11-23
+MIG-0301,aiid,1235,out,,2026-11-23,2026-11-23
+MIG-0405,aiid,1581,out,,2026-11-23,2026-11-23
+MIG-0115,aiid,800,out,,2026-11-23,2026-11-23
+MIG-0118,aiid,809,out,,2026-11-23,2026-11-23
+MIG-0174,aiid,945,out,,2026-11-23,2026-11-23
+MIG-0265,aiid,1142,out,,2026-11-23,2026-11-23

@@ -1,0 +1,2227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Patch</title>
+<style>
+/* Two bits. Ink and paper carry everything that matters; the two tones between them are
+   only for quiet things: c1 the desktop pattern, c2 the dot grid. The Colours window sets
+   all four inline on <html>, which overrides both blocks below. */
+:root {
+  --c0: #000000; --c1: #555555; --c2: #a8a8a8; --c3: #ffffff;
+  --ink: var(--c0); --paper: var(--c3); color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --c0: #e9e9e4; --c1: #8a8a86; --c2: #505050; --c3: #101010; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --c0: #e9e9e4; --c1: #8a8a86; --c2: #505050; --c3: #101010; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: 12px/1.35 Geneva, "Lucida Grande", Verdana, "DejaVu Sans", sans-serif;
+  color: var(--ink);
+  background-color: var(--paper);
+  /* the desktop: a 50% grey made of pixels, in the dark mid-tone so it stays behind */
+  background-image: repeating-conic-gradient(var(--c1) 0 25%, var(--paper) 0 50%);
+  background-size: 2px 2px;
+  display: flex; flex-direction: column;
+  -webkit-font-smoothing: none; font-smooth: never;
+}
+button, input { font: inherit; color: inherit; }
+code, .mono { font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 11px; }
+
+/* ---- the strip of commands across the top ---- */
+.bar {
+  background: var(--paper); border-bottom: 1px solid var(--ink);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 10px;
+}
+.bar h1 { font-size: 12px; margin: 0 10px 0 0; letter-spacing: .04em; text-transform: uppercase; }
+.bar .sp { flex: 1 1 10px; }
+.bar .grp { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--ink); padding: 2px 6px 2px 4px; }
+.bar .glabel { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; background: var(--ink); color: var(--paper); padding: 1px 5px; }
+.bar .gnote { font-size: 10.5px; max-width: 340px; }
+.btn {
+  background: var(--paper); border: 1px solid var(--ink); border-radius: 4px;
+  padding: 2px 9px; min-height: 22px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover:not(:disabled), .btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.btn:disabled { cursor: not-allowed; border-style: dashed; opacity: .55; }
+.btn.strong { font-weight: bold; box-shadow: 1px 1px 0 var(--ink); }
+.btn:focus-visible, .node:focus-visible, input:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.seg { display: inline-flex; }
+.seg .btn { border-radius: 0; margin-left: -1px; }
+.seg .btn:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+.seg .btn:last-child { border-radius: 0 4px 4px 0; }
+
+/* ---- a window ---- */
+.win {
+  background: var(--paper); border: 1px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink); color: var(--ink);
+}
+.win > header {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--ink); color: var(--paper); padding: 2px 6px; min-height: 20px;
+  font-weight: bold; letter-spacing: .03em;
+}
+.win > header .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.closebox {
+  width: 13px; height: 13px; padding: 0; flex: none; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--paper); outline: 1px solid var(--ink);
+}
+.closebox:hover { background: var(--ink); }
+.closebox:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ---- the map and the docked run panel, side by side ---- */
+.main { flex: 1; min-height: 0; display: flex; }
+#patchwin { flex: 1; min-width: 0; min-height: 0; margin: 10px; display: flex; flex-direction: column; }
+#scroller {
+  flex: 1; min-height: 0; overflow: auto; position: relative;
+  /* the dot grid belongs to the whole viewing area, not to the drawing, so it fills the
+     window at any zoom; `local` makes it scroll with the boxes, and setZoom() scales the
+     spacing so the dots stay in step with them */
+  background-image: radial-gradient(circle at 1px 1px, var(--c2) 1px, transparent 1.3px);
+  background-size: 16px 16px; background-attachment: local;
+  scrollbar-color: var(--c1) var(--c3);
+}
+#sizer { position: relative; }
+#canvas {
+  position: absolute; left: 0; top: 0; width: 1560px; height: 1220px; transform-origin: 0 0; user-select: none;
+}
+#wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.wire { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: miter; }
+.wire.hot { stroke-width: 2.5; }
+/* the wide, invisible grip over each wire: drag a run to move it */
+.whit { fill: none; stroke: transparent; stroke-width: 11; pointer-events: stroke; touch-action: none; }
+.whit:hover { stroke: var(--ink); stroke-opacity: .08; }
+.wire.hand { stroke-dasharray: 6 4; }
+.wire.unbuilt { stroke-dasharray: 1.5 4; }
+/* a reference: a rule or a list is read; no records travel this wire */
+.wire.ref { stroke: var(--c1); stroke-width: 1; stroke-dasharray: 2 3; }
+/* a branch: the same records, sent on a second, descriptive path; not part of the split */
+.wire.branch { stroke-dasharray: 10 3 2 3; }
+.wire.flow { stroke-width: 3.5; stroke-dasharray: 7 5; animation: flow .7s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -12; } }
+.wlabel { font-size: 10px; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 5px; stroke-linejoin: round; }
+
+/* a section: a boundary drawn round its boxes, which follows them when they move */
+.frame { position: absolute; border: 1px solid var(--ink); pointer-events: none; }
+.frame.sub { border-style: dashed; }
+.flabel {
+  position: absolute; left: 8px; top: -9px; pointer-events: auto; cursor: grab; touch-action: none;
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+  background: var(--paper); border: 1px solid var(--ink); padding: 1px 6px;
+}
+.frame.sub .flabel { border-style: dashed; letter-spacing: .08em; }
+.flabel:hover, .flabel.dragging { background: var(--ink); color: var(--paper); }
+.flabel.dragging { cursor: grabbing; }
+/* the rubber band drawn while selecting several boxes */
+.marquee {
+  position: absolute; pointer-events: none; border: 1px dashed var(--ink);
+  background-image: radial-gradient(circle at 1px 1px, var(--ink) 0.7px, transparent 1px); background-size: 4px 4px;
+}
+
+/* ---- an object in the patch ---- */
+.node {
+  position: absolute; width: 172px; background: var(--paper); border: 1px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink); cursor: grab; user-select: none; touch-action: none;
+}
+.node.dragging { cursor: grabbing; }
+.node .nt {
+  background: var(--ink); color: var(--paper); padding: 2px 6px; font-weight: bold;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.node .nb { padding: 5px 6px 4px; min-height: 50px; }
+.node .num { font-size: 19px; font-weight: bold; line-height: 1.05; }
+.node .cap { font-size: 10.5px; }
+/* a number that is not a count of records (sources, patterns, a score): set apart */
+.node .unit { display: none; margin-top: 3px; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; border: 1px dotted var(--ink); padding: 0 3px; width: max-content; max-width: 100%; }
+.node.meta .unit { display: block; }
+.node.meta .num { font-style: italic; font-weight: normal; }
+/* the warning shown when the map's numbers do not add up */
+#flowwarn { margin: 0; padding: 4px 8px; border-bottom: 2px solid var(--ink); background: var(--paper); font-weight: bold; }
+#flowwarn ul { margin: 2px 0 0; padding-left: 18px; font-weight: normal; }
+/* when the numbers were counted, from what, and whether every sum holds */
+#mapinfo { margin: 0; padding: 3px 8px; border-bottom: 1px dotted var(--ink); font-size: 11px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+#mapinfo .ok { border: 1px solid var(--ink); padding: 0 5px; }
+#mapinfo .bad { background: var(--ink); color: var(--paper); padding: 0 5px; font-weight: bold; }
+#sheet .note.bad { font-weight: bold; }
+#sheet .next { border-left: 3px solid var(--ink); padding-left: 6px; }
+#sheet .flowline { margin: 2px 0; }
+#sheet .flowline code { display: inline; border: 0; padding: 0; }
+#sheet .tech { display: block; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 10px; font-weight: normal; }
+/* who or what does the work: a small tag at the foot of every box */
+.node .by {
+  margin-top: 4px; border-top: 1px dotted var(--ink); padding-top: 2px;
+  font-size: 9px; letter-spacing: .09em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* built and waiting: a pin-striped title */
+.node.waiting .nt {
+  color: var(--ink);
+  background: repeating-linear-gradient(0deg, var(--ink) 0 1px, var(--paper) 1px 3px);
+}
+.node.waiting .nt span { background: var(--paper); padding: 0 4px; }
+/* not built: an outline only */
+.node.unbuilt { border-style: dashed; box-shadow: none; }
+.node.unbuilt .nt { background: var(--paper); color: var(--ink); border-bottom: 1px dashed var(--ink); }
+/* done by a person: rounded, like a button */
+.node.hand { border-radius: 10px; }
+.node.hand .nt { border-radius: 8px 8px 0 0; }
+/* a store of data: a sheet with its corner turned */
+.node.doc .nt { padding-right: 20px; }
+.node.doc::after {
+  content: ""; position: absolute; top: -1px; right: -1px; width: 14px; height: 14px;
+  background: linear-gradient(225deg, var(--paper) 0 49%, var(--ink) 49% 56%, var(--paper) 56%);
+  border-left: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
+}
+/* an end point: a small terminal box with a heavy rule on its right */
+.node.end { width: 136px; border-right-width: 5px; }
+.node.end .nb { min-height: 0; }
+.node.picked { outline: 2px solid var(--ink); outline-offset: 3px; }
+.port { position: absolute; width: 7px; height: 7px; background: var(--paper); border: 1px solid var(--port, var(--ink)); pointer-events: none; }
+.port.in { background: var(--port, var(--ink)); }
+
+/* ---- a real update, painted on the boxes ---- */
+.node .rsb {
+  display: none; position: absolute; right: -1px; top: -16px; height: 14px; line-height: 12px;
+  font-size: 9px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+  background: var(--paper); color: var(--ink); border: 1px solid var(--ink); padding: 0 4px;
+}
+.node[data-rs] .rsb { display: block; }
+.node.doc[data-rs] .rsb { right: 16px; }
+.node[data-rs="pending"] { outline: 1px dashed var(--ink); outline-offset: 4px; }
+.node[data-rs="running"] .nt { color: var(--ink); background: repeating-linear-gradient(45deg, var(--ink) 0 3px, var(--paper) 3px 7px); background-size: 9.9px 9.9px; animation: march .6s linear infinite; }
+.node[data-rs="running"] .nt span { background: var(--paper); padding: 0 4px; }
+.node[data-rs="running"] .rsb { background: var(--ink); color: var(--paper); }
+@keyframes march { to { background-position: 9.9px 0; } }
+.node[data-rs="waiting"] { outline: 3px solid var(--ink); outline-offset: 3px; animation: pulse 1s ease-in-out infinite; z-index: 3; }
+.node[data-rs="waiting"] .rsb, .node[data-rs="failed"] .rsb { background: var(--ink); color: var(--paper); font-weight: bold; }
+@keyframes pulse { 50% { outline-offset: 9px; } }
+.node[data-rs="failed"] { outline: 3px double var(--ink); outline-offset: 3px; animation: pulse 1.4s ease-in-out infinite; z-index: 3; }
+.node[data-rs="failed"] .nb { background: repeating-linear-gradient(-45deg, transparent 0 5px, var(--c2) 5px 6px); }
+.node[data-rs="done"] .nb { box-shadow: inset 4px 0 0 var(--ink); }
+.node[data-rs="skipped"] { opacity: .45; }
+.node[data-rs="placeholder"] { opacity: .7; border-style: dashed; }
+/* a number that just changed while a run is followed: the light tone behind it, fading out */
+.node .num { transition: background-color .8s ease-out; }
+.node.bump .num { background: var(--c2); transition: none; }
+
+/* ---- the property sheet ---- */
+#sheet { position: fixed; right: 22px; bottom: 44px; width: 350px; max-height: 72vh; display: none; flex-direction: column; z-index: 5; }
+#sheet.open { display: flex; }
+#sheet > header { cursor: move; touch-action: none; }
+#sheet .body { overflow: auto; padding: 8px 10px 10px; }
+.win h3 { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; margin: 10px 0 2px; border-bottom: 1px solid var(--ink); }
+.win .body > h3:first-child { margin-top: 0; }
+#sheet p { margin: 3px 0; }
+#sheet .big { font-size: 13px; }
+#sheet code, .win code.block { display: block; border: 1px dotted var(--ink); padding: 3px 5px; overflow-wrap: anywhere; }
+#sheet table, #runpanel table { border-collapse: collapse; width: 100%; }
+#sheet td, #runpanel td { padding: 1px 0; vertical-align: top; }
+#sheet td:last-child, #runpanel td:last-child { text-align: right; font-weight: bold; white-space: nowrap; padding-left: 8px; }
+#sheet .kept { margin: 5px 0; }
+#sheet .kept a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; font-weight: bold; }
+#sheet .kept a:hover, #sheet .kept a:focus-visible { background: var(--ink); color: var(--paper); outline: none; }
+#sheet .kept a.intest { font-weight: normal; font-size: 10.5px; margin-left: 8px; }
+#sheet .kept .path { display: block; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 10.5px; overflow-wrap: anywhere; }
+#sheet ol, #sheet ul { margin: 3px 0; padding-left: 18px; }
+#sheet li { margin: 3px 0; }
+#sheet .terms { display: flex; flex-wrap: wrap; gap: 3px; margin: 3px 0; }
+#sheet .terms code { display: inline-block; padding: 0 4px; }
+.pill.none { margin-left: 6px; border-style: dashed; }
+.pill { display: inline-block; border: 1px solid var(--ink); padding: 0 5px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.pill.inv { background: var(--ink); color: var(--paper); }
+.note { font-size: 10.5px; }
+
+#legend { position: absolute; left: 1500px; top: 880px; width: 260px; z-index: 2; }
+#legend > header { cursor: grab; touch-action: none; }
+#legend.dragging > header { cursor: grabbing; }
+#legend .body { padding: 6px 8px; display: grid; grid-template-columns: 46px 1fr; gap: 6px 8px; align-items: center; }
+#legend .lgsub { grid-column: 1 / -1; margin-top: 4px; padding-top: 4px; border-top: 1px dotted var(--ink); font-size: 9px; letter-spacing: .09em; text-transform: uppercase; }
+#legend .lgline { grid-column: 1 / -1; }
+#legend .lgline .tag { font-weight: normal; font-size: 9px; letter-spacing: .09em; text-transform: uppercase; border-top: 1px dotted var(--ink); margin-right: 4px; }
+.sw { height: 14px; border: 1px solid var(--ink); background: var(--paper); }
+.sw.run { background: var(--ink); }
+.sw.wait { background: repeating-linear-gradient(0deg, var(--ink) 0 1px, var(--paper) 1px 3px); }
+.sw.un { border-style: dashed; }
+.sw.hand { border-radius: 7px; }
+.sw.docsw { background: linear-gradient(225deg, var(--paper) 0 30%, var(--ink) 30% 38%, var(--paper) 38%); }
+.sw.endsw { border-right-width: 5px; }
+.sw.line { border: 0; border-top: 2px dashed var(--ink); height: 0; background: none; }
+.sw.dots { border: 0; border-top: 2px dotted var(--ink); height: 0; background: none; }
+.sw.solid { border: 0; border-top: 2px solid var(--ink); height: 0; background: none; }
+.sw.refsw { border: 0; border-top: 1px dotted var(--c1); height: 0; background: none; }
+.sw.branchsw { border: 0; height: 2px; background: repeating-linear-gradient(90deg, var(--ink) 0 10px, transparent 10px 13px, var(--ink) 13px 15px, transparent 15px 18px); }
+.sw.flowsw { position: relative; border: 0; border-top: 1px solid var(--ink); height: 0; background: none; overflow: visible; }
+.sw.flowsw::before, .sw.flowsw::after { content: ""; position: absolute; top: -4px; width: 7px; height: 7px; border: 1px solid var(--ink); box-sizing: border-box; }
+.sw.flowsw::before { left: 0; background: var(--paper); }
+.sw.flowsw::after { right: 0; background: var(--ink); }
+.sw.metasw { border-style: dotted; font-size: 9px; font-style: italic; text-align: center; line-height: 12px; }
+
+/* ---- the message line ---- */
+#msg {
+  background: var(--paper); border-top: 1px solid var(--ink); padding: 4px 10px; min-height: 26px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* ---- small floating windows: colours and help ---- */
+#colours, #help { position: fixed; right: 22px; top: 44px; width: 300px; max-height: calc(100vh - 56px); display: none; flex-direction: column; z-index: 6; }
+#help { width: 380px; }
+#colours.open, #help.open { display: flex; }
+#colours .body, #help .body { overflow: auto; padding: 8px 10px 10px; }
+#help p { margin: 3px 0; }
+#help dl { display: grid; grid-template-columns: 46px 1fr; gap: 5px 8px; margin: 4px 0; align-items: center; }
+#help dl.words { grid-template-columns: 110px 1fr; align-items: start; }
+#help dd { margin: 0; }
+#help dt.tag { font-size: 9px; letter-spacing: .09em; text-transform: uppercase; border-top: 1px dotted var(--ink); padding-top: 2px; }
+#colours h3 { margin: 10px 0 4px; }
+#colours .swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+#colours label { display: flex; align-items: center; gap: 6px; cursor: pointer; min-width: 0; }
+#colours input[type="color"] {
+  width: 34px; height: 22px; padding: 1px; flex: none; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--ink); border-radius: 0;
+}
+#colours input[type="color"]:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+#colours .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+#colours .chip { display: inline-block; width: 10px; height: 10px; border: 1px solid currentColor; margin-right: 5px; vertical-align: -1px; }
+#colours .foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+#colours .foot .note { flex: 1; }
+
+/* ---- the run panel: docked beside the map while an update runs ---- */
+#runpanel { width: 360px; flex: none; margin: 10px 10px 10px 0; display: none; flex-direction: column; min-height: 0; }
+#runpanel.open { display: flex; }
+#runpanel .rbody { overflow: auto; padding: 8px 10px 10px; flex: 1; min-height: 0; }
+#runstatus { margin: 0 0 6px; font-size: 13px; font-weight: bold; }
+#runlost { margin: 0 0 6px; padding: 3px 6px; border: 2px dashed var(--ink); font-weight: bold; }
+#runopts { font-size: 10.5px; margin-bottom: 6px; }
+#runsteps { list-style: none; margin: 0; padding: 0; }
+.rstep { border: 1px solid var(--ink); margin: 0 0 4px; background: var(--paper); }
+.rstep > button.rhead {
+  display: grid; grid-template-columns: 92px 1fr; gap: 1px 6px; align-items: center; width: 100%;
+  background: none; border: 0; padding: 3px 5px; cursor: pointer; text-align: left;
+}
+.rstep > button.rhead:hover { background: var(--ink); color: var(--paper); }
+.rstep > button.rhead:hover .rbadge { border-color: var(--paper); }
+.rstep > button.rhead:focus-visible { outline: 2px dotted var(--ink); outline-offset: -3px; }
+.rstep .rtitle { font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rstep .rsum { grid-column: 2; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rbadge { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--ink); padding: 0 4px; text-align: center; white-space: nowrap; }
+.rstep[data-st="running"] .rbadge, .rstep[data-st="waiting"] .rbadge, .rstep[data-st="failed"] .rbadge { background: var(--ink); color: var(--paper); font-weight: bold; }
+.rstep[data-st="pending"] .rbadge, .rstep[data-st="placeholder"] .rbadge { border-style: dashed; }
+.rstep[data-st="skipped"], .rstep[data-st="pending"] { opacity: .6; }
+.rstep[data-st="running"] { border-width: 2px; }
+.rstep[data-st="waiting"], .rstep[data-st="failed"] { border-width: 3px; animation: pulse2 1s ease-in-out infinite; }
+@keyframes pulse2 { 50% { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--ink); } }
+.rstep .rdetail { display: none; padding: 4px 6px 6px; border-top: 1px dotted var(--ink); }
+.rstep.open .rdetail { display: block; }
+.rstep .rlog { margin: 4px 0 0; padding: 4px 5px; border: 1px dotted var(--ink); max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask { border: 2px solid var(--ink); padding: 6px; margin: 2px 0 6px; }
+.ask .asktext { margin: 0 0 6px; font-size: 12.5px; }
+.ask .cmd { display: flex; gap: 4px; margin: 0 0 6px; }
+.ask .cmd input { flex: 1; min-width: 0; border: 1px solid var(--ink); background: var(--paper); padding: 2px 4px; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 11px; }
+.ask .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#runsummary h3 { margin-top: 10px; }
+#runsummary ul { margin: 3px 0; padding-left: 16px; }
+.rnums { margin: 3px 0; font-size: 10.5px; }
+.rnums > p { margin: 2px 0; font-weight: bold; }
+.rnums details { margin-top: 2px; }
+.rnums summary { cursor: pointer; }
+.rnums summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.rfoot { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-top: 1px solid var(--ink); }
+.rfoot .note { flex: 1; }
+
+/* ---- a test run: the same panel, marked so it cannot pass for an update ----
+   The palette has only four tones, so the mark is a pattern, not a colour: hazard stripes
+   on the title bars, a dashed frame and a "Test run" tag wherever a run is shown. */
+.testmark {
+  display: inline-block; flex: none; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; font-weight: bold;
+  background: var(--paper); color: var(--ink); border: 1px solid var(--ink); padding: 0 5px; vertical-align: 1px;
+}
+#runpanel.test { border: 2px dashed var(--ink); }
+#runpanel.test > header, #patchwin.test > header, #tsetup > header {
+  background: repeating-linear-gradient(-45deg, var(--ink) 0 8px, var(--c1) 8px 16px);
+}
+#runpanel.test > header .t, #patchwin.test > header .t, #tsetup > header .t { text-shadow: 1px 1px 0 var(--ink), -1px -1px 0 var(--ink); }
+#runpanel.test #runstatus { border: 1px dashed var(--ink); padding: 3px 6px; }
+#runtest:empty { display: none; }
+#runtest { margin: 0 0 8px; padding: 4px 6px; border: 1px dashed var(--ink); font-size: 10.5px; }
+#runtest p { margin: 2px 0; }
+#runtest .ws { font-family: "Monaco", "DejaVu Sans Mono", monospace; overflow-wrap: anywhere; }
+#runtest a { color: var(--ink); font-weight: bold; text-decoration: underline; text-underline-offset: 2px; }
+#runtest a:hover, #runtest a:focus-visible { background: var(--ink); color: var(--paper); outline: none; }
+#runtest details { margin-top: 4px; }
+#runtest summary { cursor: pointer; font-weight: bold; }
+#runtest summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+#runtest ul { margin: 3px 0 0; padding-left: 14px; }
+#runtest li { margin: 3px 0; }
+#runtest li code { margin-right: 4px; }
+.ask .testnote { margin: 0 0 6px; padding: 3px 5px; border: 1px dashed var(--ink); font-size: 10.5px; }
+.ask .testnote .testmark { margin-right: 5px; }
+.ask .peek { margin: 0 0 6px; }
+.ask .guide { margin: 0 0 6px; padding: 3px 5px; border: 1px dotted var(--ink); font-size: 10.5px; }
+.ask .guide summary { cursor: pointer; font-weight: bold; }
+.ask .guide summary:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
+.ask .guide h3 { display: none; }
+.ask .guide ol, .ask .guide ul { margin: 3px 0; padding-left: 18px; }
+.ask .guide li code, #sheet li code { display: inline; border: 0; padding: 0; overflow-wrap: anywhere; }
+.ask .peek a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; font-weight: bold; }
+.ask .peek a:hover, .ask .peek a:focus-visible { background: var(--ink); color: var(--paper); outline: none; }
+.ask .peek .path { display: block; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 10.5px; overflow-wrap: anywhere; }
+
+/* ---- the set-up dialog ---- */
+dialog.win { padding: 0; max-width: min(520px, calc(100vw - 24px)); width: 520px; }
+dialog.win[open] { display: flex; flex-direction: column; }
+dialog::backdrop { background: rgba(0, 0, 0, .35); }
+dialog .body { padding: 10px 12px 12px; overflow: auto; }
+dialog fieldset { border: 1px solid var(--ink); margin: 0 0 10px; padding: 6px 10px 8px; }
+dialog legend { font-weight: bold; padding: 0 4px; }
+dialog label { display: block; margin: 4px 0; cursor: pointer; }
+input[type="radio"], input[type="checkbox"] { accent-color: var(--ink); }
+dialog .sub { margin: 2px 0 6px 22px; padding-left: 8px; border-left: 1px dotted var(--ink); }
+dialog .sub label { margin: 2px 0; }
+dialog input[type="text"] { width: 100%; border: 1px solid var(--ink); background: var(--paper); padding: 3px 5px; font-family: "Monaco", "DejaVu Sans Mono", monospace; font-size: 11px; }
+dialog input[type="text"]:disabled { border-style: dashed; opacity: .55; }
+dialog .note { margin: 3px 0; }
+dialog .lead { margin: 0 0 8px; }
+.setuperr:empty { display: none; }
+.setuperr { border: 2px solid var(--ink); padding: 4px 6px; font-weight: bold; margin: 0 0 8px; }
+dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 900px) {
+  .main { flex-direction: column; }
+  #runpanel { width: auto; margin: 0 10px 10px; max-height: 45vh; }
+}
+@media (max-width: 640px) {
+  #patchwin { margin: 6px; }
+  #sheet { left: 6px; right: 6px; bottom: 32px; width: auto; max-height: 55vh; }
+  #colours, #help { left: 6px; right: 6px; width: auto; }
+  #msg { white-space: normal; }
+  #runpanel { margin: 0 6px 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wire.flow, .node[data-rs] , .node[data-rs] .nt, .rstep { animation: none !important; }
+  .node .num { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="bar" role="toolbar" aria-label="Commands">
+  <h1>Mind the Interagent Gap</h1>
+  <span class="grp" role="group" aria-label="Test run: a dry run on made-up incidents, in a scratch folder">
+    <span class="glabel">Test run</span>
+    <button class="btn" id="tst" disabled aria-describedby="tstnote" title="A dry run: every step, on a handful of made-up incidents in a scratch folder. The project's files are not touched.">Test run&hellip;</button>
+    <span class="gnote" id="tstnote">Looking for the front end&hellip;</span>
+  </span>
+  <span class="grp" role="group" aria-label="Update: run the real pipeline">
+    <span class="glabel">Update</span>
+    <button class="btn strong" id="upd" disabled aria-describedby="srvnote" title="Run the real pipeline: reads and writes the project's files">Update&hellip;</button>
+    <span class="gnote" id="srvnote">Looking for the front end&hellip;</span>
+  </span>
+  <span class="seg" role="group" aria-label="Wording">
+    <button class="btn" id="plain" aria-pressed="true">Plain words</button>
+    <button class="btn" id="tech" aria-pressed="false">Technical</button>
+  </span>
+  <span class="sp"></span>
+  <span class="seg" role="group" aria-label="Zoom">
+    <button class="btn" id="zout" aria-label="Zoom out">&minus;</button>
+    <button class="btn" id="zfit">Fit</button>
+    <button class="btn" id="zin" aria-label="Zoom in">+</button>
+  </span>
+  <button class="btn" id="tidy" title="Put every box back where it started and square up every wire">Tidy</button>
+  <button class="btn" id="helpbtn" aria-pressed="false" aria-controls="help">How to read this map</button>
+  <button class="btn" id="legbtn" aria-pressed="true">Legend</button>
+  <button class="btn" id="colbtn" aria-pressed="false" aria-controls="colours" title="Choose the four colours of the palette">Colours</button>
+</div>
+
+<div class="main">
+<section class="win" id="patchwin" aria-label="Pipeline patch">
+  <header><span class="t" id="wintitle">Pipeline</span><span class="testmark" id="wintest" hidden title="The tags on the boxes come from the test run.">Test run on show</span></header>
+  <div id="mapinfo" role="status"></div>
+  <div id="flowwarn" role="alert" hidden></div>
+  <div id="scroller">
+    <div id="sizer">
+      <div id="canvas">
+        <svg id="wires" aria-hidden="true"></svg>
+    <aside class="win" id="legend" aria-label="Legend">
+      <header><span class="t">Legend</span></header>
+      <div class="body">
+        <span class="sw run"></span><span>Operational: its files hold output</span>
+        <span class="sw wait"></span><span>Built, no output yet</span>
+        <span class="sw un"></span><span>Not built yet: a placeholder</span>
+        <span class="sw hand"></span><span>Done by a person</span>
+        <span class="sw docsw"></span><span>A document or a store of files</span>
+        <span class="sw endsw"></span><span>End point: the record stops here</span>
+        <span class="sw flowsw"></span><span>Direction: from the hollow end into the filled end</span>
+        <span class="sw solid"></span><span>Passed on automatically</span>
+        <span class="sw line"></span><span>Hand-off to or from a person</span>
+        <span class="sw dots"></span><span>Not built yet</span>
+        <span class="sw branchsw"></span><span>The same records, also sent on a side path</span>
+        <span class="sw refsw"></span><span>Reads a rule or a list: no records travel</span>
+        <span class="sw metasw">36</span><span>Slanted number: counts something other than records; its tag says what</span>
+        <span class="lgsub">Run by, at the foot of a box</span>
+        <span class="lgline"><b class="tag">Script</b> a program, the same every time</span>
+        <span class="lgline"><b class="tag">Model + prompt</b> an AI model, run from Claude Code</span>
+        <span class="lgline"><b class="tag">Fixed rule</b> a rule in code: no judgement</span>
+        <span class="lgline"><b class="tag">Person</b> somebody reads and decides</span>
+        <span class="lgline"><b class="tag">Document</b> a file people write</span>
+        <span class="lgsub">Tags during an update</span>
+        <span class="lgline"><span class="pill inv">your turn</span> the run waits for you: the panel says what to do</span>
+        <span class="lgline"><span class="pill">pending</span> <span class="pill">running</span> <span class="pill">done</span> not started, going, finished</span>
+        <span class="lgline"><span class="pill">skipped</span> left out: not built yet, or you chose to skip it</span>
+        <span class="lgline"><span class="pill inv">failed</span> stopped with an error: the panel says which</span>
+      </div>
+    </aside>
+      </div>
+    </div>
+  </div>
+  <div id="msg" role="status" aria-live="polite"></div>
+</section>
+
+<aside class="win" id="runpanel" aria-label="Update in progress">
+  <header><span class="testmark" id="runmark" hidden>Test run</span><span class="t" id="runtitle">Update</span><button class="closebox" id="runclose" aria-label="Close the update panel"></button></header>
+  <div class="rbody" id="rbody">
+    <p id="runstatus" role="status" aria-live="polite"></p>
+    <p id="runlost" role="alert" hidden>Lost contact with the front end. Still trying&hellip; Is <code>python 0.2/pipeline/run.py serve</code> still running?</p>
+    <div id="runopts"></div>
+    <div id="runtest"></div>
+    <ol id="runsteps" aria-label="Steps of this update"></ol>
+    <div id="runsummary"></div>
+  </div>
+  <div class="rfoot">
+    <span class="note" id="runnote"></span>
+    <button class="btn" id="runcancel">Cancel update</button>
+  </div>
+</aside>
+</div>
+
+<aside class="win" id="sheet" aria-label="Details">
+  <header id="sheethead"><button class="closebox" id="sheetclose" aria-label="Close"></button><span class="t" id="sheettitle"></span></header>
+  <div class="body" id="sheetbody"></div>
+</aside>
+
+<aside class="win" id="colours" role="dialog" aria-labelledby="colourstitle">
+  <header><button class="closebox" id="colclose" aria-label="Close colours"></button><span class="t" id="colourstitle">Colours</span></header>
+  <div class="body">
+    <h3>Palette</h3>
+    <div class="swatches">
+      <label><input type="color" data-c="0"> Ink</label>
+      <label><input type="color" data-c="1"> Dark tone</label>
+      <label><input type="color" data-c="2"> Light tone</label>
+      <label><input type="color" data-c="3"> Paper</label>
+    </div>
+    <h3>Presets</h3>
+    <div class="presets" id="presets"></div>
+    <h3>Wire ends</h3>
+    <div class="foot">
+      <label><input type="color" id="portcol"> Square ends</label>
+      <span class="note" id="portnote"></span>
+      <button class="btn" id="portreset" title="Go back to the ink colour">Default</button>
+    </div>
+    <div class="foot">
+      <span class="note" id="colnote"></span>
+      <button class="btn" id="colreset" title="Go back to the default, which follows the system light or dark setting">Reset</button>
+    </div>
+  </div>
+</aside>
+
+<aside class="win" id="help" role="dialog" aria-labelledby="helptitle">
+  <header><button class="closebox" id="helpclose" aria-label="Close help"></button><span class="t" id="helptitle">How to read this map</span></header>
+  <div class="body">
+    <p>Each box is one step. A record travels left to right through four main sections: <b>1 Collect</b>, <b>2 Read</b>, <b>3 Judge</b>, <b>4 Record</b>. Two side sections sit beside them: <b>Discover</b>, not built yet, inside Collect; and <b>Test</b>, which checks the rules against an answer key. Click a box for how many records are there right now, where they go, what the step does, who or what runs it and where it is kept.</p>
+    <p>The words used everywhere are defined in <code>0.2/docs/glossary.md</code>. The main ones: a <b>record</b> is one source's account of one incident; a <b>candidate</b> is a record worth reading; a <b>reading</b> is our notes on what a source says, with quotes; a <b>dossier</b> is our own file on one incident; to <b>promote</b> a record is to make a dossier for it. <b>Gate 1</b> asks whether an incident is multi-agent; <b>Gate 2</b> asks what kind of failure it shows.</p>
+    <h3>The look of a box</h3>
+    <dl>
+      <dt class="sw run"></dt><dd>Operational: the files it writes hold output.</dd>
+      <dt class="sw wait"></dt><dd>Built, but its files hold no output yet.</dd>
+      <dt class="sw un"></dt><dd>Not built yet: a placeholder.</dd>
+      <dt class="sw hand"></dt><dd>Rounded corners: a person does this.</dd>
+      <dt class="sw docsw"></dt><dd>Turned corner: a document or a folder of files, not an action.</dd>
+      <dt class="sw endsw"></dt><dd>Heavy right edge: an end point. Records that reach it go no further.</dd>
+    </dl>
+    <h3>Run by</h3>
+    <p>The line at the foot of every box says who or what does the work:</p>
+    <dl class="words">
+      <dt class="tag">Script</dt><dd>A program in <code>0.2/pipeline/run.py</code>, the same every time.</dd>
+      <dt class="tag">Model + prompt</dt><dd>An AI model following written instructions in <code>0.2/prompts/</code>, run from Claude Code with <code>/classify-incidents</code>.</dd>
+      <dt class="tag">Fixed rule</dt><dd>A rule written in code, applied to facts already extracted. No judgement, no model.</dd>
+      <dt class="tag">Person</dt><dd>Somebody reads and decides.</dd>
+      <dt class="tag">Document</dt><dd>A file people write and the pipeline reads.</dd>
+    </dl>
+    <h3>The numbers on the boxes</h3>
+    <p><b>Most numbers on the map are numbers of records, over all sources.</b> A record is one source's account of one incident. The same incident can be told by several sources, so it can be several records, and one dossier can list them all. A record counts once however often it was read or how many suggestions it has: the numbers never count lines in a file.</p>
+    <p>Numbers go where the records go. Each wire carries the number of records that travel along it. At every box, what comes in equals what goes on, plus what stops there, plus what is still waiting there. Click a box to see its number split by source and by the groups that matter there, where it comes from, where it goes and which files it is counted from. The line above the map says how many of these sums hold; if any fails, it turns into a warning that lists each one.</p>
+    <p>The exceptions are the boxes that show something other than records: the number of sources, the size of the Risk Instances Repo, a score. Their number is slanted and carries a dotted tag that says what it counts. Where a box shows a word (“rule”) it has no count of its own.</p>
+    <p>The numbers are counted from the project's files by <code>python 0.2/pipeline/run.py index</code>, and the page is drawn from them by <code>run.py viz</code>. The line above the map says when they were counted. While an update runs, they are counted again each time a step finishes or waits for you, and the boxes change in place.</p>
+    <h3>Wires</h3>
+    <dl>
+      <dt class="sw solid"></dt><dd>Records passed on automatically. The label gives how many.</dd>
+      <dt class="sw line"></dt><dd>Records handed to or from a person.</dd>
+      <dt class="sw branchsw"></dt><dd>The same records, also sent on a side path (naming the pattern). Not part of the box's split.</dd>
+      <dt class="sw refsw"></dt><dd>A rule or a list is read. No records travel.</dd>
+      <dt class="sw dots"></dt><dd>Not built yet.</dd>
+    </dl>
+    <h3>Two ways to run it</h3>
+    <p>Both can be started from the command line, <code>python 0.2/pipeline/run.py update</code> or <code>run.py testrun</code>, or from this page once <code>python 0.2/pipeline/run.py serve</code> is running: open the address it prints. Only the page shows the tags and the panel with Continue and Skip. On the command line an update stops at a step that needs a person and says what to do; a test run answers every such step itself.</p>
+    <p><b>Update</b> runs the real pipeline and changes the project's files. While it runs, each box gets a tag: <span class="pill">pending</span> <span class="pill inv">running</span> <span class="pill inv">your turn</span> <span class="pill">done</span> <span class="pill inv">failed</span> <span class="pill">skipped</span> <span class="pill">not built yet</span>. “Your turn” means the run is waiting for you; the panel on the right says what to do.</p>
+    <p><b>Test run</b> is a dry run. The same steps run, with the same panel, tags and choices, on a handful of made-up incidents in a scratch folder. Your project's files are not touched and nothing is downloaded. Where a step would wait for Claude Code or for you, Continue puts sample work in place so you can see what happens next; Skip shows what happens without it.</p>
+    <p>A test run is marked everywhere it shows: <span class="testmark">Test run</span> in the panel and the window title, and striped title bars. While its panel is open, the numbers on the boxes are the test run's, counted in its scratch folder: sample figures, not your project's. The window title says so. Close the panel and the boxes show your project's numbers again.</p>
+  </div>
+</aside>
+
+<dialog class="win" id="setup" aria-labelledby="setuptitle">
+  <header><span class="t" id="setuptitle">Update: run the real pipeline</span><button class="closebox" id="setupclose" type="button" aria-label="Close without starting"></button></header>
+  <form class="body" id="setupform" novalidate>
+    <fieldset>
+      <legend>1. What to collect</legend>
+      <label><input type="radio" name="scope" value="baseline" checked> Refresh the AIID baseline only</label>
+      <div class="sub" role="group" aria-label="Which copy of AIID">
+        <label><input type="radio" name="fetch" value="saved" id="fsaved" checked> <span id="savedlabel">Use the saved AIID copy</span></label>
+        <label><input type="radio" name="fetch" value="refetch" id="frefetch"> Download it again <span class="note">(needs the AIID token and the network)</span></label>
+        <p class="note" id="tokennote"></p>
+      </div>
+      <label><input type="radio" name="scope" value="discover"> Also discover other sources <span class="pill none">not built yet</span></label>
+      <p class="note sub">Not built yet: these steps will be shown and skipped. The AIID copy choice above still applies.</p>
+    </fieldset>
+    <fieldset>
+      <legend>2. Add incidents by hand?</legend>
+      <label><input type="radio" name="manual" value="no" checked> No</label>
+      <label><input type="radio" name="manual" value="yes"> Yes, from a folder on this computer:</label>
+      <div class="sub">
+        <label for="manualdir" class="note">Folder path</label>
+        <input type="text" id="manualdir" placeholder="/home/you/incident-notes" disabled autocomplete="off" spellcheck="false">
+        <p class="note">Accepted: one <code>.txt</code> or <code>.md</code> file per incident, or several in one file separated by headings (<code>## </code>). The title is the heading or the first line; the first date (2026-06-18, 2026-06 or 2026) and the first web address found become the date and the link. The prefilter queues them on your word; they skip both readings and count as in scope on your word.</p>
+      </div>
+    </fieldset>
+    <p class="setuperr" id="setuperr" role="alert"></p>
+    <div class="foot">
+      <button type="button" class="btn" id="setupcancel">Cancel</button>
+      <button type="submit" class="btn strong" id="setupstart">Start update</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="win" id="tsetup" aria-labelledby="tsetuptitle" aria-describedby="tsetuplead">
+  <header><span class="testmark">Test run</span><span class="t" id="tsetuptitle">A dry run on made-up incidents</span><button class="closebox" id="tsetupclose" type="button" aria-label="Close without starting"></button></header>
+  <form class="body" id="tsetupform" novalidate>
+    <p class="lead" id="tsetuplead">A test run is a real run of every step on a handful of made-up incidents, in a scratch folder. Your project's files are not touched and nothing is downloaded. Where a step would wait for Claude Code or for you, pressing Continue puts sample work in place so you can see what happens next; Skip shows what happens without it. While the test run's panel is open, the boxes show its sample numbers; closing the panel brings your project's back.</p>
+    <fieldset>
+      <legend>What to try</legend>
+      <label><input type="checkbox" id="trefetch"> Simulate a fresh fetch</label>
+      <p class="note sub">The first try fails on purpose, so you meet the choice the real fetch gives you: try again, or use the saved copy.</p>
+      <label><input type="checkbox" id="tmanual"> Include a hand-written incident</label>
+      <p class="note sub">A made-up write-up goes in as if you had added it by hand: the prefilter queues it on your word, it skips both readings and counts as in scope on your word.</p>
+      <label><input type="checkbox" id="tdiscover"> Also discover other sources <span class="pill none">not built yet</span></label>
+      <p class="note sub">Not built yet: these steps will be shown and skipped.</p>
+    </fieldset>
+    <p class="setuperr" id="tsetuperr" role="alert"></p>
+    <div class="foot">
+      <button type="button" class="btn" id="tsetupcancel">Cancel</button>
+      <button type="submit" class="btn strong" id="tsetupstart">Start test run</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const D = __DATA__;
+let M = (D && D.map) || {};
+const n = x => Number(x || 0).toLocaleString("en-GB");
+const pct = x => x == null ? "n/a" : (100 * x).toFixed(1) + "%";
+const O = x => (x && typeof x === "object") ? x : {};
+const has = (o, k) => o != null && o[k] != null;
+
+// who or what does the work in a box
+const BY = {
+  script: ["Script", "A script", "A program: it does the same thing every time it runs."],
+  model:  ["Model + prompt", "A model following a written prompt", "An AI model, following written instructions."],
+  rule:   ["Fixed rule", "A fixed rule in code", "A rule applied to facts already extracted: no judgement, no model."],
+  person: ["Person", "A person", "Somebody reads and decides."],
+  doc:    ["Document", "A document", "A file people write; the pipeline reads it."],
+};
+// the prompt file a model step follows: from the data if it says, else the version named here
+function promptOf(id, fallback) {
+  const a = (O(M.artifacts)[id] || []).find(x => x && /^prompts\//.test(x.path || ""));
+  return "0.2/" + (a ? a.path : fallback);
+}
+
+// the figures every box draws on, recomputed whenever the data is refreshed
+// The record flow comes from run.py (`map.flow`): one entry per box that counts records,
+// with what comes in, the wires out, what stops there and what waits there. The page
+// only draws it; it never computes a count of its own.
+const EMPTY = { n: 0, in: 0, out: [], stop: [], held: 0, held_label: "", by_source: {}, groups: [], files: [], rule: "" };
+function flowOf(id) {
+  const f = (Array.isArray(M.flow) ? M.flow : []).find(x => x && x.id === id);
+  return f ? Object.assign({}, EMPTY, f) : null;
+}
+const FN = id => flowOf(id) || EMPTY;
+function edgeN(a, b) { const e = (FN(a).out || []).find(x => x && x.to === b); return e ? Number(e.n || 0) : 0; }
+function edgeOf(a, b) { return (FN(a).out || []).find(x => x && x.to === b) || null; }
+function figures() {
+  const fetchable = has(M, "sources_fetchable") ? M.sources_fetchable : null;
+  const snap = O(M.aiid_snapshot);
+  const aiidN = has(snap, "records") && snap.records ? snap.records : O(M.records_by_source).aiid;
+  return { fetchable, snap, aiidN, rules: O(M.prefilter_rules), basis: O(M.queue_basis), flags: O(M.queue_flags) };
+}
+
+// status: run = operational · waiting = built, never run · unbuilt
+// kind: proc | doc | hand | end  ·  by: a key of BY
+// plain / tech may be a string or a list of paragraphs
+function defs() {
+  const F = figures(), ds = O(M.dossier_scope), dv = O(M.dossier_verification), gold = O(M.gold);
+  const where = F.rules.where || "0.2/pipeline/run.py";
+  const fetchCap = F.fetchable != null ? "of " + n(F.fetchable) + " sources downloads by itself"
+                                       : "source downloads by itself, of " + n(M.sources) + " listed";
+  const aiidTxt = F.aiidN ? n(F.aiidN) + " incidents" : "every incident";
+  const snapTxt = F.snap.present ? " The saved copy was fetched " + (F.snap.fetched || "on an unrecorded date") + "." : "";
+  const enrich = promptOf("readrec", "prompts/enrich_context.v2.md");
+  const fl = id => FN(id), nIn = id => n(fl(id).in);
+  const waiting = id => fl(id).held ? " · " + n(fl(id).held) + " waiting" : "";
+  // the rules' final answer is on the last rule box, Gate 2; Gate 1's own answer on Gate 1
+  const groupRows = (id, title) => (((fl(id).groups || []).find(g => g && g.title === title) || {}).rows || []);
+  const sv = s => (groupRows("gate2", "What the rules settled").find(r => r && r.tech === "status " + s) || {}).n || 0;
+  const g1v = a => (groupRows("gate1", "Gate 1's answer").find(r => r && r.tech === "gate1 " + a) || {}).n || 0;
+  const etNone = (groupRows("evtype", "Evidence type, by the rules").find(r => r && r.tech === "evidence_type none") || {}).n || 0;
+  const fmAsked = groupRows("gate2", "Failure type, for the records Gate 1 let in").filter(r => r && /^failure_mode /.test(r.tech)).reduce((a, r) => a + Number(r.n || 0), 0);
+  // a built step has run once the files it writes hold something: its count on the flow
+  const ran = id => fl(id).n ? "run" : "waiting";
+  const scored = gold.classifier_n != null;
+  // a step with no count of its own has run once a file it keeps exists
+  const kept = id => (O(M.artifacts)[id] || []).some(a => a && a.exists) ? "run" : "waiting";
+  const decided = fl("scope").in - fl("scope").held;   // records a person has decided on
+  const prov = O(M.instances_by_provenance), canon = O(M.dossiers_by_canonical);
+  const nCanon = Object.values(canon).reduce((a, v) => a + Number(v || 0), 0);
+  const nOther = nCanon - Number(canon.aiid || 0);
+  const vp = O(M.verdict_prompts), vpTxt = Object.keys(vp).sort().map(k => k + " " + n(vp[k])).join(", ");
+  const fstop = id => (fl(id).stop || []).reduce((a, s) => a + Number(O(s).n || 0), 0);
+  const grp = (id, title) => ((fl(id).groups || []).find(g => g && g.title === title) || { rows: [] }).rows || [];
+  const row = (id, title, tech) => Number((grp(id, title).find(r => r && r.tech === tech) || {}).n || 0);
+  const verified = row("dossiers", "Dossiers, by how well they were checked", "verification verified");
+  const secondary = row("readsrc", "Source read, by how deep", "secondary");
+  const unclearN = Number(O((fl("scope").stop || [])[1]).n || 0);
+  return [
+  { id: "sources", kind: "doc", status: M.sources ? "run" : "waiting", by: "doc", x: 30, y: 300, title: "Sources",
+    num: n(M.sources), cap: "sources listed" + (has(M, "sources_with_records") ? ", " + n(M.sources_with_records) + " with records" : ""),
+    unit: "Not a record count: sources",
+    plain: "The list of places where AI incidents get reported: one large public database, the AI Incident Database (AIID), plus forums, company blogs and other registries. A person keeps the list; the pipeline reads it to know where to look.",
+    tech: "0.2/registry/sources.csv. One row per source: role, access_method, adapter, reuse status. Rows with role reference are read for definitions, not for incidents.",
+    byNote: "A person keeps this list; no program writes to it.",
+    inp: "Nothing: a person edits it.", out: "The list of places to read.", prod: "0.2/registry/sources.csv",
+    facts: [["Downloaded by a program", M.sources_automatic], ["Searched by a person, from a work order", M.sources_by_hand], ["No downloader built yet", M.sources_unbuilt]]
+      .concat(has(M, "sources_fetchable") ? [["Could be read for incidents", M.sources_fetchable]] : [])
+      .concat(has(M, "sources_reference") ? [["Reference only, not read for incidents", M.sources_reference]] : []),
+    cmd: "0.2/registry/sources.csv" },
+  { id: "discover", status: "unbuilt", by: "script", x: 250, y: 30, title: "Discover",
+    num: "—", cap: "not built yet: a placeholder",
+    plain: ["A placeholder. It would search forums and other registries for incidents the main database never recorded. The gap matters: " + (nCanon ? n(nOther) + " of our " + n(nCanon) + " dossiers have their main source outside the AI Incident Database" : "many known incidents were reported outside the AI Incident Database") + ". Nothing here runs yet.",
+            "An update that asks for it shows this step as “not built yet” and goes on without it. Its one working part is the work orders drawn under it."],
+    tech: "run.py discover. The ForumMagnum and companyscope adapters are specified and not implemented; the stage returns no records. update --discover reports the step as placeholder and continues. Its sub-step, work orders, does run.",
+    byNote: "When built: run.py discover. Today it only writes the work orders.",
+    inp: "The list of sources.", out: "New records, once built. Today: only the work orders below.", prod: "0.2/raw/<source>/ (once built)",
+    cmd: "python 0.2/pipeline/run.py discover" },
+  { id: "orders", kind: "hand", status: kept("orders"), by: "person", x: 250, y: 150, title: "Work orders",
+    num: n(M.sources_by_hand), cap: "work orders: one per source a program cannot read", unit: "Not a record count: work orders",
+    plain: ["Part of Discover. Some websites refuse to be read by a program. For each such source the pipeline writes one work order (one per source, not per incident): what to search for there, where, and what to paste back.",
+            "A person does the search. What they paste back is saved as that source's records and goes on through Normalise like any downloaded record. This is a different route from “Add by hand”, which takes your own write-ups."],
+    tech: "Sub-step of discover: run.py discover writes 0.2/state/work_orders.md, one section per registry row a script cannot read (role discovery, adapter work_order). No longer written by fetch; an update run does not depend on it.",
+    byNote: "A script writes the work order; a person does what it says.",
+    inp: "A source a program cannot read.", out: "What the person found, pasted back in.", prod: "0.2/state/work_orders.md",
+    cmd: "python 0.2/pipeline/run.py discover" },
+  { id: "fetch", status: "run", by: "script", x: 250, y: 300, title: "Fetch",
+    num: n(fl("fetch").n), cap: "records collected, from " + n(Object.keys(O(fl("fetch").by_source)).length) + " sources",
+    plain: ["Downloads an untouched copy of each source a program can read. Today that is " + n(M.sources_automatic) + " of the " + n(F.fetchable != null ? F.fetchable : M.sources) + " sources: the AI Incident Database (AIID). Nothing is changed or tidied here, so there is always an original to go back to.",
+            "The number counts the records of every source except your own write-ups: the AIID download, and the records of the other sources that a person copied in earlier from the work orders.",
+            "AIID's copy holds " + aiidTxt + " plus AIID's own classifications of them." + snapTxt + " An update reuses the saved copy unless you ask to download it again, which needs the AIID token. Which of these records are then looked at is decided by the Prefilter."],
+    tech: "run.py fetch aiid. Dispatches on the registry's adapter column; AIID over GraphQL into 0.2/raw/aiid/ (" + aiidTxt + " and their classifications). update reuses the snapshot unless --refetch (needs the token: --token-file). The count: records of every source but manual, from latest_records().",
+    inp: "A source that a program can read.", out: "An untouched copy, kept as it arrived.", prod: "0.2/raw/aiid/",
+    facts: F.snap.present ? [["Saved AIID copy, fetched", F.snap.fetched || "date not recorded"], ["Incidents in the saved AIID copy", F.snap.records]] : [],
+    cmd: "python 0.2/pipeline/run.py fetch aiid" },
+  { id: "manual", kind: "hand", status: M.manual ? "run" : "waiting", by: "person", x: 250, y: 450, title: "Add by hand",
+    num: n(fl("manual").n), cap: "records added by hand",
+    plain: ["You, the curator, point the pipeline at a folder of your own write-ups in plain text: one file per incident, or several in one file separated by ## headings.",
+            "Each becomes a record like any other. The prefilter queues it on your word, with no rule needed, and it skips both readings: it goes straight to “Ready for the model's questions”, in scope on your word. You are the person who vouches for it. Its failure type, evidence type and patterns are still judged like any other, and its dossier cannot be marked verified on your write-up alone."],
+    tech: "update --manual DIR. Verbatim copies to 0.2/raw/manual/; records to 0.2/records/manual.jsonl (meta.manual = true, meta.origin_path); queue basis manual; context row in 0.2/context/manual.jsonl with manual: true, agent_count several, read depth curator. readiness: scope ready; evidence type, failure mode and instances provisional. check refuses verification: verified on a curator reading.",
+    byNote: "You write the files; run.py update --manual copies them in.",
+    inp: "A folder of .txt or .md files.", out: "Records marked as added by hand, already in scope.", prod: "0.2/records/manual.jsonl",
+    cmd: "python 0.2/pipeline/run.py update --manual DIR" },
+  { id: "normalise", status: "run", by: "script", x: 490, y: 300, title: "Normalise",
+    num: n(fl("normalise").n), cap: "records, all sources",
+    plain: "Every source describes incidents in its own layout. This step copies them into one common layout and stamps each with a fingerprint of its content. If a source later changes an entry, the new version is stored beside the old one. Nothing is dropped or judged here.",
+    tech: "run.py normalise. 0.2/records/<source>.jsonl, append-only, content-hashed, keyed (source_id, source_record_id).",
+    inp: "Untouched copies.", out: "Records: one per incident report, all in the same shape.", prod: "0.2/records/<source>.jsonl",
+    cmd: "python 0.2/pipeline/run.py normalise aiid" },
+  { id: "prefilter", status: "run", by: "script", x: 730, y: 300, title: "Prefilter",
+    num: n(fl("prefilter").n), cap: "candidates queued, of " + nIn("prefilter") + " records",
+    plain: ["Chooses the candidates: the records worth reading. Every record goes one of three ways.",
+            "A record a dossier already lists goes straight to the dossiers. Any other record is queued as a candidate if it is an AIID record dated " + (F.rules.recent_from || "2024-01-01") + " or later, is on the frozen list, or was added by hand. AIID's own multi-agent label stops in 2024, so from then on our reading is the only one. The frozen list holds the older records that were already candidates before 2026-11-17 (0.2/registry/frozen_pre2024.csv).",
+            "The rest stop here: " + ((fl("prefilter").stop || []).map(s => n(O(s).n) + " " + String(O(s).label || "").replace(/ \(see Fetch\)$/, "")).join("; ") || "none") + ".",
+            "Some candidates are also flagged: someone else already labelled them multi-agent, or the text matched a keyword such as “agents” or “swarm”. A flag does not queue a record; it protects it. A flagged record is never screened out on its short text alone: its source must be read first.",
+            "The rules are a wide, cheap net: most of what it keeps will turn out to be irrelevant; the point is not to miss anything. They are written in the code, in " + where + ". Records added by hand go straight to “Ready for the model's questions”."],
+    tech: "run.py prefilter. Queued: a recent AIID record, a record on the frozen pre-2024 list, or a record added by hand (its basis). Flagged: an outside label or a keyword (its flags). Records already behind a dossier (dossier_source_refs) are left out. Writes 0.2/state/queue.jsonl. Rules in " + where + ".",
+    inp: "All records.", out: "A queue of candidates, each with the rules it met.", prod: "0.2/state/queue.jsonl",
+    extra: prefilterRules, cmd: "python 0.2/pipeline/run.py prefilter" },
+
+  { id: "readrec", status: ran("readrec"), by: "model", x: 990, y: 300, title: "Read the record text",
+    num: n(fl("readrec").n) + " read", cap: "of " + nIn("readrec") + " candidates" + waiting("readrec"),
+    plain: ["Reads the record's own short text, the title and summary the source gives, and asks one question first: how many AI agents are acting here?",
+            "The unit is the agent, not the system or the company. One product, one platform or one operator can hold several agents, and such a record counts as several.",
+            "A named system whose insides the record does not describe is “cannot tell”, and its source is read next.",
+            "Only when the text plainly shows one agent (one chatbot conversation, one generated fake) or none is the record screened out. A flagged record, one that someone else labelled or that matched a keyword, is never screened out on its short text alone: its source is read first."],
+    tech: "Enrichment, record pass: " + enrich + " on the record text; sets agent_count (none | one | several | unknown) and attack. Unit per definitions.md § What counts as an agent: one principal is not one agent; unknown is the default for a named system with undescribed internals. Shortcut to out of scope at depth record only for records that are not flagged; a flagged record (an outside label or a keyword) needs a secondary-or-better reading to confirm one or none. The count: queued records (not added by hand) with a context row; waiting: no context row.",
+    byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, record pass.",
+    inp: "A candidate.", out: "A first note: one agent, several, or cannot tell.", prod: "0.2/context/<source>.jsonl",
+    cmd: "/classify-incidents  (step 0, record pass)" },
+  { id: "readsrc", status: ran("readsrc"), by: "model", x: 1250, y: 300, title: "Read the source",
+    num: n(fl("readsrc").n) + " read", cap: "of " + nIn("readsrc") + " sent on" + waiting("readsrc"),
+    plain: ["For every record that might involve several agents, could not be told, or was flagged, opens the record's page in the database and, where it can, the article or report that page cites.",
+            "It writes down what the source says about seven facts, each with an exact quote: the agents, how they interacted, whether their number mattered, the setting, cooperation, their goals, and how the harm came about. It also notes how much of the source was read.",
+            (secondary ? n(secondary) + " of the " + n(fl("readsrc").n) + " readings so far stopped at the database's own page, without the article it cites. Facts from such a reading are provisional: good enough to go on, but not firm. " : "") + "If the source shows one agent after all, the record is screened out; otherwise it goes on to the model's questions.",
+            "The number counts the records whose best reading goes deeper than the record's own text. The others wait here for somebody to read their source."],
+    tech: "Enrichment, source pass: " + enrich + ". Writes 0.2/context/<source>.jsonl: seven facts (agents, interaction, multiplicity, setting, cooperation, objectives, mechanism), each stated / not_stated / not_applicable / unread, plus read depth (unreadable < record < secondary < curator < primary_partial < primary_full); secondary yields scope provisional, never ready. The count: records sent on whose best_depth() is above record; waiting: best_depth() record or unreadable, or a needed fact still unread.",
+    byNote: "Instructions: " + enrich + ". Run in Claude Code: /classify-incidents, step 0, source pass. Sites that block programs are read by a person.",
+    inp: "A candidate that might involve several agents.", out: "A reading: the facts, the quotes, how deeply it was read.", prod: "0.2/context/<source>.jsonl",
+    cmd: "/classify-incidents  (step 0, source pass)" },
+  { id: "outscope", kind: "end", status: fl("outscope").n ? "run" : "waiting", by: "rule", x: 1050, y: 150, title: "Screened out",
+    num: n(fl("outscope").n), cap: "screened out: one agent or none",
+    plain: ["An end point. Records whose reading plainly shows one AI agent, or none, stop here: they cannot be multi-agent incidents. They are not judged further and get no dossier. Their reading stays in 0.2/context/ so the decision can be checked later.",
+            "This is a screening by a fixed rule on the reading, not a person's decision. “Out of scope” elsewhere on the map means the rules' answer at Gate 1, or a person's decision."],
+    tech: "readiness: scope ready (reason: no agent / one agent only) and the other three decisions not_needed, when agent_count is one or none, the agents fact is stated, and the record is not flagged or its best read depth is above record. out_of_scope(verdict). Not counted in “Ready”.",
+    byNote: "run.py readiness applies the rule to the reading.",
+    inp: "A record settled as one agent only.", out: "Nothing further. The reading is kept.", prod: "0.2/context/<source>.jsonl",
+    cmd: "python 0.2/pipeline/run.py readiness" },
+  { id: "ready", status: kept("ready"), by: "script", x: 1500, y: 300, title: "Ready for the model's questions",
+    num: n(fl("ready").n), cap: "ready: enough is known to ask",
+    plain: ["A checkpoint. Ready means enough is known to ask the model's fact questions. It does not mean the record is in scope, or that it is good: many ready records will be judged out.",
+            "Two cases look alike and are not. If the source was read and is silent on a fact, that silence is a finding: the answer is “unclear”, and the record can go on. If nobody has opened the source yet, there is no answer at all, so the record waits until somebody reads it.",
+            "Open the box to see how firm the facts are. Firm: the original source was read in full. Provisional: only the database's page or part of the source was read; the record goes on, but its dossier cannot be marked verified on that reading."],
+    tech: "run.py readiness. Per decision: ready / provisional / not_ready / not_needed, from 0.2/context/. A fact not_stated resolves (→ unclear); a fact unread does not. Records settled one/none are excluded from these counts. Manual rows: scope ready on the curator's word. Enforced by the skill, by promote and by check.",
+    inp: "A candidate and its reading.", out: "The candidates with enough behind them to be judged.", prod: "0.2/state/readiness.jsonl",
+    cmd: "python 0.2/pipeline/run.py readiness" },
+
+  { id: "taxonomy", kind: "doc", status: M.instances ? "run" : "waiting", by: "doc", x: 780, y: 860, title: "Risk Instances Repo",
+    num: n(M.instances), cap: "risk instances in the repo", unit: "Not a record count: repo size",
+    plain: ["The list of risk instances the model chooses from when it proposes risk instances: " + n(M.instances) + " named, defined cases such as “Swarm Attacks”. Each belongs to one of the three failure types of a 2025 paper by Hammond and colleagues.",
+            "Of the risk instances, " + n(prov.hammond_table_1) + " come from the paper and " + n(prov.ours) + " were written by this project for cases the paper does not name.",
+            "The same folder also holds the failure types and risk factors, which of them go together, and the four kinds of evidence. The gates do not read it while they run: their definitions are written into the extract prompt and the rules."],
+    tech: "0.2/taxonomy/instances.csv (provenance: " + Object.keys(prov).map(k => k + " " + n(prov[k])).join(", ") + "), loaded in full by classifier call 2 and checked by run.py check against every dossier's instances. Same folder: risks.csv (failure modes FM1–3, risk factors RF1–7; " + n(M.risks) + " rows), associations.csv (FM–RF links, from Hammond only), evidence_types.csv. The written gate rules are 0.2/docs/definitions.md. Hand-curated.",
+    byNote: "Kept by hand; read by the model that proposes risk instances.",
+    inp: "The paper, read by a person.", out: "The risk instances and their definitions.", prod: "0.2/taxonomy/instances.csv",
+    facts: [["Failure types and risk factors", M.risks], ["Risk instances", M.instances], ["From the paper", prov.hammond_table_1], ["Written by this project", prov.ours]],
+    cmd: "0.2/taxonomy/instances.csv" },
+  { id: "extract", status: ran("extract"), by: "model", x: 30, y: 680, title: "Extract facts",
+    num: n(fl("extract").n), cap: "records with facts extracted" + waiting("extract"),
+    plain: ["An AI model reads the record and its reading and fills in a form: how many agents, whether they acted on each other, the setting and what was at stake, who controlled the environment, whether they cooperated and whether their goals were the same. Every answer carries a quote, and the model says how sure it is.",
+            "It also answers the question Gate 1 turns on: could one agent, however capable, have done this alone? It gives no labels: the labels are made next, by fixed rules."],
+    tech: "Classifier call 1: " + promptOf("extract", "prompts/extract_gate.v4.md") + ". Fields: n_ai_agents, interaction_present, setting, stakes, environment_controlled_by, multiplicity_role (security records), single_agent_counterfactual, cooperation_occurred, cooperation_expected, objective_relation, confidence, quotes. Only for records whose scope is ready or provisional. The count: distinct ready records with an extract_gate proposal (newest row per record), not proposal lines." + (vpTxt ? " Prompt versions behind the current answers: " + vpTxt + "." : ""),
+    byNote: "Instructions: " + promptOf("extract", "prompts/extract_gate.v4.md") + ". Run in Claude Code: /classify-incidents, call 1.",
+    inp: "A ready candidate and its reading.", out: "A filled-in form of facts.", prod: "0.2/proposals/",
+    cmd: "/classify-incidents  (call 1)" },
+  { id: "gate1", status: ran("gate1"), by: "rule", x: 270, y: 680, title: "Gate 1 · Is it multi-agent?",
+    num: n(fl("gate1").n), cap: "Gate 1's answer: " + n(g1v("in")) + " in · " + n(g1v("out")) + " out · " + n(g1v("review")) + " unclear" + waiting("gate1"),
+    plain: ["Gate 1 asks whether an incident is multi-agent. A fixed rule answers it from the extracted facts: no judgement, no model. An incident is in only if the harm needed more than one agent: something a single agent, however capable, could not have done alone, and the agents acted on each other.",
+            "An attack by many agents counts by default when the source does not say what the number of agents added. That default is dropped when the record shows fewer than two agents, or when the model judged that one agent could have done it. If the source shows the number made no difference, the attack is out.",
+            "Gate 1 answers in or out; when a fact it turns on is unclear, it answers unclear. It is the first of three rules run one after the other on each record: then the evidence type, then Gate 2. The rules' final answer, with every reason a person is needed, comes out of Gate 2."],
+    tech: "First of the three rules run.py derive applies with pipeline/derive.py (rules " + (M.verdicts_rules || "") + ") to the newest extract_gate proposal of each record; the result is the verdict field gate1: in | out | review | curator. The whole verdict goes to 0.2/state/verdicts.jsonl after Gate 2. Non-security record: in if single_agent_counterfactual = could_not AND interaction_present = true. Security record (multiplicity_role set): load_bearing → could_not; incidental → could; unreported → could_not only when n_ai_agents is null or ≥ 2 and the model did not answer could (the attack presumption), else the model's answer stands; interaction_present is not required. An unclear counterfactual (off the security branch, also interaction_present) gives gate1 review. A security record that is in with multiplicity_role unreported gets instances I28 and I29 as presumed (instances_presumed). run.py derive also runs the review step: it reads any filled sheet, logs its decisions and writes the sheets again.",
+    byNote: "run.py derive applies pipeline/derive.py to the extracted facts. It also runs the review step, so filled sheets are read and logged.",
+    inp: "The facts.", out: "Gate 1's answer: in, out or unclear. Passed on to the evidence type.", prod: "0.2/state/verdicts.jsonl (gate1)",
+    cmd: "python 0.2/pipeline/run.py derive" },
+  { id: "evtype", status: ran("evtype"), by: "rule", x: 270, y: 810, title: "Evidence type",
+    num: n(fl("evtype").n), cap: "records given an evidence type · " + n(etNone) + " left with none",
+    plain: ["The second rule, run on every record right after Gate 1. It says what kind of evidence the incident is: it happened in the real world, in a simulation somebody built, in a narrow lab test, or only as an argument on paper.",
+            "A fixed rule reads it from the setting, what was at stake and who controlled the environment. It is never guessed: when the facts do not settle it, the answer is none, and an in-scope record then goes to a person."],
+    tech: "derive.py evidence_type(), on every record after Gate 1: setting none → theoretical; narrow_probe → lab; researcher_built → synthetic; deployed AND stakes real AND environment_controlled_by nobody or operator → real_world; anything else → none, which on an in-scope record adds the review reason “evidence type not derivable”. On a review row the value sits under labels_if_confirmed. Vocabulary: 0.2/taxonomy/evidence_types.csv.",
+    byNote: "run.py derive applies it to the extracted facts, after Gate 1.",
+    inp: "A record Gate 1 has answered, and its facts.", out: "One of four labels, or none. Passed on to Gate 2.", prod: "0.2/state/verdicts.jsonl (evidence_type)",
+    cmd: "python 0.2/pipeline/run.py derive" },
+  { id: "gate2", status: ran("gate2"), by: "rule", x: 270, y: 940, title: "Gate 2 · Propose failure mode",
+    num: n(fl("gate2").n), cap: "the rules' answers: " + n(sv("in_scope")) + " in · " + n(sv("out_of_scope")) + " out · " + n(sv("review")) + " need a person",
+    plain: ["The third and last rule. Gate 2 asks what kind of failure an in-scope incident shows, and picks one of three, or none. Collusion: the agents cooperated where cooperation was not expected. Miscoordination: same goal, but they got in each other’s way. Conflict: partly shared goals, and everyone ended up worse off.",
+            "It runs only on the " + n(fmAsked) + " records Gate 1 let in, or would let in once an unclear fact is confirmed; the others pass through unchanged. It never takes an incident out of scope. An in-scope incident that fits none of the three keeps its place, with no failure type.",
+            "Out of Gate 2 comes the rules' final answer: in, out, or “needs a person”. A record needs a person when the model was not highly confident, or a fact any of the three rules turns on is unclear. Today " + n(sv("review")) + " of " + n(fl("gate2").n) + " records need a person; open the box for the reasons. Every answer is only a suggestion: a person decides scope on the next sheet."],
+    tech: "derive.py failure_mode(), after the evidence type, only for records Gate 1 let in (labels multi_agent true, or added by hand): cooperation_occurred = yes AND cooperation_expected = unexpected → FM3; otherwise objective_relation identical → FM1, mixed → FM2, opposing or unclear → none. Review when cooperation_occurred is unclear, cooperation_expected is unclear where cooperation occurred, or objective_relation is unclear off the FM3 branch. Then the verdict: status review if any reason was found (confidence not high, a Gate 1 or Gate 2 field unclear, evidence type not derivable on an in-scope record), else in_scope or out_of_scope; labels, or labels_if_confirmed on a review row; written to 0.2/state/verdicts.jsonl. Written rule: 0.2/docs/definitions.md § Gate 2.",
+    byNote: "run.py derive applies it to the extracted facts, after the evidence type, and writes the verdict.",
+    inp: "A record with Gate 1's answer and its evidence type.", out: "A failure type, or none, and the rules' final answer.", prod: "0.2/state/verdicts.jsonl (failure_mode, status)",
+    cmd: "python 0.2/pipeline/run.py derive" },
+  { id: "instances", status: ran("instances"), by: "model", x: 780, y: 680, title: "Propose risk instances",
+    num: n(fl("instances").n), cap: "with risk instances, of " + nIn("instances") + " decided in" + (row("instances", "Records a person decided in", "neither") ? " · " + n(row("instances", "Records a person decided in", "neither")) + " none yet" : ""),
+    plain: ["The finer description of an incident a person has put in scope. A model says which of the repo's risk instances it shows, for example “Swarm Attacks”, and must quote the words that show each. A proposal may also name none at all.",
+            "It comes after Decide scope, never before or beside it: only the records you decided in get a proposal. The rules' own answer is not enough.",
+            "Where it is used: the proposal is shown beside the decided record on the scope sheet, and when Claude fills a dossier it adopts the instances quoted with high or medium confidence; low ones only go in the notes. Through the dossiers they reach the index. It never changes scope, nor the failure type.",
+            "A dossier you put in scope that has no risk instances is proposed for too; the Dossiers box counts those."],
+    tech: "Classifier call 2: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Descriptive only; does not set scope or failure mode. In: the records whose newest scope decision is in (review/scope_decisions_log.csv), promoted or not. instances_due() also lists dossiers with multi_agent true, label source ours and empty instances; a verdict in_scope with no person's decision is not due. Consumers: sheet 1, on decided rows (scope_sheet_rows reads proposal_rows('assign_instances')) and Claude-filled dossiers (high/medium adopted, low in the notes). The presumed I28/I29 pair comes from derive.py, not from this call. A proposal row can hold instances [] (considered and rejected only). The count: decided-in records with an assign_instances proposal or instances in their dossier.",
+    byNote: "Instructions: " + promptOf("instances", "prompts/assign_instances.v2.md") + ". Run in Claude Code: /classify-incidents, call 2.",
+    inp: "An incident a person decided in, and the Risk Instances Repo.", out: "Risk instances, each with a quote.", prod: "0.2/proposals/",
+    cmd: "/classify-incidents  (call 2)" },
+  { id: "scope", kind: "hand", status: decided ? "run" : "waiting", by: "person", x: 520, y: 680, title: "Decide scope",
+    num: n(fl("scope").held), cap: "still to decide, of " + nIn("scope") + " · decided: " + n(edgeN("scope", "review")) + " in, " + n(O((fl("scope").stop || [])[0]).n) + " out, " + n(unclearN) + " unclear",
+    plain: ["A person decides, record by record, whether the incident is multi-agent. Three answers. In: two or more AI agents, and the harm came from them acting on each other. Out: one agent, or many doing what one could have done. Unclear: the source was read and does not say.",
+            "The rules' answer is shown beside each record, but it is only a suggestion. A rule never puts an incident in scope: only this decision does.",
+            "A record you decide “in” goes on to Human review. “Out” and “unclear” end here: the answer stays in the log and no dossier is made. A record that already has a dossier goes straight on.",
+            "How to do it: the records come as a spreadsheet, 0.2/review/1_decide_scope.xlsx. Fill the yellow column “decision” and save. The next run reads the sheet, keeps your answers in a log, and writes the sheet again."],
+    tech: "run.py review (also the Review step of an update, and run.py derive) writes 0.2/review/1_decide_scope.xlsx from state/verdicts.jsonl: every record with a verdict, decided or not, plus every record a dossier cites. Column ask = yes (the rules would put it in, or confidence is low) | check | decided | dossier; only rows with ask yes or check take a decision. Each record has a MIG key from the moment it reaches this sheet (0.2/registry/mig_keys.csv); the sheet names it by mig_key, source_id and source_key. Filled rows are validated and appended to 0.2/review/scope_decisions_log.csv (mig_key, source_id, source_key, decision in | out | unclear, reason, decided_on, sheet_generated_on); the newest row per record wins. A hand-added record counts as decided in. run.py check validates the log.",
+    byNote: "The sheet is written by a script; the decisions are a person’s.",
+    inp: "Every record the rules labelled.", out: "A decision: in, out or unclear.", prod: "0.2/review/scope_decisions_log.csv",
+    extra: scopeGuide, cmd: "python 0.2/pipeline/run.py review" },
+  { id: "review", kind: "hand", status: (edgeN("review", "dossiers") || fstop("review")) ? "run" : "waiting", by: "person", x: 1030, y: 680, title: "Human review",
+    num: n(fl("review").held), cap: "still to review, of " + nIn("review") + " decided in · " + n(edgeN("review", "dossiers")) + " promoted, " + n(fstop("review")) + " not",
+    plain: ["A person has decided these records are in scope. Here they say which get a dossier: to promote a record is to make a dossier for it. Only a person can put an incident into the index; a machine or somebody else’s tag can only nominate one.",
+            "Yes: a dossier is made. It is then filled in, by hand or by Claude when you ask, and the index lists it with the verdict the dossier holds. No: no dossier is made and the record never reaches the index; the answer stays in a log.",
+            "How to do it: the records come as a second spreadsheet, 0.2/review/2_promote.xlsx. Fill the yellow column “promote” with yes or no and save. A record leaves when a dossier lists it; until then it waits on the sheet."],
+    tech: "run.py review reads 0.2/review/2_promote.xlsx: records with a newest scope decision in, no dossier, no promote decision no. A yes runs the promote logic (scaffolds the dossier; a record that is not ready is refused and stays on the sheet). Filled rows go to 0.2/review/promote_decisions_log.csv (mig_key, source_id, source_key, decision yes | no, note, decided_on, sheet_generated_on). The dossier is 0.2/incidents/<mig_key>.md. run.py promote <mig_key> still scaffolds one dossier by hand.",
+    byNote: "The sheet and the blank file are made by a script; the person decides and fills the dossier in.",
+    inp: "A record a person decided in.", out: "A decision, written up as a dossier.", prod: "0.2/incidents/<mig_key>.md",
+    extra: reviewGuide, cmd: "python 0.2/pipeline/run.py review" },
+  { id: "dossiers", kind: "doc", status: M.dossiers ? "run" : "waiting", by: "person", x: 1280, y: 680, title: "Dossiers",
+    num: n(fl("dossiers").n), cap: "incidents, from " + n(fl("dossiers").in) + " source records · " + n(verified) + " verified",
+    plain: ["A dossier is our own file on one incident. It says what happened, how, which agents were involved, the person's verdict (in scope, out of scope or unclear) and how well it was checked against the original source.",
+            "Every dossier is a row of the index, whatever its verdict: an “out of scope” dossier records that someone looked, and why it was turned away. Verified means a person checked it against the original source; " + n(verified) + " of " + n(M.dossiers) + " are verified so far, so most dossiers are not yet checked facts.",
+            "From this box on, the map counts incidents, not records: one dossier is one incident, however many sources tell it. The " + n(fl("dossiers").in) + " records that reach this box become " + n(fl("dossiers").n) + " incidents; the rest are other sources' reports of an incident already counted."],
+    tech: "0.2/incidents/<mig_key>.md. YAML frontmatter plus seven fixed sections. Made blank by promote; filled by hand, or by Claude on the curator's request (always unverified, notes open “Written by Claude”). Fields are changed through sheet 3 (0.2/review/3_edit_dossiers.xlsx) via run.py review, which names them in set_by_person and logs them in 0.2/review/dossier_edits_log.csv. multi_agent_label_source: ours only by a human verdict. The count: dossiers with a record behind them, one per incident; in = records listed in a dossier's sources (dossier_source_refs ∩ records).",
+    byNote: "Made blank by a script; filled in by a person, or by Claude when the curator asks; corrected through sheet 3.",
+    inp: "A person’s decision.", out: "The curated record.", prod: "0.2/incidents/<mig_key>.md",
+    cmd: "python 0.2/pipeline/run.py review  (sheet 3: edit dossiers)" },
+  { id: "check", status: fl("check").n ? "run" : "waiting", by: "script", x: 1530, y: 680, title: "Check",
+    num: n(fl("check").n), cap: "incidents checked on the way to the index",
+    plain: ["An automatic inspection of the dossiers and the logs. In an update it must pass before the index is rebuilt; run by hand, run it before the index yourself.",
+            "It fails on a malformed dossier or log, a record that points at nothing, a machine’s tag used as a final answer, or a dossier marked verified on a reading that was only partial, secondary or the curator's own. It keeps no result file: the number shows what it checks, not that it passed."],
+    tech: "run.py check, exit 0 required. Validates dossiers (fields, vocabularies, label provenance, verification against read depth), the frozen list, the MIG key registry, record keys and hashes, the scope, promote and edit logs, and the context layer. It does not read verdicts.jsonl, proposals or the queue. It gates the index only inside an update run (step_check fails the run); run.py index does not call it.",
+    inp: "All the incident files and logs.", out: "Pass, or a list of problems.", prod: "nothing: it only reports",
+    cmd: "python 0.2/pipeline/run.py check" },
+  { id: "index", kind: "doc", status: kept("index"), by: "script", x: 1780, y: 680, title: "Index",
+    num: n(fl("index").n), cap: "incidents · " + n(O(O(fl("index").stop)[0]).n) + " in scope, in the report",
+    plain: ["The finished table of incidents, rebuilt from the dossiers every time: one row per incident, whatever its verdict. This is what the rest of the project reads.",
+            "Only the incidents a person put in scope go into the report. Those decided out of scope or unclear stay in the table with that flag, as the record that someone looked and why they were turned away."],
+    tech: "run.py index writes 0.2/out/incident_index.csv and 0.2/state/pipeline.json, the counts this page is drawn from; run.py viz renders this page; 0.2/pipeline/index_report.py writes 0.2/out/index_report.xlsx. Generated; never edited by hand.",
+    inp: "All the incident files.", out: "One table.", prod: "0.2/out/incident_index.csv",
+    cmd: "python 0.2/pipeline/run.py index" },
+  { id: "gold", kind: "doc", status: gold.rows ? "run" : "waiting", by: "person", x: 1280, y: 940, title: "Answer key",
+    num: n(gold.rows), cap: "records judged with care", unit: "A separate set of records, off the path",
+    plain: "A small set of records that a person judged carefully from the original sources. It works like an exam answer key: the models’ suggestions are marked against it.",
+    tech: "0.2/gold/multiagent_gold.csv. Four strata; ids are permanent (gold_ids.csv).",
+    byNote: "Judged by hand; build_review.py only makes the worksheet.",
+    inp: "Original sources, read by a person.", out: "The right answers.", prod: "0.2/gold/multiagent_gold.csv",
+    facts: [["In scope", gold.in], ["Out of scope", gold.out], ["Unclear", gold.unclear]],
+    cmd: "python 0.2/gold/build_review.py" },
+  { id: "score", status: scored ? "run" : "waiting", by: "script", x: 1030, y: 940, title: "Score",
+    num: pct(scored ? gold.classifier_precision : gold.ceiling),
+    cap: scored ? "precision, if a person confirms every review item · recall " + pct(gold.classifier_recall) + " · prompt " + (gold.classifier_prompt || "not recorded") : "earlier hand work, for comparison",
+    unit: "Not a record count: a share",
+    plain: scored
+      ? ["Marks the model and the rules together against the answer key. Precision: of the records they would call multi-agent, the share that really are. Recall: of the multi-agent records in the key, the share they found.",
+         "Read the number with care. The rules settle few records alone. In the last scored run, " + n(gold.classifier_review_items) + " of the " + n(gold.classifier_n) + " answer-key records needed a person, and they are scored on the answer the rules would give if a person confirmed the facts. On the " + n(gold.classifier_settled_n) + " records the rules settled alone, precision was " + pct(gold.classifier_settled_precision) + " and recall " + pct(gold.classifier_settled_recall) + ".",
+         "That run used the prompt " + (gold.classifier_prompt || "of an earlier version") + ". " + (gold.classifier_prompt && promptOf("extract", "").indexOf(gold.classifier_prompt) < 0 ? "The current prompt, " + promptOf("extract", "prompts/extract_gate.v4.md").replace(/^mvp\/prompts\//, "").replace(/\.md$/, "") + ", has not been scored yet. " : "") + "For comparison, the project’s own earlier hand-picked list scored " + pct(gold.ceiling) + " precision on the same question."]
+      : "Marks the model and the rules against the answer key. No classifier run has been scored yet, so the only score so far is for the project’s own earlier hand-picked list: of the incidents it called multi-agent, this share survived a careful second look.",
+    tech: scored
+      ? "0.2/gold/score_gate1.py → 0.2/out/gate1_accuracy.json. Classifier = " + (gold.classifier_prompt || "?") + " (" + (gold.classifier_input || "input not recorded") + ") + rules " + (gold.classifier_rules || "?") + " on " + n(gold.classifier_n) + " scorable gold rows: precision " + pct(gold.classifier_precision) + ", recall " + pct(gold.classifier_recall) + ", counting the " + n(gold.classifier_review_items) + " review items by labels_if_confirmed. classifier_settled: n " + n(gold.classifier_settled_n) + ", precision " + pct(gold.classifier_settled_precision) + ", recall " + pct(gold.classifier_settled_recall) + ". Earlier hand curation: precision " + pct(gold.ceiling) + " on " + n(gold.ceiling_n) + "."
+      : "0.2/gold/score_gate1.py. Precision of earlier curation on " + n(gold.ceiling_n) + " scorable rows. No classifier run has been scored.",
+    facts: scored ? [["Prompt scored", gold.classifier_prompt || "not recorded"],
+                     ["Precision, model + rules, if a person confirms", pct(gold.classifier_precision)],
+                     ["Recall, model + rules, if a person confirms", pct(gold.classifier_recall)],
+                     ["Answer-key records that needed a person", n(gold.classifier_review_items) + " of " + n(gold.classifier_n)],
+                     ["Settled by the rules alone: records", gold.classifier_settled_n],
+                     ["Settled by the rules alone: precision", pct(gold.classifier_settled_precision)],
+                     ["Precision, earlier hand work", pct(gold.ceiling)]] : [],
+    inp: "Suggestions and the answer key.", out: "How often the model and the rules are right.", prod: "0.2/out/gate1_accuracy.json",
+    cmd: "python 0.2/gold/score_gate1.py" },
+  ];
+}
+
+// the prefilter rule, spelled out from the data: why a record is queued, then why it is flagged
+function prefilterRules(box) {
+  const F = figures(), R = F.rules, B = F.basis, A = F.flags;
+  box.appendChild(el("h3", "", "Why a record is queued"));
+  const ql = el("ol");
+  const q1 = el("li"); q1.appendChild(el("b", "", "Recent (" + n(B.recent) + "). "));
+  q1.appendChild(document.createTextNode("An AIID record dated " + (R.recent_from || "2024-01-01") + " or later that no outside rater has answered “not multi-agent” on. Where an outside answer exists it is acted on: “no” leaves the record out, “yes” queues it and flags it. AIID's own multi-agent label stops in 2024, so from then on almost every record is unlabelled and is read by us; the only outside source still active is the Navigator list, copied by hand."));
+  const q2 = el("li"); q2.appendChild(el("b", "", "Frozen (" + n(B.frozen) + "). "));
+  q2.appendChild(document.createTextNode("A record dated before then that was a candidate when the rule was simplified. The list is kept by hand in 0.2/registry/frozen_pre2024.csv."));
+  const q3 = el("li"); q3.appendChild(el("b", "", "Added by hand (" + n(B.manual) + "). "));
+  q3.appendChild(document.createTextNode("A write-up the curator added. It is in scope on the curator's word."));
+  [q1, q2, q3].forEach(l => ql.appendChild(l)); box.appendChild(ql);
+  box.appendChild(el("h3", "", "Why a queued record is flagged"));
+  const ol = el("ol");
+  const li1 = el("li"); li1.appendChild(el("b", "", "Tagged by someone else (" + n(A.label) + "). "));
+  li1.appendChild(document.createTextNode(Array.isArray(R.label_values) && R.label_values.length
+    ? "AIID's own classification “Multiple AI Interaction” says " + R.label_values.map(v => "“" + v + "”").join(" or ") + ", or another source tagged the behaviour."
+    : "Another database's own classification says the incident involves several AIs. The accepted values are listed in the code."));
+  const li2 = el("li"); li2.appendChild(el("b", "", "Matched a keyword (" + n(A.keyword) + "). "));
+  if (Array.isArray(R.keywords) && R.keywords.length) {
+    li2.appendChild(document.createTextNode("The title or text contains one of these terms" + (wording === "plain" ? " (written as patterns: “?” means the letter before it is optional, “|” means “or”, \\b marks a word edge):" : ", case-insensitive regular expressions:")));
+    const t = el("div", "terms"); R.keywords.forEach(k => t.appendChild(el("code", "", k))); li2.appendChild(t);
+  } else li2.appendChild(document.createTextNode("The title or text contains a word like “agents”, “swarm” or “collusion”. The full list is in the code."));
+  [li1, li2].forEach(l => ol.appendChild(l)); box.appendChild(ol);
+  box.appendChild(el("p", "note", "A flag never queues a record by itself. A record can carry both flags, so the two counts can add up to more than the flagged records. A flagged record is never dismissed from its short text alone."));
+  box.appendChild(el("p", "", "Where the rules live:")); box.appendChild(el("code", "", R.where || "0.2/pipeline/run.py"));
+}
+
+// How a person fills in a dossier: shown on the Human review box and on the Review
+// step's waiting card. One copy, so the two never disagree. The rules behind it are in
+// CLAUDE.md § Rules and 0.2/docs/input_layer.md; run.py check enforces them.
+function scopeGuide(box) {
+  const line = (parts, tag) => { const p = el(tag || "p"); parts.forEach(x => p.appendChild(Array.isArray(x) ? el(x[0], "", x[1]) : document.createTextNode(x))); return p; };
+  box.appendChild(el("h3", "", "How to decide scope"));
+  const ol = el("ol");
+  [
+    ["Open ", ["code", "0.2/review/1_decide_scope.xlsx"], ". One row is one record. Read the title and the quote; open the link when you need more."],
+    ["The columns ", ["code", "rules_say"], " and ", ["code", "why_a_person"], " are the rules’ suggestion and the reason it is not settled. They are not an answer."],
+    ["Fill the yellow column ", ["code", "decision"], " (a drop-down): ", ["code", "in"], ", ", ["code", "out"], " or ", ["code", "unclear"], ". Add a ", ["code", "reason"], " if you can."],
+    ["Save, then press Continue, or run ", ["code", "python 0.2/pipeline/run.py review"], ". Your answers go into the log 0.2/review/scope_decisions_log.csv. A row you left blank stays on the next sheet; a row filled wrongly is reported and comes back blank."],
+  ].forEach(parts => ol.appendChild(line(parts, "li")));
+  box.appendChild(ol);
+  const scope = el("ul", "scope");
+  [[["b", "in: "], "two or more AI agents, and the harm came from them acting on each other. It goes on to Human review."],
+   [["b", "out: "], "one agent, or many doing what one could have done. It ends here."],
+   [["b", "unclear: "], "the source was read and does not say. It ends here."]]
+    .forEach(parts => scope.appendChild(line(parts, "li")));
+  box.appendChild(scope);
+  box.appendChild(el("p", "note", "Only a person puts an incident in scope. A rule, a model or another database’s tag can only suggest it."));
+}
+
+function reviewGuide(box) {
+  const line = (parts, tag) => { const p = el(tag || "p"); parts.forEach(x => p.appendChild(Array.isArray(x) ? el(x[0], "", x[1]) : document.createTextNode(x))); return p; };
+  box.appendChild(el("h3", "", "How to review"));
+  const sh = el("ol");
+  [
+    ["First decide scope in ", ["code", "0.2/review/1_decide_scope.xlsx"], ": fill the ", ["code", "decision"], " column with in, out or unclear."],
+    ["Then open ", ["code", "0.2/review/2_promote.xlsx"], ". It lists the records you decided in. Fill the ", ["code", "promote"], " column: ", ["code", "yes"], " makes a blank dossier on the next run, ", ["code", "no"], " leaves the record out of the index."],
+    ["Save the sheets, then press Continue, or run ", ["code", "python 0.2/pipeline/run.py review"], ". The answers go into 0.2/review/scope_decisions_log.csv and promote_decisions_log.csv."],
+  ].forEach(parts => sh.appendChild(line(parts, "li")));
+  box.appendChild(sh);
+  box.appendChild(el("h3", "", "How to fill in a dossier"));
+  const ol = el("ol");
+  [
+    ["Open the blank dossier in 0.2/incidents/ that a promote “yes” made (", ["code", "python 0.2/pipeline/run.py promote MIG-0058"], " makes one by hand, from its MIG key). Open it in a text editor, or ask Claude to fill it from the pipeline's readings: a dossier Claude writes stays unverified until you check it, and its notes open “Written by Claude”."],
+    ["Read the original source, not only the summary or the machine’s suggestion."],
+    ["Decide the scope, and say it was you: ", ["code", "multi_agent_label_source: ours"], ", with one sentence of reasons in ", ["code", "multi_agent_basis"], "."],
+  ].forEach(parts => ol.appendChild(line(parts, "li")));
+  box.appendChild(ol);
+  const scope = el("ul", "scope");
+  [[["b", "In scope: "], ["code", "multi_agent: true"], ". Two or more AI agents, and the harm came from them acting on each other."],
+   [["b", "Out of scope: "], ["code", "multi_agent: false"], ". One agent, or many doing what one could have done. Also set ", ["code", "failure_mode: null"], " and ", ["code", "instances: []"], "."],
+   [["b", "Can’t tell: "], ["code", "multi_agent: null"], ". The source was read and does not say."]]
+    .forEach(parts => scope.appendChild(line(parts, "li")));
+  box.appendChild(scope);
+  box.appendChild(el("p", "note", "A blank dossier from promote starts at multi_agent: false with no label source. Set all three fields yourself, even when the answer is false."));
+  const ol2 = el("ol"); ol2.start = 4;
+  [
+    ["If in scope: check ", ["code", "failure_mode"], " and set ", ["code", "failure_mode_source: ours"], "; check ", ["code", "evidence_type"], " and ", ["code", "instances"], ". Keep only the risk instances the source shows in its own words."],
+    ["Say how well you checked it: ", ["code", "verification"], " is verified, partially_verified or unverified; ", ["code", "last_verified"], " is today’s date; under ", ["code", "## Verification notes"], " write what you read and what you found."],
+    ["To correct a dossier later, change its cells in ", ["code", "0.2/review/3_edit_dossiers.xlsx"], " and run ", ["code", "python 0.2/pipeline/run.py review"], ": each field you change is named in the dossier's ", ["code", "set_by_person"], " and logged in 0.2/review/dossier_edits_log.csv."],
+    ["Run ", ["code", "python 0.2/pipeline/run.py check"], ". It must pass."],
+  ].forEach(parts => ol2.appendChild(line(parts, "li")));
+  box.appendChild(ol2);
+  box.appendChild(el("p", "note", "Out of scope does not delete anything. The dossier stays and the index lists it as out of scope: it records that someone looked, and why it was turned away."));
+  box.appendChild(el("p", "note", "An incident you added by hand is in scope on your word, but your write-up alone is never “verified”: leave it unverified unless you check it against an outside source."));
+  box.appendChild(el("p", "note", "Only a person writes “ours”. A machine’s suggestion or another database’s tag can nominate an incident, never put it in; the check refuses a dossier that tries."));
+}
+
+// from, to, label, kind (hand | unbuilt | ref | branch), sides: r>l by default, or two of r l t b.
+// A wire that carries records takes its count from the flow; a `ref` wire carries none.
+function wireDefs() {
+  const c = (a, b, kind, sides) => {
+    const e = edgeOf(a, b);
+    return [a, b, e ? n(e.n) + " " + (e.label || "") : "", (e && e.branch ? "branch" : kind || ""), sides];
+  };
+  return [
+    ["sources", "fetch", "", "ref"], ["sources", "discover", "", "ref"],
+    ["discover", "orders", "one note per source", "hand ref", "bt"], ["orders", "normalise", "pasted back", "hand ref"],
+    ["discover", "normalise", "", "unbuilt"],
+    c("fetch", "normalise"),
+    c("manual", "normalise", "hand"),
+    c("normalise", "prefilter"),
+    c("prefilter", "readrec"),
+    c("prefilter", "ready", "hand", "bb"),
+    c("prefilter", "dossiers", "", "bt"),
+    c("readrec", "outscope", "", "tb"),
+    c("readrec", "readsrc"),
+    c("readsrc", "outscope", "", "tr"),
+    c("readsrc", "ready"),
+    c("ready", "extract", "", "bt"),
+    ["taxonomy", "instances", "", "ref", "tb"],
+    // the three rules of run.py derive, in the order they run on each record
+    c("extract", "gate1"), c("gate1", "evtype", "", "bt"), c("evtype", "gate2", "", "bt"),
+    c("gate2", "scope", "hand"),
+    // risk instances come after the scope decision, before the promote sheet
+    c("scope", "instances", "hand"),
+    c("instances", "review"),
+    c("scope", "dossiers", "hand", "tt"),
+    c("review", "dossiers", "hand"),
+    c("dossiers", "check"), c("check", "index"),
+    ["gate2", "score", "", "ref"], ["gold", "score", "", "ref", "lr"],
+  ];
+}
+
+const GROUPS = [
+  ["1 · Collect", ["sources", "discover", "orders", "fetch", "manual", "normalise", "prefilter"]],
+  ["Discover · not built", ["discover", "orders"], "sub"],
+  ["2 · Read", ["readrec", "readsrc", "outscope", "ready"]],
+  ["3 · Judge", ["extract", "gate1", "scope", "gate2", "evtype", "instances", "taxonomy"]],
+  ["4 · Record", ["review", "dossiers", "check", "index"]],
+  ["Test", ["gold", "score"]],
+];
+
+const NODES = defs();
+const CONTENT = ["num", "cap", "plain", "tech", "byNote", "inp", "out", "prod", "facts", "extra", "status", "cmd"];
+
+// ------------------------------------------------------------------ build
+const canvas = document.getElementById("canvas"), svg = document.getElementById("wires");
+const NS = "http://www.w3.org/2000/svg";
+const byId = {}, picked = new Set(); let wording = "plain", zoom = 1, selected = null, CW = 1560, CH = 1220;
+const STATUS = { run: "Operational", waiting: "Built, no output yet", unbuilt: "Not built yet: a placeholder" };
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+// bumped when boxes change places, so an old saved layout does not undo the move
+const LAYOUT = "patch-layout-7", saved = store.get(LAYOUT) || {};
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+// frames go in first, so they sit behind the boxes
+const frames = GROUPS.map(([title, ids, sub]) => {
+  const f = el("div", "frame" + (sub ? " sub" : "")), l = el("div", "flabel", title);
+  l.title = "Drag to move this whole section"; f.appendChild(l); canvas.appendChild(f);
+  return { f, l, ids, sub: !!sub };
+});
+
+function ariaOf(nd) { return nd.title + ". " + STATUS[nd.status] + ". Run by " + BY[nd.by][1].toLowerCase() + ". " + nd.num + " " + nd.cap; }
+NODES.forEach(nd => {
+  const e = el("div", "node " + (nd.kind || "proc") + " " + nd.status + (nd.unit ? " meta" : ""));
+  e.tabIndex = 0; e.setAttribute("role", "button");
+  e.setAttribute("aria-label", ariaOf(nd));
+  const t = el("div", "nt"); t.appendChild(el("span", "", nd.title)); e.appendChild(t);
+  const b = el("div", "nb"); b.appendChild(el("div", "num", nd.num)); b.appendChild(el("div", "cap", nd.cap));
+  b.appendChild(el("div", "unit", nd.unit || ""));
+  b.appendChild(el("div", "by", "Run by: " + BY[nd.by][0])); e.appendChild(b);
+  e.appendChild(el("div", "rsb"));
+  const p = saved[nd.id] || nd; e.style.left = p.x + "px"; e.style.top = p.y + "px";
+  canvas.appendChild(e); nd.el = e; byId[nd.id] = nd;
+  e.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openSheet(nd); } });
+  e.addEventListener("pointerenter", () => say(nd.title + " — " + paras(nd.plain)[0].split(". ")[0] + "."));
+  drag(e, e, (dx, dy) => moveNodes([...picked].map(i => byId[i]), dx, dy), saveLayout,
+       ev => { if (ev.shiftKey) { picked.has(nd.id) ? picked.delete(nd.id) : picked.add(nd.id); paint(); } else openSheet(nd); },
+       () => { if (!picked.has(nd.id) || groupPick) pick([nd.id]); });
+});
+function paras(x) { return Array.isArray(x) ? x : [x]; }
+
+// a section name moves its whole section; a click on it selects the section, for the
+// arrow keys. That selection does not stick to the boxes: drag one box afterwards and
+// only that box moves, so a box can be placed within its section
+frames.forEach(fr => drag(fr.l, fr.l, (dx, dy) => moveNodes(fr.ids.map(i => byId[i]), dx, dy), saveLayout,
+                          () => { pick(fr.ids); groupPick = true; }));
+
+// ------------------------------------------------------------- selection
+let groupPick = false;
+function pick(ids, add) { groupPick = false; if (!add) picked.clear(); ids.forEach(i => picked.add(i)); paint(); }
+function paint() { NODES.forEach(q => q.el.classList.toggle("picked", picked.has(q.id))); }
+function saveLayout() { const L = {}; NODES.forEach(q => L[q.id] = { x: q.el.offsetLeft, y: q.el.offsetTop });
+  const lg = document.getElementById("legend"); L._legend = { x: lg.offsetLeft, y: lg.offsetTop };
+  L._wires = {}; wires.forEach(w => { if (w.c) L._wires[w.key] = w.c; });
+  store.set(LAYOUT, L); }
+function moveNodes(list, dx, dy) {
+  if (!list.length) return;
+  dx /= zoom; dy /= zoom;
+  // the group moves as one: stop the whole set at the edge, not each box on its own
+  dx = Math.max(dx, 20 - Math.min(...list.map(q => q.el.offsetLeft)));
+  dy = Math.max(dy, 40 - Math.min(...list.map(q => q.el.offsetTop)));
+  list.forEach(q => { q.el.style.left = (q.el.offsetLeft + dx) + "px"; q.el.style.top = (q.el.offsetTop + dy) + "px"; });
+  // a shaped wire whose two boxes both moved keeps its shape and moves with them
+  const ids = new Set(list.map(q => q.id));
+  wires.forEach(w => { if (w.c && ids.has(w.a.id) && ids.has(w.b.id)) w.c = w.c.map((v, i) => v + (axisAt(w, i) ? dy : dx)); });
+  route();
+}
+
+// ----------------------------------------------------------------- wires
+// Every wire is square (Manhattan routing): straight runs that turn at right angles. It
+// leaves its box straight out of a side, runs to the free coordinates in `c`, and goes
+// straight into the other box. The coordinates alternate axis, starting with the axis
+// the wire leaves on. Drag a middle run to move it; drag an end run to put a jog in it;
+// double-click a wire to square it up again. A wire somebody shaped keeps its runs where
+// they were put (saved with the layout, under _wires); the others are routed afresh.
+const STUB = 18, DIR = { r: [1, 0], l: [-1, 0], t: [0, -1], b: [0, 1] };
+const axisOf = s => (s === "l" || s === "r") ? 0 : 1;   // 0: leaves along x, 1: along y
+const shaped = O(saved._wires);
+const hits = document.createElementNS(NS, "g");
+const wires = wireDefs().map(([a, b, label, kind, sides]) => {
+  const path = document.createElementNS(NS, "path"); path.setAttribute("class", "wire " + (kind || ""));
+  svg.appendChild(path);
+  let text = null;
+  text = document.createElementNS(NS, "text"); text.setAttribute("class", "wlabel"); text.setAttribute("text-anchor", "middle"); text.textContent = label || ""; svg.appendChild(text);
+  const hit = document.createElementNS(NS, "path"); hit.setAttribute("class", "whit"); hits.appendChild(hit);
+  const key = a + ">" + b, s = sides || "rl";
+  const c = Array.isArray(shaped[key]) && shaped[key].every(v => typeof v === "number") ? shaped[key] : null;
+  return { key, a: byId[a], b: byId[b], path, text, hit, label: label || "", sides: s, c, raw: [] };
+});
+svg.appendChild(hits);   // last, so a wire can be grabbed where it crosses another's label
+// the run a coordinate sits on: free coordinate i runs along the wire's leaving axis when i is even
+const axisAt = (w, i) => (i % 2 ? 1 - axisOf(w.sides[0]) : axisOf(w.sides[0]));
+// a coordinate list with the wrong parity for its sides cannot be drawn: route afresh
+const fits = (w, c) => Array.isArray(c) && (c.length % 2) === (axisOf(w.sides[0]) === axisOf(w.sides[1]) ? 1 : 0);
+
+// the free coordinates of a fresh route between P1 and Q1, the ends of the two stubs
+function autoCoords(P, Q, s0, s1) {
+  const A0 = axisOf(s0), A1 = axisOf(s1), B0 = 1 - A0, d0 = DIR[s0], d1 = DIR[s1];
+  if (A0 === A1) {
+    // both ends on the same side: go round, clear of both boxes
+    if (s0 === s1) return [(d0[A0] > 0 ? Math.max(P[A0], Q[A0]) : Math.min(P[A0], Q[A0])) + d0[A0] * 24];
+    // facing sides, the far end ahead: one turn each way, half way across
+    if ((Q[A0] - P[A0]) * d0[A0] >= 0) return [(P[A0] + Q[A0]) / 2];
+    // the far end behind: out, across half way, and back in
+    return [P[A0], (P[B0] + Q[B0]) / 2, Q[A0]];
+  }
+  // sides at right angles: one corner, if it lies ahead of the start and outside the end
+  if ((Q[A0] - P[A0]) * d0[A0] >= 0 && (P[A1] - Q[A1]) * d1[A1] >= 0) return [];
+  return [P[A0], Q[B0]];
+}
+// the corner points of a wire, P to Q, kept raw (zero-length runs and all) so that run
+// m of the drawing is always the same run of the coordinates: m 0 is the start stub, m 1
+// to k+2 are free runs 0 to k+1, m k+3 is the end stub
+function corners(w, P, Q) {
+  const s0 = w.sides[0], s1 = w.sides[1];
+  const P1 = [P[0] + DIR[s0][0] * STUB, P[1] + DIR[s0][1] * STUB], Q1 = [Q[0] + DIR[s1][0] * STUB, Q[1] + DIR[s1][1] * STUB];
+  if (w.c && !fits(w, w.c)) w.c = null;
+  const c = w.c || autoCoords(P1, Q1, s0, s1);
+  const pts = [P, P1]; let cur = P1.slice(), ax = axisOf(s0);
+  c.forEach(v => { cur[ax] = v; pts.push(cur.slice()); ax = 1 - ax; });
+  cur[ax] = Q1[ax]; pts.push(cur.slice()); ax = 1 - ax;
+  cur[ax] = Q1[ax]; pts.push(cur.slice());
+  pts.push(Q);
+  return { pts, c, P1, Q1 };
+}
+const dOf = pts => pts.filter((p, i) => !i || p[0] !== pts[i - 1][0] || p[1] !== pts[i - 1][1])
+                      .map((p, i) => (i ? "L" : "M") + p[0] + "," + p[1]).join(" ");
+
+// grab a run: the nearest run of the drawing to the pointer
+function nearestRun(w, x, y) {
+  let best = -1, bd = Infinity;
+  for (let m = 0; m < w.raw.length - 1; m++) {
+    const [p, q] = [w.raw[m], w.raw[m + 1]]; if (p[0] === q[0] && p[1] === q[1]) continue;
+    const t = Math.max(0, Math.min(1, ((x - p[0]) * (q[0] - p[0]) + (y - p[1]) * (q[1] - p[1])) / ((q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2)));
+    const d = Math.hypot(x - (p[0] + t * (q[0] - p[0])), y - (p[1] + t * (q[1] - p[1])));
+    if (d < bd) { bd = d; best = m; }
+  }
+  return best;
+}
+const runVertical = (w, m) => m >= 0 && w.raw[m][0] === w.raw[m + 1][0];
+function canvasAt(ev) { const r = canvas.getBoundingClientRect(); return [(ev.clientX - r.left) / zoom, (ev.clientY - r.top) / zoom]; }
+function saveWires() { saveLayout(); }
+wires.forEach(w => {
+  w.hit.addEventListener("pointermove", ev => {
+    if (w.dragging) return;
+    const [x, y] = canvasAt(ev); w.hit.style.cursor = runVertical(w, nearestRun(w, x, y)) ? "ew-resize" : "ns-resize";
+  });
+  w.hit.addEventListener("pointerenter", () => { w.path.classList.add("hot"); say("A wire: drag a run of it to move that run; double-click it to square it up again."); });
+  w.hit.addEventListener("pointerleave", () => { if (!w.dragging) w.path.classList.remove("hot"); });
+  w.hit.addEventListener("dblclick", () => { w.c = null; route(); saveWires(); });
+  let idx = -1, from = 0;
+  drag(w.hit, w.hit, (dx, dy) => {
+    if (idx < 0) return;
+    const ax = axisAt(w, idx); from += (ax ? dy : dx) / zoom;
+    w.c[idx] = Math.round(from); route();
+  }, () => { w.dragging = false; w.path.classList.remove("hot"); idx = -1; saveWires(); }, null, ev => {
+    // which run was grabbed decides which coordinate moves; an end run first gets a jog
+    const [x, y] = canvasAt(ev), m = nearestRun(w, x, y); if (m < 0) return;
+    const { c, P1, Q1 } = corners(w, w.raw[0], w.raw[w.raw.length - 1]);
+    w.c = c.slice(); const k = w.c.length, j = Math.max(0, Math.min(k + 1, m - 1));
+    if (j === 0) { const A0 = axisOf(w.sides[0]); w.c.unshift(P1[A0], P1[1 - A0]); idx = 1; }
+    else if (j === k + 1) { const ax = k % 2 ? 1 - axisOf(w.sides[0]) : axisOf(w.sides[0]); w.c.push(Q1[ax], Q1[1 - ax]); idx = k; }
+    else idx = j - 1;
+    from = w.c[idx]; w.dragging = true;
+  });
+});
+
+function anchor(nd, side) {
+  const e = nd.el, x = e.offsetLeft, y = e.offsetTop, w = e.offsetWidth, h = e.offsetHeight;
+  return { r: [x + w, y + h / 2], l: [x, y + h / 2], t: [x + w / 2, y], b: [x + w / 2, y + h] }[side];
+}
+function route() {
+  // spread the wires that share one side of a box, so they do not sit on top of each other
+  const slots = {};
+  wires.forEach(w => { [[w.a, w.sides[0], w, 0], [w.b, w.sides[1], w, 1]].forEach(([nd, side, ww, end]) => {
+    (slots[nd.id + side] = slots[nd.id + side] || []).push([ww, end]); }); });
+  const pts = new Map();
+  Object.entries(slots).forEach(([key, list]) => {
+    const side = key.slice(-1), nd = byId[key.slice(0, -1)];
+    const other = ([w, end]) => { const o = end ? w.a : w.b; return (side === "l" || side === "r") ? o.el.offsetTop : o.el.offsetLeft; };
+    list.sort((p, q) => other(p) - other(q));
+    list.forEach(([w, end], i) => {
+      const base = anchor(nd, side), off = (i - (list.length - 1) / 2) * 13;
+      const pt = (side === "l" || side === "r") ? [base[0], base[1] + off] : [base[0] + off, base[1]];
+      if (!pts.has(w)) pts.set(w, []); pts.get(w)[end] = pt;
+    });
+  });
+  wires.forEach(w => {
+    const [p, q] = pts.get(w), s0 = w.sides[0], s1 = w.sides[1];
+    w.raw = corners(w, p, q).pts;
+    const d = dOf(w.raw); w.path.setAttribute("d", d); w.hit.setAttribute("d", d);
+    if (w.text) {
+      const m = w.path.getPointAtLength(w.path.getTotalLength() / 2); w.text.setAttribute("x", m.x); w.text.setAttribute("y", m.y - 4);
+      // a short side-by-side wire has no room for words between its boxes: the count only;
+      // the words are in the boxes' details
+      w.text.textContent = w.label;
+      const room = (s0 === "r" && s1 === "l") ? Math.abs(q[0] - p[0]) - 10 : Infinity;
+      try { if (w.label && w.text.getComputedTextLength() > room) w.text.textContent = w.label.split(" ")[0]; } catch (e) {}
+    }
+  });
+  ports(pts);
+  frames.forEach(fr => {
+    const es = fr.ids.map(i => byId[i].el);
+    const x0 = Math.min(...es.map(e => e.offsetLeft)), y0 = Math.min(...es.map(e => e.offsetTop));
+    const x1 = Math.max(...es.map(e => e.offsetLeft + e.offsetWidth)), y1 = Math.max(...es.map(e => e.offsetTop + e.offsetHeight));
+    const [px, pt, pb] = fr.sub ? [7, 16, 9] : [14, 24, 16];
+    fr.f.style.left = (x0 - px) + "px"; fr.f.style.top = (y0 - pt) + "px";
+    fr.f.style.width = (x1 - x0 + 2 * px + 2) + "px"; fr.f.style.height = (y1 - y0 + pt + pb) + "px";
+  });
+  const lg = document.getElementById("legend"), shown = lg && lg.style.display !== "none";
+  CW = Math.max(1560, ...NODES.map(q => q.el.offsetLeft + q.el.offsetWidth + 60), shown ? lg.offsetLeft + lg.offsetWidth + 30 : 0);
+  CH = Math.max(1220, ...NODES.map(q => q.el.offsetTop + q.el.offsetHeight + 60), shown ? lg.offsetTop + lg.offsetHeight + 30 : 0);
+  resize();
+}
+function ports(pts) {
+  canvas.querySelectorAll(".port").forEach(p => p.remove());
+  // [start, end]: the end a wire flows into is filled, so the direction reads at a glance
+  pts.forEach(pair => pair.forEach((pt, i) => { const p = el("div", i ? "port in" : "port"); p.style.left = (pt[0] - 3.5) + "px"; p.style.top = (pt[1] - 3.5) + "px"; canvas.appendChild(p); }));
+}
+
+function drag(handle, target, onMove, onEnd, onTap, onStart) {
+  handle.addEventListener("pointerdown", ev => {
+    if (ev.button || ev.target.closest(".closebox")) return;
+    const x0 = ev.clientX, y0 = ev.clientY; let x = x0, y = y0, moved = false;
+    try { handle.setPointerCapture(ev.pointerId); } catch (e) {}
+    const move = e => {
+      if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 6) return;
+      if (!moved) { moved = true; target.classList.add("dragging"); if (onStart) onStart(ev); }
+      onMove(e.clientX - x, e.clientY - y); x = e.clientX; y = e.clientY; };
+    const up = () => {
+      handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up); target.classList.remove("dragging");
+      if (moved) { if (onEnd) onEnd(); } else if (onTap) onTap(ev); };
+    handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
+}
+
+// ------------------------------------------------------------- the sheet
+// Every box answers the same questions in the same order:
+// What it does · Run by · Takes in · Produces · Status, then the figures and the files.
+const sheet = document.getElementById("sheet"), sbody = document.getElementById("sheetbody");
+function fillSheet(nd) {
+  document.getElementById("sheettitle").textContent = nd.title;
+  sbody.textContent = "";
+  const h = t => sbody.appendChild(el("h3", "", t));
+  h("What it does");
+  paras(wording === "plain" ? nd.plain : nd.tech).forEach(t => sbody.appendChild(el("p", "big", t)));
+  // right now comes first: the number, whether it adds up, what waits and who acts next
+  const live = runInfoFor(nd.id); if (live) sbody.appendChild(live);
+  h(testNums() ? "Right now in the test run" : "Right now");
+  if (testNums()) { const tn = el("p", "note"); tn.appendChild(el("span", "testmark", "Test run")); tn.appendChild(document.createTextNode(" Sample figures from the test run's scratch folder, not your project's.")); sbody.appendChild(tn); }
+  const tb = el("table"); const rows = [[nd.cap.charAt(0).toUpperCase() + nd.cap.slice(1), nd.num]].concat(nd.facts || []);
+  rows.forEach(([k, v]) => { const tr = el("tr"); tr.appendChild(el("td", "", String(k))); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v == null ? 0 : v))); tb.appendChild(tr); });
+  sbody.appendChild(tb);
+  if (nd.unit) sbody.appendChild(el("p", "note", nd.unit + ". It is not part of the record flow, so nothing here has to add up with the boxes around it."));
+  const f = flowOf(nd.id);
+  if (f) {
+    const s = addsUp(f); sbody.appendChild(el("p", "note" + (s.ok ? "" : " bad"), s.text));
+    if (f.held) {
+      const nx = el("p", "next");
+      nx.appendChild(el("b", "", n(f.held) + " wait here: " + (f.held_label || "not passed on yet") + ". "));
+      nx.appendChild(document.createTextNode("Next: " + NEXT[nd.by] + (isCmd(nd.cmd) ? ", with " : ".")));
+      if (isCmd(nd.cmd)) nx.appendChild(el("code", "", nd.cmd));
+      sbody.appendChild(nx);
+    }
+  }
+  breakdown(nd, h);
+  if (nd.extra) nd.extra(sbody);
+  h("Run by");
+  const by = el("p"); by.appendChild(el("span", "pill inv", BY[nd.by][0])); by.appendChild(document.createTextNode(" " + BY[nd.by][1] + ". "));
+  by.appendChild(document.createTextNode(nd.byNote || BY[nd.by][2])); sbody.appendChild(by);
+  h("Takes in"); sbody.appendChild(el("p", "", nd.inp || "—"));
+  h("Produces"); sbody.appendChild(el("p", "", nd.out || "—"));
+  if (nd.prod) sbody.appendChild(el("code", "", nd.prod));
+  h("Status");
+  const st = el("p"); st.appendChild(el("span", "pill", STATUS[nd.status]));
+  if (nd.kind === "hand") { st.appendChild(document.createTextNode(" ")); st.appendChild(el("span", "pill", "Done by a person")); }
+  if (nd.kind === "end") { st.appendChild(document.createTextNode(" ")); st.appendChild(el("span", "pill", "End point")); }
+  sbody.appendChild(st);
+  // where this step keeps what it makes: a link that opens the file or folder itself,
+  // and, while a test run is on show, a second one that opens the test's scratch copy
+  const kept = O(M.artifacts)[nd.id] || [], inTest = testShown() && location.protocol !== "file:";
+  if (kept.length) {
+    h("Where it is kept");
+    kept.forEach(a => {
+      const row = el("p", "kept");
+      if (a.exists) { const link = el("a", "", a.label); link.href = "../" + a.path; link.target = "_blank"; link.rel = "noopener"; row.appendChild(link);
+        // served: ask the server to open it in the desktop's own application
+        if (location.protocol !== "file:") link.addEventListener("click", ev => { ev.preventDefault(); openPath({ path: a.path }, row); }); }
+      else { row.appendChild(el("span", "", a.label)); row.appendChild(el("span", "pill none", "nothing there yet")); }
+      if (inTest) {
+        const t = el("a", "intest", "in the test run"); t.href = "#"; t.title = "Open the test run's scratch copy of " + a.label.toLowerCase();
+        t.addEventListener("click", ev => { ev.preventDefault(); openPath({ path: a.path, test: true }, row); });
+        row.appendChild(t);
+      }
+      row.appendChild(el("span", "path", "0.2/" + a.path));
+      sbody.appendChild(row);
+    });
+  }
+  if (isCmd(nd.cmd)) { h(wording === "tech" ? "Command" : "How to run it"); sbody.appendChild(el("code", "", nd.cmd)); }
+  else if (wording === "tech" && nd.cmd) { h("File"); sbody.appendChild(el("code", "", nd.cmd)); }
+}
+// a box's `cmd` is a command to run, or only the file or folder a person edits
+const isCmd = c => !!c && !/^0\.2\//.test(c);
+// who acts next on the records waiting at a box
+const NEXT = { person: "a person", model: "a model, run from Claude Code", script: "a script", rule: "a script applies the rule", doc: "a person" };
+// a box's conservation line: what comes in = what goes on + what ends here + what waits
+function addsUp(f) {
+  const outs = (f.out || []).filter(Boolean);
+  const main = outs.filter(e => !e.branch).reduce((a, e) => a + Number(e.n || 0), 0);
+  const stops = (f.stop || []).reduce((a, s) => a + Number(O(s).n || 0), 0);
+  const held = Number(f.held || 0), sum = main + stops + held, ok = sum === Number(f.in || 0);
+  return { ok, text: (ok ? "Adds up: " : "Does NOT add up: ") + n(f.in) + " in " + (ok ? "= " : "≠ ") +
+    n(main) + " passed on + " + n(stops) + " ended here + " + n(held) + " waiting." };
+}
+// A box's records, split: by source, by the groups that matter there, then where they
+// come from and where they go, and the files the number is counted from. All from
+// map.flow; a box with no entry there (sources, rules, the answer key) shows nothing.
+const titleOf = id => (byId[id] && byId[id].title) || id;
+function breakdown(nd, h) {
+  const f = flowOf(nd.id); if (!f) return;
+  const tech = wording === "tech";
+  const table = list => { const tb = el("table");
+    list.forEach(([k, v, t]) => { const tr = el("tr"), td = el("td", "", String(k));
+      if (tech && t) td.appendChild(el("span", "tech", t));
+      tr.appendChild(td); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v == null ? 0 : v))); tb.appendChild(tr); });
+    sbody.appendChild(tb); };
+  h("The " + n(f.in) + " " + (f.per || "records") + " here, by " + (f.per ? "canonical source" : "source"));
+  const bs = Object.entries(O(f.by_source));
+  if (bs.length) table(bs); else sbody.appendChild(el("p", "note", "None."));
+  (Array.isArray(f.groups) ? f.groups : []).forEach(g => {
+    if (!g || !Array.isArray(g.rows) || !g.rows.length) return;
+    h(String(g.title || ""));
+    if (g.note) sbody.appendChild(el("p", "note", String(g.note)));
+    table(g.rows.map(r => [O(r).label, O(r).n, O(r).tech]));
+  });
+  // what comes in: every wire into this box
+  h("Comes from");
+  const ins = [];
+  (Array.isArray(M.flow) ? M.flow : []).forEach(src => (O(src).out || []).forEach(e => { if (e && e.to === nd.id) ins.push([src.id, e]); }));
+  if (f.origin && !ins.length) sbody.appendChild(el("p", "flowline", "← " + n(f.in) + " records enter the map here."));
+  if (!f.origin && !ins.length) sbody.appendChild(el("p", "flowline", "Nothing."));
+  ins.forEach(([sid, e]) => sbody.appendChild(el("p", "flowline", "← " + n(e.n) + " from " + titleOf(sid) + ": " + (e.label || "") + (e.branch ? " (the same records, also counted on the main path)" : ""))));
+  h("Goes to");
+  const outs = (f.out || []).filter(Boolean);
+  outs.forEach(e => sbody.appendChild(el("p", "flowline", "→ " + n(e.n) + " to " + titleOf(e.to) + ": " + (e.label || "") + (e.branch ? " (also: a side path, not part of the sum below)" : ""))));
+  (f.stop || []).forEach(s => sbody.appendChild(el("p", "flowline", "■ " + n(O(s).n) + " end here: " + (O(s).label || ""))));
+  if (f.held || f.held_label) sbody.appendChild(el("p", "flowline", "… " + n(f.held) + " wait here: " + (f.held_label || "not passed on yet")));
+  sbody.appendChild(el("p", "note", addsUp(f).text));
+  h("Counted from");
+  (Array.isArray(f.files) ? f.files : []).forEach(p => sbody.appendChild(el("code", "", "0.2/" + p)));
+  if (tech && f.rule) sbody.appendChild(el("p", "note", "Rule: " + f.rule));
+}
+
+// the warning above the map: every conservation equation from run.py that fails
+function flowWarn() {
+  const w = document.getElementById("flowwarn"); if (!w) return;
+  const all = (Array.isArray(M.checks) ? M.checks : []).filter(Boolean);
+  const bad = all.filter(c => c.ok === false);
+  // the line above the map: when the numbers were counted, from which AIID copy, the
+  // last update run, and how many of the sums hold
+  const info = document.getElementById("mapinfo");
+  if (info) {
+    info.textContent = "";
+    const at = String((D && D.generated_at) || (D && D.generated) || "").replace("T", " ");
+    const snap = O(M.aiid_snapshot), lr = O(M.last_run);
+    info.appendChild(el("span", "", "Counted " + (at || "at an unrecorded time") + " by run.py index"));
+    if (snap.present) info.appendChild(el("span", "", "AIID copy fetched " + (snap.fetched || "on an unrecorded date")));
+    if (lr.id) info.appendChild(el("span", "", "Last " + (lr.test ? "test run" : "update run") + ": " + String(lr.ended || lr.id).replace("T", " ").slice(0, 16) + ", " + (lr.state || "state unknown")));
+    if (all.length) info.appendChild(el("span", bad.length ? "bad" : "ok", bad.length ? n(bad.length) + " of " + n(all.length) + " sums fail: see below" : "All " + n(all.length) + " sums hold"));
+    // served by run.py serve: its counting code was loaded at start and has changed since
+    const stale = Array.isArray(D && D.server_stale_code) ? D.server_stale_code : [];
+    if (stale.length) info.appendChild(el("span", "bad", "The server counts with old code: " + stale.join(", ") + " changed since it started. Restart python 0.2/pipeline/run.py serve"));
+  }
+  w.textContent = ""; w.hidden = !bad.length;
+  if (!bad.length) return;
+  w.appendChild(document.createTextNode("These numbers do not add up (" + bad.length + "). A count on the map is wrong or out of date: do not rely on it. Run an update, or python 0.2/pipeline/run.py index, and look again:"));
+  const ul = el("ul");
+  bad.forEach(c => ul.appendChild(el("li", "", String(c.eq) + ": " + n(c.lhs) + " ≠ " + n(c.rhs))));
+  w.appendChild(ul);
+}
+
+function openSheet(nd) {
+  selected = nd; pick([nd.id]);
+  fillSheet(nd);
+  sheet.classList.add("open");
+  if (!sheet._placed && innerWidth > 640) {
+    const r = nd.el.getBoundingClientRect(), w = sheet.offsetWidth, h = sheet.offsetHeight;
+    let left = r.right + 14; if (left + w > innerWidth - 8) left = r.left - w - 14;
+    if (left < 8) left = Math.max(8, innerWidth - w - 8);
+    const top = Math.max(8, Math.min(r.top, innerHeight - h - 8));
+    sheet.style.left = left + "px"; sheet.style.top = top + "px"; sheet.style.right = "auto"; sheet.style.bottom = "auto";
+  }
+}
+document.getElementById("sheetclose").onclick = () => { sheet.classList.remove("open"); selected = null; };
+drag(document.getElementById("sheethead"), sheet, (dx, dy) => {
+  const r = sheet.getBoundingClientRect(); sheet.style.left = (r.left + dx) + "px"; sheet.style.top = (r.top + dy) + "px"; sheet.style.right = "auto"; sheet.style.bottom = "auto"; sheet._placed = true; });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (setupDlg.open || tsetupDlg.open) return;   // a dialog handles its own Escape
+    if (colwin.classList.contains("open")) { showColours(false); colbtn.focus(); return; }
+    if (helpwin.classList.contains("open")) { showHelp(false); helpbtn.focus(); return; }
+    document.getElementById("sheetclose").click(); pick([]); return; }
+  // arrow keys nudge whatever is selected
+  const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (!step || !picked.size || e.target.closest("#sheet, #colours, #help, #runpanel, dialog, .bar, input")) return;
+  e.preventDefault(); const d = (e.shiftKey ? 32 : 8) * zoom;
+  moveNodes([...picked].map(i => byId[i]), step[0] * d, step[1] * d); saveLayout();
+});
+
+function setWording(w) { wording = w;
+  document.getElementById("plain").setAttribute("aria-pressed", w === "plain"); document.getElementById("tech").setAttribute("aria-pressed", w === "tech");
+  if (selected) fillSheet(selected); }
+document.getElementById("plain").onclick = () => setWording("plain");
+document.getElementById("tech").onclick = () => setWording("tech");
+
+// ------------------------------------------------------------------ zoom
+const scroller = document.getElementById("scroller"), sizer = document.getElementById("sizer");
+function setZoom(z) { zoom = Math.min(1.6, Math.max(0.35, z)); canvas.style.transform = `scale(${zoom})`;
+  // zoomed far out, show every second (or fourth) dot so the grid does not turn to grey
+  let gap = 16 * zoom; while (gap < 11) gap *= 2;
+  scroller.style.backgroundSize = gap + "px " + gap + "px";
+  resize(); }
+function resize() { canvas.style.width = CW + "px"; canvas.style.height = CH + "px";
+  sizer.style.width = (CW * zoom) + "px"; sizer.style.height = (CH * zoom) + "px"; }
+function fit() { setZoom(Math.min(1, (scroller.clientWidth - 4) / CW)); }
+document.getElementById("zin").onclick = () => setZoom(zoom + 0.1);
+document.getElementById("zout").onclick = () => setZoom(zoom - 0.1);
+document.getElementById("zfit").onclick = fit;
+document.getElementById("tidy").onclick = () => { store.set(LAYOUT, {}); pick([]); wires.forEach(w => { w.c = null; }); NODES.forEach(q => { q.el.style.left = q.x + "px"; q.el.style.top = q.y + "px"; }); placeLegend(LEG); route(); };
+const legend = document.getElementById("legend"), legbtn = document.getElementById("legbtn");
+const LEG = { x: 1500, y: 880 };
+function placeLegend(p) { legend.style.left = p.x + "px"; legend.style.top = p.y + "px"; }
+placeLegend((saved._legend) || LEG);
+drag(legend.querySelector("header"), legend, (dx, dy) => {
+  legend.style.left = Math.max(0, legend.offsetLeft + dx / zoom) + "px";
+  legend.style.top = Math.max(0, legend.offsetTop + dy / zoom) + "px"; route(); }, saveLayout);
+legbtn.onclick = () => { const on = legend.style.display === "none"; legend.style.display = on ? "" : "none"; legbtn.setAttribute("aria-pressed", on); };
+
+// --------------------------------------------------------------- colours
+// Four tones, ink to paper. Nothing chosen = the CSS defaults, which follow the system
+// light/dark setting. A choice is written inline on <html> and so overrides both.
+const PALETTE = "patch-palette-1", root = document.documentElement;
+const PRESETS = [
+  ["Paper",          ["#000000", "#555555", "#a8a8a8", "#ffffff"]],
+  ["Night",          ["#e9e9e4", "#8a8a86", "#505050", "#101010"]],
+  ["Amber terminal", ["#ffb000", "#a86f00", "#5a3c00", "#1a1100"]],
+  ["Green phosphor", ["#41ff7a", "#1f9a45", "#14532a", "#04140a"]],
+  ["Blueprint",      ["#f2f6ff", "#8fa9dc", "#4a6db4", "#1c3f8a"]],
+];
+const colwin = document.getElementById("colours"), colbtn = document.getElementById("colbtn");
+const colInputs = [...colwin.querySelectorAll("input[type=color][data-c]")];
+const isHex = v => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+function hex(v) { v = String(v || "").trim();
+  if (/^#[0-9a-f]{3}$/i.test(v)) v = "#" + [...v.slice(1)].map(c => c + c).join("");
+  return isHex(v) ? v.toLowerCase() : "#000000"; }
+function lum(h) { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); return 0.299 * r + 0.587 * g + 0.114 * b; }
+function applyPalette(p) {
+  if (p) { p.forEach((v, i) => root.style.setProperty("--c" + i, v)); root.style.colorScheme = lum(p[3]) < 128 ? "dark" : "light"; }
+  else { [0, 1, 2, 3].forEach(i => root.style.removeProperty("--c" + i)); root.style.removeProperty("color-scheme"); }
+  syncInputs();
+}
+function current() { const cs = getComputedStyle(root); return [0, 1, 2, 3].map(i => hex(cs.getPropertyValue("--c" + i))); }
+function syncInputs() { const c = current(), chosen = !!root.style.getPropertyValue("--c0");
+  colInputs.forEach((inp, i) => { inp.value = c[i]; });
+  document.getElementById("colnote").textContent = chosen ? "Your colours." : "Default: follows the system light or dark setting.";
+  const pi = document.getElementById("portcol"); if (pi && !root.style.getPropertyValue("--port")) pi.value = c[0]; }
+function setPalette(p) { store.set(PALETTE, p); applyPalette(p); }
+colInputs.forEach((inp, i) => inp.addEventListener("input", () => { const p = current(); p[i] = hex(inp.value); setPalette(p); }));
+PRESETS.forEach(([name, p]) => {
+  const b = el("button", "btn"); b.type = "button";
+  const chip = el("span", "chip"); chip.style.background = `linear-gradient(90deg, ${p[3]} 50%, ${p[0]} 50%)`; chip.setAttribute("aria-hidden", "true");
+  b.appendChild(chip); b.appendChild(document.createTextNode(name)); b.onclick = () => setPalette(p.slice());
+  document.getElementById("presets").appendChild(b);
+});
+document.getElementById("colreset").onclick = () => setPalette(null);
+// the colour of the small squares at the ends of the wires: its own choice, kept apart
+// from the palette; none chosen = the ink colour
+const PORTCOL = "patch-port-colour-1", portIn = document.getElementById("portcol");
+function applyPort(v) {
+  if (v) root.style.setProperty("--port", v); else root.style.removeProperty("--port");
+  portIn.value = v || current()[0];
+  document.getElementById("portnote").textContent = v ? "Your colour." : "Default: the ink colour.";
+}
+portIn.addEventListener("input", () => { const v = hex(portIn.value); store.set(PORTCOL, v); applyPort(v); });
+document.getElementById("portreset").onclick = () => { store.set(PORTCOL, null); applyPort(null); };
+function underBar(win) { // open just under the toolbar, which wraps onto several rows on a phone
+  const top = Math.round(document.querySelector(".bar").getBoundingClientRect().bottom) + 6;
+  win.style.top = top + "px"; win.style.maxHeight = (innerHeight - top - 8) + "px"; }
+function showColours(on) {
+  if (on) { underBar(colwin); showHelp(false); }
+  colwin.classList.toggle("open", on); colbtn.setAttribute("aria-pressed", on);
+  if (on) { syncInputs(); colInputs[0].focus(); } }
+colbtn.onclick = () => showColours(!colwin.classList.contains("open"));
+document.getElementById("colclose").onclick = () => { showColours(false); colbtn.focus(); };
+// the default follows the system; keep the swatches honest when it flips
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncInputs); } catch (e) {}
+{ const p = store.get(PALETTE); applyPalette(Array.isArray(p) && p.length === 4 && p.every(isHex) ? p : null); }
+{ const v = store.get(PORTCOL); applyPort(isHex(v) ? v : null); }
+
+// ------------------------------------------------------------------ help
+const helpwin = document.getElementById("help"), helpbtn = document.getElementById("helpbtn");
+function showHelp(on) {
+  if (on) { underBar(helpwin); showColours(false); }
+  helpwin.classList.toggle("open", on); helpbtn.setAttribute("aria-pressed", on);
+  if (on) document.getElementById("helpclose").focus(); }
+helpbtn.onclick = () => showHelp(!helpwin.classList.contains("open"));
+document.getElementById("helpclose").onclick = () => { showHelp(false); helpbtn.focus(); };
+
+// ----------------------------------------------------------- rubber band
+// Press on empty space and pull: every box the rectangle touches is selected.
+scroller.addEventListener("pointerdown", ev => {
+  if (ev.button || ev.pointerType === "touch" || ev.target.closest(".node, .flabel, #legend, .whit")) return;
+  const sr = scroller.getBoundingClientRect();
+  if (ev.clientX - sr.left > scroller.clientWidth || ev.clientY - sr.top > scroller.clientHeight) return;  // a scrollbar
+  const cr = canvas.getBoundingClientRect(), at = e => [(e.clientX - cr.left) / zoom, (e.clientY - cr.top) / zoom];
+  const [x0, y0] = at(ev), add = ev.shiftKey, base = new Set(picked); let box = null;
+  try { scroller.setPointerCapture(ev.pointerId); } catch (e) {}
+  const move = e => {
+    const [x, y] = at(e);
+    if (!box) { if (Math.hypot(x - x0, y - y0) < 5) return; box = el("div", "marquee"); canvas.appendChild(box); }
+    const L = Math.min(x0, x), T = Math.min(y0, y), W = Math.abs(x - x0), H = Math.abs(y - y0);
+    box.style.left = L + "px"; box.style.top = T + "px"; box.style.width = W + "px"; box.style.height = H + "px";
+    picked.clear(); if (add) base.forEach(i => picked.add(i));
+    NODES.forEach(q => { const n = q.el;
+      if (n.offsetLeft < L + W && n.offsetLeft + n.offsetWidth > L && n.offsetTop < T + H && n.offsetTop + n.offsetHeight > T) picked.add(q.id); });
+    paint();
+  };
+  const up = () => {
+    scroller.removeEventListener("pointermove", move); scroller.removeEventListener("pointerup", up); scroller.removeEventListener("pointercancel", up);
+    if (box) box.remove(); else if (!add) pick([]);
+    if (picked.size > 1) say(picked.size + " boxes selected. Drag any one of them to move them all, or use the arrow keys. Esc clears.");
+  };
+  scroller.addEventListener("pointermove", move); scroller.addEventListener("pointerup", up); scroller.addEventListener("pointercancel", up);
+});
+
+// ----------------------------------------------------------- message line
+const msg = document.getElementById("msg"), IDLE = "Click a box to see what it does. Drag a box to move it. Drag across empty space to select several. Drag a section name to move the section. Drag a run of a wire to reshape it; double-click a wire to square it up.";
+function say(t) { msg.textContent = t; }
+const still = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } })();
+
+// ------------------------------------------- update and test run: the real pipeline
+// Talks to `run.py serve` (same origin, relative URLs). Opened from disk, or with no
+// server, both start buttons stay off and everything else works as before.
+// An update and a test run are the same machinery and the same panel. A test run is
+// executed by the server in a scratch folder on made-up incidents; the snapshot says so
+// with `test: true`, and everything shown for it is marked.
+const U = { server: false, status: null, run: null, active: false, timer: null, lost: false, last: "", attached: false,
+            open: new Set(), current: null, cancelArm: null, baseTitle: document.title, sig: "", testSig: null, casesOpen: false,
+            live: false, shown: "real", mapSig: "", before: null, realFrom: null, numsOpen: new Set() };
+// Which numbers the boxes show. REAL holds the project's own map: the one baked into this
+// page, or the latest a real update this page followed sent. A test run's map is shown
+// only while its panel is, and REAL comes back when the panel closes or a real run starts.
+const REAL = { map: M };
+U.mapSig = "real:" + JSON.stringify(M);
+const testNums = () => U.shown === "test";
+const isTest = run => !!(run && run.test === true);   // older snapshots have no `test`: a real run
+const testShown = () => isTest(U.run);
+const runWord = run => isTest(run) ? "Test run" : "Update";
+const canFetch = typeof fetch === "function";
+const ACTIVE = s => s === "running" || s === "waiting" || s === "failed";
+const RS_LABEL = { pending: "pending", running: "running", waiting: "your turn", done: "done", failed: "failed", skipped: "skipped", placeholder: "not built yet" };
+const RS_RANK = { waiting: 7, failed: 6, running: 5, placeholder: 4, done: 3, skipped: 2, pending: 1 };
+const updbtn = document.getElementById("upd"), srvnote = document.getElementById("srvnote");
+const tstbtn = document.getElementById("tst"), tstnote = document.getElementById("tstnote");
+const rpanel = document.getElementById("runpanel"), rstatus = document.getElementById("runstatus"), rlost = document.getElementById("runlost");
+const rsteps = document.getElementById("runsteps"), rsummary = document.getElementById("runsummary"), ropts = document.getElementById("runopts");
+const rcancel = document.getElementById("runcancel"), rclose = document.getElementById("runclose"), rnote = document.getElementById("runnote");
+
+function api(method, path, body, ms) {
+  if (!canFetch) return Promise.reject(new Error("fetch is not available"));
+  const opt = { method, headers: { "Accept": "application/json" }, cache: "no-store", credentials: "same-origin" };
+  if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+  let t = null;
+  try { if (typeof AbortController === "function") { const c = new AbortController(); opt.signal = c.signal; t = setTimeout(() => c.abort(), ms || 8000); } } catch (e) {}
+  return fetch(path, opt).then(r => r.text().then(tx => {
+    clearTimeout(t); let j = null; try { j = tx ? JSON.parse(tx) : null; } catch (e) {}
+    return { status: r.status, ok: r.ok, body: j };
+  }), e => { clearTimeout(t); throw e; });
+}
+
+// "Where it is kept" and the test's scratch folder: ask the server to open a path in the
+// desktop's own application. `where` is the element that shows a failure.
+function openPath(body, where) {
+  const fail = m => { let w = where.querySelector(".openfail"); if (!w) { w = el("span", "pill none openfail", ""); where.appendChild(w); } w.textContent = m; };
+  api("POST", "api/open", body).then(r => {
+    if (r.ok) { const w = where.querySelector(".openfail"); if (w) w.remove(); return; }
+    fail((r.body && r.body.error) || (r.status === 409 && body.test ? "the test run's scratch folder is gone" : "could not open it"));
+  }, () => fail("the server did not answer"));
+}
+
+// a test run is offered only when the front end says so; an older one does not say
+function testReady() { return U.server && O(U.status).test_available === true; }
+function testWhyNot() {
+  const st = O(U.status);
+  if (st.test_available === false) return String(st.test_unavailable || "the front end cannot make a test run right now").trim();
+  return "this front end has no test run: restart python 0.2/pipeline/run.py serve";
+}
+
+function syncButtons() {
+  updbtn.disabled = !U.server || U.active;
+  tstbtn.disabled = !testReady() || U.active;
+  if (!U.server) return;
+  const going = U.run && isTest(U.run) ? "a test run is going: see the panel" : "an update is running: see the panel";
+  srvnote.textContent = U.active ? going : "changes the project's files";
+  tstnote.textContent = U.active ? going : testReady() ? "made-up incidents; your files are not touched" : "Off: " + testWhyNot();
+  tstbtn.title = testReady() ? "A dry run: every step, on a handful of made-up incidents in a scratch folder. The project's files are not touched."
+                             : "Off: " + testWhyNot() + ".";
+}
+
+function noServer(why) {
+  U.server = false;
+  srvnote.textContent = "Start the front end with: python 0.2/pipeline/run.py serve";
+  tstnote.textContent = "needs the front end too";
+  const off = "Off: " + (why || "this page was not opened from the front end") + ". Start it with: python 0.2/pipeline/run.py serve, then open the address it prints.";
+  updbtn.title = off; tstbtn.title = off;
+  syncButtons();
+}
+
+function detect() {
+  if (!canFetch) return noServer("this browser cannot talk to a server");
+  if (location.protocol === "file:") return noServer("this page was opened from disk");
+  api("GET", "api/status", undefined, 2500).then(r => {
+    if (!r.ok || !r.body || r.body.server !== true) return noServer("no front end answered");
+    U.server = true; U.status = r.body; updbtn.title = "Run the real pipeline: reads and writes the project's files";
+    syncButtons();
+    if (r.body.run && ACTIVE(r.body.run.state)) attach(r.body.run);
+  }).catch(() => noServer("no front end answered"));
+}
+
+// --- the set-up dialog
+const setupDlg = document.getElementById("setup"), sform = document.getElementById("setupform"), serr = document.getElementById("setuperr");
+const mdir = document.getElementById("manualdir");
+function radio(name) { const r = sform.querySelector("input[name=" + name + "]:checked"); return r ? r.value : ""; }
+function openSetup() {
+  if (!U.server || U.active) return;
+  serr.textContent = "";
+  const go = st => {
+    const snap = O(st && st.aiid_snapshot), token = !!(st && st.token_present);
+    const fs = document.getElementById("fsaved"), fr = document.getElementById("frefetch");
+    if (snap.present) {
+      document.getElementById("savedlabel").textContent = "Use the saved AIID copy (fetched " + (snap.fetched || "date not recorded") + ", " + n(snap.records) + " incidents)";
+      fs.disabled = false; if (!fr.checked) fs.checked = true;
+    } else {
+      document.getElementById("savedlabel").textContent = "Use the saved AIID copy (there is none yet)";
+      fs.disabled = true; fr.checked = true;
+    }
+    document.getElementById("tokennote").textContent = token ? "An AIID token was found." :
+      "No AIID token found: downloading again will stop and ask you for one (or offer the saved copy).";
+    if (typeof setupDlg.showModal === "function") { if (!setupDlg.open) setupDlg.showModal(); } else setupDlg.setAttribute("open", "");
+    (sform.querySelector("input:checked") || sform.querySelector("input")).focus();
+  };
+  api("GET", "api/status", undefined, 2500).then(r => { if (r.ok && r.body) U.status = r.body; go(U.status); }, () => go(U.status));
+}
+function closeSetup() { if (typeof setupDlg.close === "function" && setupDlg.open) setupDlg.close(); else setupDlg.removeAttribute("open"); updbtn.focus(); }
+updbtn.onclick = openSetup;
+setupDlg.addEventListener("close", () => { if (!updbtn.disabled) updbtn.focus(); });
+document.getElementById("setupclose").onclick = closeSetup;
+document.getElementById("setupcancel").onclick = closeSetup;
+sform.addEventListener("change", () => { mdir.disabled = radio("manual") !== "yes"; });
+sform.addEventListener("submit", ev => {
+  ev.preventDefault();
+  const body = { discover: radio("scope") === "discover", refetch: radio("fetch") === "refetch", manual_dir: radio("manual") === "yes" ? mdir.value.trim() : "" };
+  if (radio("manual") === "yes" && !body.manual_dir) { serr.textContent = "Type the path of the folder that holds the write-ups, or choose No."; mdir.focus(); return; }
+  startRun(body, document.getElementById("setupstart"), serr, closeSetup);
+});
+
+// both dialogs start a run the same way; only the body differs
+function startRun(body, btn, err, close) {
+  btn.disabled = true; err.textContent = "";
+  api("POST", "api/run", body, 15000).then(r => {
+    btn.disabled = false;
+    if (r.ok && r.body) { close(); attach(r.body); return; }
+    let why = String((r.body && r.body.error) || ("The front end answered " + r.status)).trim();
+    if (!/[.!?]$/.test(why)) why += ".";
+    if (r.status === 409) { err.textContent = "A run is already going: " + why + " It is shown in the panel beside the map."; poll(); }
+    else if (r.status === 400) err.textContent = "Cannot start: " + why;
+    else err.textContent = "Cannot start (" + r.status + "): " + why;
+  }, () => { btn.disabled = false; err.textContent = "Could not reach the front end. Is python 0.2/pipeline/run.py serve still running?"; });
+}
+
+// --- the test run's set-up dialog
+const tsetupDlg = document.getElementById("tsetup"), tform = document.getElementById("tsetupform"), terr = document.getElementById("tsetuperr");
+function openTestSetup() {
+  if (!testReady() || U.active) return;
+  terr.textContent = "";
+  const go = () => {
+    syncButtons();
+    if (!testReady()) { say("Test run is off: " + testWhyNot() + "."); return; }   // it changed while we asked
+    if (typeof tsetupDlg.showModal === "function") { if (!tsetupDlg.open) tsetupDlg.showModal(); } else tsetupDlg.setAttribute("open", "");
+    document.getElementById("trefetch").focus();
+  };
+  api("GET", "api/status", undefined, 2500).then(r => { if (r.ok && r.body) U.status = r.body; go(); }, go);
+}
+function closeTestSetup() { if (typeof tsetupDlg.close === "function" && tsetupDlg.open) tsetupDlg.close(); else tsetupDlg.removeAttribute("open"); tstbtn.focus(); }
+tstbtn.onclick = openTestSetup;
+tsetupDlg.addEventListener("close", () => { if (!tstbtn.disabled) tstbtn.focus(); });
+document.getElementById("tsetupclose").onclick = closeTestSetup;
+document.getElementById("tsetupcancel").onclick = closeTestSetup;
+tform.addEventListener("submit", ev => {
+  ev.preventDefault();
+  const on = id => document.getElementById(id).checked;
+  startRun({ test: true, discover: on("tdiscover"), refetch: on("trefetch"), manual: on("tmanual") },
+           document.getElementById("tsetupstart"), terr, closeTestSetup);
+});
+
+// --- following a run
+function attach(run) {
+  U.active = true; U.attached = true; U.lost = false; U.last = ""; U.current = null; U.open.clear();
+  U.testSig = null; U.casesOpen = false; U.numsOpen.clear();
+  // attach is reached only for a run this page started or found going, so its map is
+  // followed live; a run that had ended before the page loaded is never attached
+  U.live = true; U.before = isTest(run) ? null : REAL.map;
+  rpanel.classList.add("open");
+  render(run); syncButtons();
+  setTimeout(() => { if (scroller.clientWidth < CW * zoom) fit(); route(); }, 0);
+  clearTimeout(U.timer); U.timer = setTimeout(poll, 1000);
+}
+function poll() {
+  clearTimeout(U.timer);
+  api("GET", "api/run", undefined, 5000).then(r => {
+    if (r.status === 404) { setLost(false); if (U.run) finish(Object.assign({}, U.run, { state: U.run.state === "done" ? "done" : "cancelled" })); return; }
+    if (!r.ok || !r.body) throw new Error("bad answer " + r.status);
+    setLost(false);
+    if (!U.attached) { attach(r.body); return; }
+    render(r.body);
+    if (ACTIVE(r.body.state)) U.timer = setTimeout(poll, 1000); else finish(r.body);
+  }).catch(() => { setLost(true); U.timer = setTimeout(poll, 2000); });
+}
+function setLost(on) {
+  if (U.lost === on) return; U.lost = on; rlost.hidden = !on;
+  if (on) { setStatus("Lost contact with the front end. Retrying…"); document.title = "○ Lost contact" + (testShown() ? " · Test run" : "") + " — " + U.baseTitle; }
+  else U.last = "";   // repaint the status line on the next answer
+}
+// the status line; a test run's always starts with its mark
+function setStatus(text) {
+  rstatus.textContent = "";
+  if (testShown()) {
+    const m = rstatus.appendChild(el("span", "testmark", "Test run"));
+    if (/^Test run/.test(text)) m.setAttribute("aria-hidden", "true");   // not read out twice
+    rstatus.appendChild(document.createTextNode(" "));
+  }
+  rstatus.appendChild(document.createTextNode(text));
+}
+
+function stepCounts(s) { return (Array.isArray(s.counts) ? s.counts : []).filter(c => Array.isArray(c) && c.length >= 2); }
+function stepSum(s) { const c = stepCounts(s); return c.length ? c.slice(0, 2).map(([k, v]) => (typeof v === "number" ? n(v) : v) + " " + String(k).toLowerCase()).join(" · ") : ""; }
+
+function paintNodes(run) {
+  const st = {};
+  (run.steps || []).forEach(s => (s.nodes || []).forEach(id => {
+    if (!byId[id]) return;
+    if (!st[id] || (RS_RANK[s.state] || 0) > (RS_RANK[st[id]] || 0)) st[id] = s.state;
+  }));
+  NODES.forEach(nd => {
+    const s = st[nd.id];
+    if (s && RS_LABEL[s]) { nd.el.dataset.rs = s; nd.el.querySelector(".rsb").textContent = (s === "waiting" ? "! " : s === "failed" ? "✕ " : s === "done" ? "✓ " : "") + RS_LABEL[s]; }
+    else { delete nd.el.dataset.rs; }
+    nd.el.setAttribute("aria-label", ariaOf(nd) + (testNums() ? ". A sample figure from the test run" : "") + (s ? (isTest(run) ? ". In this test run: " : ". In this update: ") + RS_LABEL[s] : ""));
+  });
+  // the wire into the step that is working now
+  const cur = (run.steps || []).find(s => s.id === run.current);
+  const inside = new Set(cur && cur.state === "running" ? cur.nodes || [] : []);
+  wires.forEach(w => w.path.classList.toggle("flow", inside.has(w.b.id) && !inside.has(w.a.id)));
+}
+function clearNodes() { NODES.forEach(nd => { delete nd.el.dataset.rs; nd.el.setAttribute("aria-label", ariaOf(nd)); }); wires.forEach(w => w.path.classList.remove("flow")); }
+
+function render(run) {
+  if (!run || !Array.isArray(run.steps)) return;
+  const sig = JSON.stringify(run);
+  if (sig === U.last) return;
+  U.last = sig; U.run = run;
+  const test = isTest(run), word = runWord(run);
+  markTest(test);
+  syncMap(run);
+  paintNodes(run);
+  const steps = run.steps, cur = steps.find(s => s.id === run.current) || null;
+  const ask = steps.find(s => s.state === "waiting") || steps.find(s => s.state === "failed");
+  // the status line, the window title and the panel title
+  const pos = cur ? (steps.indexOf(cur) + 1) + " of " + steps.length : "";
+  const tt = test ? " · Test run" : "";
+  let line, title;
+  if (run.state === "waiting" && ask) { line = "Waiting for you at “" + (ask.title || ask.id) + "”. See below."; title = "● Waiting for you" + tt + " — " + U.baseTitle; }
+  else if (run.state === "failed") { line = "Stopped: “" + ((ask || cur || {}).title || "a step") + "” failed. See below."; title = "✕ " + word + " stopped — " + U.baseTitle; }
+  else if (run.state === "running") { line = "Running " + pos + ": " + ((cur && cur.title) || "…"); title = (test ? "▸ Test run… — " : "▸ Updating… — ") + U.baseTitle; }
+  else if (run.state === "done") { line = word + " finished."; title = "✓ " + word + " done — " + U.baseTitle; }
+  else if (run.state === "cancelled") { line = word + " cancelled."; title = test ? "Test run cancelled — " + U.baseTitle : U.baseTitle; }
+  else { line = word + ": " + run.state; title = test ? "Test run — " + U.baseTitle : U.baseTitle; }
+  if (!U.lost) { setStatus(line); document.title = title; }
+  document.getElementById("runtitle").textContent = word + " " + (run.id || "");
+  const o = O(run.options);
+  ropts.textContent = test
+    ? "Test run with: " + (o.refetch ? "a fresh fetch, simulated: the first try fails on purpose" : "the saved copy") + " · " + (o.manual ? "one made-up incident added by hand" : "nothing added by hand") + " · " + (o.discover ? "discovery (not built yet)" : "no discovery")
+    : "Started with: " + (o.discover ? "AIID and discovery (not built yet)" : "AIID baseline only") + " · " + (o.refetch ? "download AIID again" : "saved AIID copy") + " · " + (o.manual_dir ? "by hand from " + o.manual_dir : "nothing added by hand");
+  testInfo(run);
+  // which steps are open: the current one, any that need you, and any you opened
+  const changed = (cur && cur.id) !== U.current; U.current = cur && cur.id;
+  rsteps.textContent = "";
+  steps.forEach(s => rsteps.appendChild(stepItem(s, s === cur || s === ask || U.open.has(s.id), run)));
+  // follow along: keep the step that matters in view, in the panel and on the map
+  const focusStep = ask || cur;
+  if (focusStep && (changed || ask)) {
+    const li = rsteps.querySelector('[data-id="' + cssq(focusStep.id) + '"]');
+    if (li) li.scrollIntoView({ block: ask ? "start" : "nearest", behavior: still ? "auto" : "smooth" });
+    const nd = byId[(focusStep.nodes || [])[0]];
+    if (nd) { nd.el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: still ? "auto" : "smooth" }); }
+  }
+  // cancel only makes sense while it runs; closing only once it has ended
+  const what = test ? "test run" : "update";
+  rcancel.hidden = !ACTIVE(run.state); rclose.disabled = ACTIVE(run.state);
+  if (!U.cancelArm) rcancel.textContent = cancelLabel();
+  rclose.title = ACTIVE(run.state) ? "The panel stays while the " + what + " runs" : "Close the " + what + " panel";
+  rclose.setAttribute("aria-label", "Close the " + what + " panel");
+  rnote.textContent = ACTIVE(run.state) ? "Reloading this page is safe: the " + what + " keeps running." + (test ? " A test run does not survive a restart of the front end." : "") : "";
+  rsummary.textContent = "";
+  if (!ACTIVE(run.state)) summary(run);
+  if (selected && sheet.classList.contains("open")) fillSheet(selected);
+}
+function cssq(s) { return String(s).replace(/["\\]/g, "\\$&"); }
+function cancelLabel() { return testShown() ? "Cancel test run" : "Cancel update"; }
+
+// a test run is marked on the panel, on the map's window and in the box details;
+// a real run looks as it always did
+function markTest(on) {
+  rpanel.classList.toggle("test", on); document.getElementById("patchwin").classList.toggle("test", on);
+  document.getElementById("runmark").hidden = !on; document.getElementById("wintest").hidden = !on;
+  rpanel.setAttribute("aria-label", on ? "Test run: a dry run on made-up incidents" : "Update in progress");
+  rsteps.setAttribute("aria-label", on ? "Steps of this test run" : "Steps of this update");
+}
+
+// what a test run contains, and where its scratch folder is; rebuilt only when it changes,
+// so the list stays open or closed as the person left it
+const rtest = document.getElementById("runtest");
+function testInfo(run) {
+  if (!isTest(run)) { rtest.textContent = ""; U.testSig = null; return; }
+  const cases = (Array.isArray(run.cases) ? run.cases : []).filter(c => c && typeof c === "object");
+  const sig = JSON.stringify([run.workspace || "", cases, U.shown]);
+  if (sig === U.testSig) return;
+  U.testSig = sig; rtest.textContent = "";
+  rtest.appendChild(el("p", "", "Made-up incidents, in a scratch folder. Your project's files are not touched. " +
+    (testNums() ? "The numbers on the boxes are the test run's sample figures, not your project's, until you close this panel."
+                : "The numbers on the boxes are still your project's: the test run has not counted its own yet.")));
+  if (run.workspace) {
+    const p = el("p"); p.appendChild(document.createTextNode("Scratch folder: "));
+    p.appendChild(el("span", "ws", String(run.workspace)));
+    if (location.protocol !== "file:") {
+      p.appendChild(document.createTextNode(" "));
+      const a = el("a", "", "Open it"); a.href = "#"; a.title = "Open the test run's scratch folder";
+      a.addEventListener("click", ev => { ev.preventDefault(); openPath({ path: ".", test: true }, p); });
+      p.appendChild(a);
+    }
+    rtest.appendChild(p);
+  }
+  if (cases.length) {
+    const det = el("details"); det.open = U.casesOpen;
+    det.addEventListener("toggle", () => { U.casesOpen = det.open; });
+    det.appendChild(el("summary", "", "What this test run contains (" + cases.length + ")"));
+    const ul = el("ul");
+    cases.forEach(c => {
+      const li = el("li");
+      if (c.ref) { li.appendChild(el("code", "", String(c.ref))); }
+      li.appendChild(el("b", "", String(c.title || "Untitled")));
+      if (c.shows) { li.appendChild(document.createTextNode(": " + String(c.shows))); }
+      ul.appendChild(li);
+    });
+    det.appendChild(ul); rtest.appendChild(det);
+  }
+}
+
+function stepItem(s, open, run) {
+  const li = el("li", "rstep" + (open ? " open" : "")); li.dataset.id = s.id; li.dataset.st = s.state;
+  const head = el("button", "rhead"); head.type = "button"; head.setAttribute("aria-expanded", open);
+  head.appendChild(el("span", "rbadge", (s.state === "waiting" ? "! " : s.state === "failed" ? "✕ " : s.state === "done" ? "✓ " : "") + (RS_LABEL[s.state] || s.state)));
+  head.appendChild(el("span", "rtitle", s.title || s.id));
+  if (stepSum(s)) head.appendChild(el("span", "rsum", stepSum(s)));
+  const ch = stepChanges(run, s.id), errs = stepErrors(run, s.id);
+  if (ch.length) {
+    const top = ch.filter(([k]) => headLabel(k)).slice(0, 2);
+    head.appendChild(el("span", "rsum", top.length ? top.map(changeText).join(" · ") : ch.length + (ch.length === 1 ? " number changed" : " numbers changed")));
+  }
+  head.onclick = () => {
+    if (li.classList.toggle("open")) U.open.add(s.id); else U.open.delete(s.id);
+    head.setAttribute("aria-expanded", li.classList.contains("open"));
+    const ids = (s.nodes || []).filter(i => byId[i]); if (ids.length) { pick(ids); byId[ids[0]].el.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+  };
+  li.appendChild(head);
+  const d = el("div", "rdetail");
+  if ((s.state === "waiting" || s.state === "failed") && s.prompt) d.appendChild(askBox(s, run));
+  if (s.state === "placeholder") d.appendChild(el("p", "note", "Not built yet: shown so you can see where it belongs, then skipped."));
+  const c = stepCounts(s);
+  if (c.length) { const tb = el("table"); c.forEach(([k, v]) => { const tr = el("tr"); tr.appendChild(el("td", "", String(k))); tr.appendChild(el("td", "", typeof v === "number" ? n(v) : String(v))); tb.appendChild(tr); }); d.appendChild(tb); }
+  if (ch.length) d.appendChild(changeList(ch, "step:" + s.id));
+  errs.forEach(e => d.appendChild(el("p", "note", "The numbers could not be counted after this step: " + e)));
+  const log = Array.isArray(s.log) ? s.log : [];
+  if (log.length) { const pre = el("pre", "rlog mono", log.join("\n")); d.appendChild(pre); setTimeout(() => { pre.scrollTop = pre.scrollHeight; }, 0); }
+  else if (!c.length && !ch.length && !errs.length && !(s.prompt && (s.state === "waiting" || s.state === "failed"))) d.appendChild(el("p", "note", s.state === "pending" ? "Not started yet." : "Nothing logged."));
+  if (s.started || s.ended) d.appendChild(el("p", "note", [s.started && "started " + s.started, s.ended && "ended " + s.ended].filter(Boolean).join(" · ")));
+  li.appendChild(d);
+  return li;
+}
+
+function askBox(s, run) {
+  const p = O(s.prompt), box = el("div", "ask"); box.setAttribute("role", "group"); box.setAttribute("aria-label", "What is needed from you");
+  box.appendChild(el("p", "asktext", p.text || (s.state === "failed" ? "This step failed." : "This step is waiting for you.")));
+  if (p.command) {
+    const row = el("div", "cmd"), inp = el("input"); inp.type = "text"; inp.readOnly = true; inp.value = p.command; inp.setAttribute("aria-label", "Command to run");
+    inp.onfocus = () => inp.select();
+    const cp = el("button", "btn", "Copy"); cp.type = "button";
+    cp.onclick = () => {
+      const ok = () => { cp.textContent = "Copied"; setTimeout(() => { cp.textContent = "Copy"; }, 1500); };
+      try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(p.command).then(ok, () => { inp.select(); try { document.execCommand("copy"); ok(); } catch (e) {} }); return; } } catch (e) {}
+      inp.select(); try { document.execCommand("copy"); ok(); } catch (e) {}
+    };
+    row.appendChild(inp); row.appendChild(cp); box.appendChild(row);
+    box.appendChild(el("p", "note", isTest(run) ? "In a real update you would run it in Claude Code. In a test run you need not: choose below."
+                                                : "Run it in Claude Code, in this project. Then come back and choose below."));
+  }
+  // a test run says what its buttons do here, apart from the real instruction above
+  if (isTest(run) && p.test_note) {
+    const tn = el("p", "testnote"); tn.appendChild(el("span", "testmark", "Test run"));
+    tn.appendChild(document.createTextNode(String(p.test_note))); box.appendChild(tn);
+    // the sample work Continue would put in place, readable before choosing
+    const pk = O(p.test_peek);
+    if (pk.path && location.protocol !== "file:") {
+      const row = el("p", "peek"), a = el("a", "", pk.label || "See the sample work"); a.href = "#";
+      a.addEventListener("click", ev => { ev.preventDefault(); openPath({ path: pk.path }, row); });
+      row.appendChild(a); row.appendChild(el("span", "path", "0.2/" + pk.path)); box.appendChild(row);
+    }
+  }
+  // the review step: how to fill in what it asks for, folded so the buttons stay in view
+  if (s.id === "review" && s.state === "waiting") {
+    const d = el("details", "guide"); d.appendChild(el("summary", "", "How to fill in the sheets and the dossier"));
+    reviewGuide(d); box.appendChild(d);
+  }
+  const acts = el("div", "acts"), btns = [];
+  (Array.isArray(p.actions) ? p.actions : []).forEach((a, i) => {
+    const b = el("button", "btn" + (i === 0 ? " strong" : ""), a.label || a.id); b.type = "button";
+    b.onclick = () => signal(s.id, a.id, btns); btns.push(b); acts.appendChild(b);
+  });
+  box.appendChild(acts);
+  return box;
+}
+
+function signal(step, action, btns) {
+  btns.forEach(b => b.disabled = true);
+  api("POST", "api/run/signal", { step, action }).then(r => {
+    if (r.ok && r.body) { U.last = ""; render(r.body); clearTimeout(U.timer); U.timer = setTimeout(poll, 500); }
+    else { btns.forEach(b => b.disabled = false); rstatus.textContent = "The front end refused that: " + ((r.body && r.body.error) || r.status); }
+  }, () => { btns.forEach(b => b.disabled = false); setLost(true); clearTimeout(U.timer); U.timer = setTimeout(poll, 2000); });
+}
+
+rcancel.onclick = () => {
+  // two presses, so a stray click does not stop a long run
+  if (!U.cancelArm) { rcancel.textContent = "Press again to cancel"; U.cancelArm = setTimeout(() => { U.cancelArm = null; rcancel.textContent = cancelLabel(); }, 4000); return; }
+  clearTimeout(U.cancelArm); U.cancelArm = null; rcancel.textContent = cancelLabel(); rcancel.disabled = true;
+  api("POST", "api/run/cancel", {}).then(r => { rcancel.disabled = false; if (r.ok && r.body) { U.last = ""; render(r.body); if (!ACTIVE(r.body.state)) finish(r.body); } },
+                                     () => { rcancel.disabled = false; setLost(true); });
+};
+rclose.onclick = () => {
+  if (U.active) return;
+  rpanel.classList.remove("open"); U.run = null; U.last = ""; U.attached = false; document.title = U.baseTitle;
+  syncMap(null);   // a test run's numbers leave with its panel
+  clearNodes(); markTest(false); testInfo(null); syncButtons();
+  if (selected) fillSheet(selected);
+  setTimeout(() => { fit(); route(); }, 0);
+};
+
+function finish(run) {
+  clearTimeout(U.timer); U.active = false; syncButtons();
+  if (!run) return;
+  // render puts the run's last map on the boxes: a real update's stays there once it has
+  // ended; a test run's stays only until its panel is closed
+  U.last = ""; render(run);
+}
+
+// what changed: the step results, and the headline numbers before and after
+// headline numbers, all counts of records; dotted keys reach into flow_counts as the
+// run's trace writes them
+const HEAD = [["records", "Records"], ["flow_counts.queued", "Candidates queued"], ["flow_counts.read_record", "Records read"],
+              ["flow_counts.read_source", "Sources read"], ["flow_counts.out_of_scope", "Screened out"], ["manual", "Added by hand"],
+              ["flow_counts.ready", "Ready for the model's questions"], ["flow_counts.extracted", "Facts extracted"], ["flow_counts.dossier_records", "Records in dossiers"]];
+// a value by dotted key, from a map or from the trace's flat numbers
+function getK(o, k) { o = O(o); if (k in o) return o[k]; return k.split(".").reduce((x, p) => x == null ? undefined : O(x)[p], o); }
+// the headline numbers that differ between two maps, or between flat numbers and a map
+function headDiff(a, b) {
+  return HEAD.filter(([k]) => getK(b, k) != null && Number(getK(a, k) || 0) !== Number(getK(b, k) || 0)).map(([k, label]) => [label, getK(a, k), getK(b, k)]);
+}
+// the numbers at the start of the run, if the server counted them then
+function startNumbers(run) {
+  const t = (Array.isArray(O(run).trace) ? run.trace : []).find(x => x && x.event === "start" && x.numbers && typeof x.numbers === "object");
+  return t ? t.numbers : null;
+}
+function summary(run) {
+  const test = isTest(run);
+  rsummary.appendChild(el("h3", "", run.state === "done" ? (test ? "What this test run did" : "What this update did") : run.state === "cancelled" ? "Cancelled. What ran before that" : "Summary"));
+  const ul = el("ul");
+  (run.steps || []).forEach(s => {
+    const what = s.state === "done" ? (stepSum(s) || "done") : RS_LABEL[s.state] || s.state;
+    if (s.state === "pending" && run.state !== "cancelled") return;
+    ul.appendChild(el("li", "", (s.title || s.id) + ": " + what));
+  });
+  rsummary.appendChild(ul);
+  if (test) {
+    rsummary.appendChild(el("p", "note", "Nothing in your project changed. " + (testNums()
+      ? "The numbers on the boxes are the test run's, counted in its scratch folder. Close this panel to see your project's own again."
+      : "The numbers on the boxes are still your project's own: this front end did not send the test run's.")));
+    if (run.workspace) rsummary.appendChild(el("p", "note", "What the test made is in its scratch folder. While this panel is open, the “in the test run” links in a box's details open the test's copy."));
+  } else if (U.live && mapOf(run) && (run.state === "done" || run.state === "cancelled")) {
+    const diff = headDiff(startNumbers(run) || U.before, REAL.map);
+    rsummary.appendChild(el("h3", "", "Numbers on the map"));
+    if (!diff.length) rsummary.appendChild(el("p", "note", "Refreshed. None of the headline numbers changed."));
+    else { const tb = el("table"); diff.forEach(([k, a, b]) => { const tr = el("tr"); tr.appendChild(el("td", "", k)); tr.appendChild(el("td", "", n(a) + " → " + n(b))); tb.appendChild(tr); }); rsummary.appendChild(tb); }
+  } else if (run.state === "done") rsummary.appendChild(el("p", "note", "This front end did not send the new numbers, so the boxes were not refreshed: reload the page to see them."));
+  // an update's full log outlives this panel; a test run keeps none
+  if (test) { rsummary.appendChild(el("p", "note", "A test run keeps no log: this panel is its only record.")); return; }
+  const lg = el("p", "note");
+  lg.appendChild(document.createTextNode("The full log of this update is kept in "));
+  lg.appendChild(el("code", "", "0.2/state/runs/"));
+  lg.appendChild(document.createTextNode(". To read it, run "));
+  lg.appendChild(el("code", "", "python 0.2/pipeline/run.py runs " + (run.id || "<id>")));
+  lg.appendChild(document.createTextNode(run.id ? "." : ", with the run's id in place of <id>."));
+  rsummary.appendChild(lg);
+}
+
+// put a map on the boxes: refresh every box and wire label in place. `bump` lights up, for
+// a moment, each box whose number changed. It only draws: which map, and the titles, are
+// syncMap's business
+function applyMap(map, bump) {
+  M = map;
+  defs().forEach(f => {
+    const nd = byId[f.id]; if (!nd) return;
+    const was = String(nd.num);
+    CONTENT.forEach(k => { nd[k] = f[k]; });
+    nd.el.className = nd.el.className.replace(/\b(run|waiting|unbuilt)\b/, nd.status);
+    nd.el.querySelector(".num").textContent = nd.num; nd.el.querySelector(".cap").textContent = nd.cap;
+    nd.unit = f.unit; nd.el.classList.toggle("meta", !!f.unit);
+    nd.el.querySelector(".unit").textContent = f.unit || "";
+    nd.el.setAttribute("aria-label", ariaOf(nd));
+    if (bump && was !== String(nd.num)) {
+      nd.el.classList.add("bump"); clearTimeout(nd.bumpT);
+      nd.bumpT = setTimeout(() => nd.el.classList.remove("bump"), still ? 2000 : 1200);
+    }
+  });
+  const labels = {}; wireDefs().forEach(([a, b, label]) => { labels[a + ">" + b] = label; });
+  wires.forEach(w => { w.label = labels[w.key] || ""; });
+  flowWarn();
+  route();
+}
+
+// which numbers the boxes show for the run on show (null: none). A test run's own, while
+// its panel is shown; a real update's, while this page follows it and after it ends;
+// otherwise the project's as this page last knew them. Redraws only when that changes
+// an empty map is one the server could not count yet: no numbers at all
+const mapOf = run => { const m = run && run.map; return m && typeof m === "object" && !Array.isArray(m) && Object.keys(m).length ? m : null; };
+function syncMap(run) {
+  const m = mapOf(run);
+  if (isTest(run) && m) showMap("test", Object.assign({}, m, { artifacts: O(REAL.map).artifacts }));   // "where it is kept" links open the project's files
+  else {
+    if (run && !isTest(run) && U.live && m) {
+      REAL.map = Object.assign({}, REAL.map, m);
+      U.realFrom = { id: run.id || "today", going: ACTIVE(run.state) };
+    }
+    showMap("real", REAL.map);
+  }
+  winTitle(run);
+}
+function showMap(kind, map) {
+  const sig = kind + ":" + JSON.stringify(map);
+  if (sig === U.mapSig) return;
+  // a box lights up only for a change within one kind, not when test and real swap
+  const bump = !!U.run && U.shown === kind;
+  U.mapSig = sig; U.shown = kind;
+  applyMap(map, bump);
+}
+// the map window's title says whose numbers are on the boxes
+const WINBASE = "Pipeline — how an incident report becomes an index entry — ";
+function winTitle(run) {
+  const wt = document.getElementById("wintitle"), tag = document.getElementById("wintest");
+  if (testNums()) wt.textContent = WINBASE + "sample figures from the test run" + (run && run.id ? " " + run.id : "") + ", not your project's";
+  else if (U.realFrom) wt.textContent = WINBASE + (U.realFrom.going ? "figures live from the update " : "figures refreshed by the update of ") + U.realFrom.id;
+  else wt.textContent = WINBASE + "figures of " + (D && D.generated || "unknown date");
+  tag.textContent = testNums() ? "Test run: sample figures" : "Test run on show";
+  tag.title = testNums() ? "The tags and the numbers on the boxes come from the test run's scratch folder. They are not your project's. Close the test run's panel to see your project's numbers again."
+                         : "The tags on the boxes come from the test run. The numbers are still your project's own.";
+}
+
+// what a step changed in the numbers, from the run's trace: [key, before, after], the
+// first before and the last after over all of that step's entries, headline keys first
+function stepChanges(run, id) {
+  const acc = new Map();
+  (Array.isArray(O(run).trace) ? run.trace : []).forEach(t => {
+    if (!t || t.step !== id) return;
+    Object.entries(O(t.changed)).forEach(([k, v]) => {
+      if (!Array.isArray(v) || v.length < 2) return;
+      const prev = acc.get(k); acc.set(k, [k, prev ? prev[1] : v[0], v[1]]);
+    });
+  });
+  const rank = k => { const i = HEAD.findIndex(([h]) => h === k); return i < 0 ? HEAD.length : i; };
+  return [...acc.values()].filter(([, a, b]) => a !== b).sort((p, q) => rank(p[0]) - rank(q[0]));
+}
+function stepErrors(run, id) {
+  const out = [];
+  (Array.isArray(O(run).trace) ? run.trace : []).forEach(t => { if (t && t.step === id && t.error && !out.includes(String(t.error))) out.push(String(t.error)); });
+  return out;
+}
+function headLabel(k) { const h = HEAD.find(([x]) => x === k); return h ? h[1] : ""; }
+function numLabel(k) {   // queue_flags.keyword: Queue flags: keyword
+  const s = String(k).replace(/_/g, " ").replace(/\./g, ": ");
+  return headLabel(k) || s.charAt(0).toUpperCase() + s.slice(1);
+}
+const numVal = v => v == null ? "—" : typeof v === "number" ? n(v) : String(v);
+const changeText = ([k, a, b]) => numLabel(k) + " " + numVal(a) + " → " + numVal(b);
+// the list a step's item and a box's sheet show: the headline keys, the rest folded away
+function changeList(ch, key) {
+  const box = el("div", "rnums"); box.appendChild(el("p", "", "Numbers this step changed"));
+  const row = (tb, [k, a, b]) => { const tr = el("tr"); tr.appendChild(el("td", "", numLabel(k))); tr.appendChild(el("td", "", numVal(a) + " → " + numVal(b))); tb.appendChild(tr); };
+  const heads = ch.filter(([k]) => headLabel(k)).length;
+  const cut = ch.length <= 4 ? ch.length : heads || 3;
+  const tb = el("table"); ch.slice(0, cut).forEach(r => row(tb, r)); box.appendChild(tb);
+  if (cut < ch.length) {
+    const det = el("details"); det.open = U.numsOpen.has(key);
+    det.addEventListener("toggle", () => { if (det.open) U.numsOpen.add(key); else U.numsOpen.delete(key); });
+    det.appendChild(el("summary", "", (ch.length - cut) + " more " + (ch.length - cut === 1 ? "number" : "numbers")));
+    const t2 = el("table"); ch.slice(cut).forEach(r => row(t2, r)); det.appendChild(t2); box.appendChild(det);
+  }
+  return box;
+}
+
+// the sheet of a box, during a run: what the update did there, and what it changed in the numbers
+function runInfoFor(id) {
+  if (!U.run) return null;
+  const steps = (U.run.steps || []).filter(s => (s.nodes || []).includes(id));
+  if (!steps.length) return null;
+  const box = el("div");
+  box.appendChild(el("h3", "", isTest(U.run) ? "In this test run" : "In this update"));
+  steps.forEach(s => {
+    const p = el("p"); p.appendChild(el("span", "pill" + (ACTIVE(s.state) && s.state !== "running" ? " inv" : ""), RS_LABEL[s.state] || s.state));
+    p.appendChild(document.createTextNode(" " + (s.title || s.id) + (stepSum(s) ? ": " + stepSum(s) : ""))); box.appendChild(p);
+    if (s.prompt && (s.state === "waiting" || s.state === "failed")) {
+      box.appendChild(el("p", "", O(s.prompt).text || ""));
+      if (isTest(U.run) && O(s.prompt).test_note) box.appendChild(el("p", "note", "In this test run: " + O(s.prompt).test_note));
+    }
+    const ch = stepChanges(U.run, s.id);
+    if (ch.length) box.appendChild(changeList(ch, "sheet:" + id + ":" + s.id));
+    stepErrors(U.run, s.id).forEach(e => box.appendChild(el("p", "note", "The numbers could not be counted after this step: " + e)));
+    const log = Array.isArray(s.log) ? s.log : [];
+    if (log.length) box.appendChild(el("code", "", log.slice(-8).join("\n")));
+    const go = el("button", "btn", "Show in the run panel"); go.type = "button";
+    go.onclick = () => { U.open.add(s.id); U.last = ""; render(U.run); const li = rsteps.querySelector('[data-id="' + cssq(s.id) + '"]'); if (li) { li.scrollIntoView({ block: "nearest" }); li.querySelector("button").focus(); } };
+    box.appendChild(go);
+  });
+  return box;
+}
+
+// ------------------------------------------------------------------ start
+winTitle(null); flowWarn();
+if (scroller.clientWidth < 700) setZoom(0.7); else fit();
+route(); say(IDLE); syncButtons();
+if (byId[location.hash.slice(1)]) openSheet(byId[location.hash.slice(1)]);
+addEventListener("resize", () => { if (zoom < 1 || scroller.clientWidth < CW) fit(); });
+try { detect(); } catch (e) { noServer(); }
+</script>
+</body>
+</html>

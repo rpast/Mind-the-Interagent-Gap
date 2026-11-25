@@ -1,0 +1,82 @@
+<div class="bar"><div class="wrap">
+  <b>Mind the Interagent Gap <span class="ver" id="ver"></span></b>
+  <nav aria-label="Sections"><a href="#results">Results</a><a href="#fms">§1 Failure modes</a><a href="#matrix">§2 Instances</a><a href="#time">§3 Time</a><a href="#incidents">§4 All incidents</a><a href="#method">§5 Method</a><a href="#dictionary">§6 Data dictionary</a></nav>
+  <span class="barfilter" id="barfilter" hidden></span>
+</div></div>
+
+<div class="wrap">
+  <p class="proposal">Click any label, number, bar or year to filter the incident table.</p>
+
+  <header class="hero">
+    <span class="lab">Evidence index of multi-agent AI risks · <span id="dates"></span></span>
+    <h1>Multi-agent AI incidents taxonomy mapping</h1>
+    <div class="intro">
+      <p><b>Context.</b> <a href="https://arxiv.org/abs/2502.14143">Hammond et al. 2025, <i>Multi-Agent Risks from Advanced AI</i></a> set out a comprehensive taxonomy of the risks that arise when AI agents interact. It has three failure modes and seven risk factors. As AI agents built on large language models grow more capable, these risks are showing up more often. Several incident trackers already label some incidents as multi-agent. But each one sees only part of the picture, and they label incidents in different ways. What is missing is a tracker with one unified view of multi-agent risk.</p>
+      <p><b>Goal.</b> Provide that view. We bring incidents from several sources into one index and map each one onto the Hammond et al. taxonomy. An incident reported by more than one source counts once. We include four kinds of evidence: real-world incidents, simulated environments built by researchers, lab experiments on real models, and theoretical arguments where no AI system was run. The index shows which multi-agent risks have evidence behind them and which have none yet. This is work in progress: this release maps failure modes only, and risk factors come next.</p>
+      <p><b>Setup.</b> The <a href="https://incidentdatabase.ai/">AI Incident Database</a> (AIID) is the main source. Every AIID record dated 2024 or later is checked. Older AIID records enter only when flagged. Other sources are added by hand at irregular intervals. A human analyst decides whether each incident is in scope.</p>
+    </div>
+  </header>
+
+  <section id="results" class="results">
+    <details class="fold" open><summary><span class="lab">Headline results</span></summary>
+    <div class="figs" id="figs"></div>
+    <div class="srcfig">
+      <span class="lab">Incidents by source</span>
+      <div class="key" id="srckey"></div>
+      <div class="srcs" id="srcs"></div>
+      <p class="cap"><b>Fig. 0</b> The solid part counts incidents whose canonical source this is. The outlined part counts incidents this source also reports.</p>
+    </div>
+  </details></section>
+
+  <section id="fms">
+    <details class="fold" open><summary><span class="lab">§1 · Failure modes</span>
+    <h2>Where the incidents land.</h2></summary>
+    <p class="note">Incidents per failure mode, split by evidence type. The failure mode is derived by rule from the facts read in each source, and each incident has at most one. Incidents whose facts do not settle it are counted apart, not forced into a mode.</p>
+    <div class="key" id="key"></div>
+    <div class="risks" id="riskrows"></div>
+    <p class="cap" id="fmcap"></p>
+  </details></section>
+
+  <section id="matrix">
+    <details class="fold" open><summary><span class="lab">§2 · Instances</span>
+    <h2>Which mechanisms show up, by failure mode.</h2></summary>
+    <p class="note">Rows are the <span id="ninst"></span> instances, in id order. Columns are the incident's failure mode. A cell counts incidents that carry both. Instances are assigned on their own and give an incident no failure mode or risk factor. Hover an instance to see where the paper discusses it.</p>
+    <div class="mxw"><table class="mx2" id="mx2"></table></div>
+    <p class="cap"><b>Fig. 2</b> Two labels on one incident are a count, not a link. Rows are not grouped by failure mode or risk factor, so no cell reads as a link between the two. Red marks an instance with no incident. Instances marked <span class="mono">proposed</span> are not in the paper. This index added them because incidents showed behaviour the paper's Table 1 does not name.</p>
+  </details></section>
+
+  <section id="time">
+    <details class="fold" open><summary><span class="lab">§3 · Time</span>
+    <h2>When they happened.</h2></summary>
+    <p class="note">Incidents in the index by event date, cumulative. Studies are placed at their publication date.</p>
+    <div class="chart" id="chart"></div>
+    <p class="cap" id="timecap"></p>
+  </details></section>
+
+  <section id="incidents">
+    <details class="fold" open><summary><span class="lab">§4 · All incidents</span>
+    <h2>All incidents.</h2></summary>
+    <p class="note">One row per dossier. Click a column heading to sort, type or pick under it to filter. Hover a code for its name. Codes are listed in <a href="#dictionary">§6</a>.</p>
+    <div class="filters" id="filters" role="group" aria-label="Filter by evidence type"></div>
+    <p class="tblstate cap" id="tblstate" aria-live="polite"></p>
+    <div class="tbl-wrap"><table class="inc"><thead id="thead"></thead><tbody id="rows"></tbody></table></div>
+  </details></section>
+
+  <section id="method">
+    <details class="fold" open><summary><span class="lab">§5 · Method</span>
+    <h2>How an incident gets here.</h2></summary>
+    <p class="note">Every record takes the same path. Scripts move and count data, a model reads sources and writes down facts with quotes, fixed rules turn those facts into labels, and a human analyst makes every decision that puts an incident in the index.</p>
+    <figure class="flow">
+      <svg class="fc" viewBox="0 0 680 1106" role="img" aria-label="How a record becomes an indexed incident: fetch and normalise, queue and read the sources, extract facts, derive labels by rule, a human analyst decides scope, instances are assigned, a human analyst promotes the dossier, then check and index."><defs><marker id="fc-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fc-ah"/></marker><marker id="fc-ax" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fc-ahx"/></marker></defs><line class="fc-band" x1="0" x2="680" y1="68" y2="68"/><text class="fc-ph" x="0" y="86">INGEST</text><line class="fc-band" x1="0" x2="680" y1="268" y2="268"/><text class="fc-ph" x="0" y="286">SCREEN</text><line class="fc-band" x1="0" x2="680" y1="552" y2="552"/><text class="fc-ph" x="0" y="570">CLASSIFY</text><line class="fc-band" x1="0" x2="680" y1="920" y2="920"/><text class="fc-ph" x="0" y="938">RECORD</text><line class="fc-e" x1="262" y1="140" x2="262" y2="172" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="161">raw copy, never edited</text><line class="fc-e" x1="262" y1="224" x2="262" y2="288" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="261">records</text><line class="fc-e" x1="262" y1="340" x2="262" y2="372" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="361">queued, some flagged</text><line class="fc-e" x1="262" y1="424" x2="262" y2="456" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="445">facts read</text><line class="fc-e" x1="262" y1="508" x2="262" y2="572" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="545">ready</text><line class="fc-e" x1="262" y1="624" x2="262" y2="656" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="645">facts with quotes</text><line class="fc-e" x1="262" y1="708" x2="262" y2="740" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="729">in, out or review</text><line class="fc-e" x1="262" y1="792" x2="262" y2="824" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="813">decided in</text><line class="fc-e" x1="262" y1="876" x2="262" y2="940" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="913">promote: yes</text><line class="fc-e" x1="262" y1="992" x2="262" y2="1024" marker-end="url(#fc-a)"/><text class="fc-el" x="272" y="1013">dossier</text><g class="fc-script"><rect x="112" y="90" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="112">Fetch AIID</text><text class="fc-s" x="124" y="128">the AI Incident Database, verbatim</text></g><g class="fc-script"><rect x="112" y="174" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="196">Normalise into records</text><text class="fc-s" x="124" y="212">one record per source item, hashed</text></g><g class="fc-script"><rect x="112" y="290" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="312">Queue the candidates</text><text class="fc-s" x="124" y="328">AIID from 2024 · hand-kept older cases</text></g><g class="fc-model"><rect x="112" y="374" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="396">Read the sources</text><text class="fc-s" x="124" y="412">seven facts, each quoted or &#x27;silent&#x27;</text></g><g class="fc-script"><rect x="112" y="458" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="480">Enough read?</text><text class="fc-s" x="124" y="496">per decision: ready, provisional, not</text></g><g class="fc-model"><rect x="112" y="574" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="596">Extract the gate facts</text><text class="fc-s" x="124" y="612">agents, interaction, cooperation, goals</text></g><g class="fc-rule"><rect x="112" y="658" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="680">Derive labels by rule</text><text class="fc-s" x="124" y="696">Gate 1 scope · Gate 2 failure mode</text></g><g class="fc-person"><rect x="112" y="742" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="764">Decide scope</text><text class="fc-s" x="124" y="780">in, out or unclear, with a reason</text></g><g class="fc-model"><rect x="112" y="826" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="848">Assign instances</text><text class="fc-s" x="124" y="864">each match quoted from the source</text></g><g class="fc-person"><rect x="112" y="942" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="964">Promote and write the dossier</text><text class="fc-s" x="124" y="980">unverified until checked by a human analyst</text></g><g class="fc-script"><rect x="112" y="1026" width="300" height="50" rx="3"/><text class="fc-t" x="124" y="1048">Check, index, report</text><text class="fc-s" x="124" y="1064">the build fails on any broken rule</text></g><g class="fc-person"><rect x="452" y="90" width="220" height="50" rx="3"/><text class="fc-t" x="464" y="112">Curator write-ups</text><text class="fc-s" x="464" y="128">other sources, fetched by hand</text></g><path class="fc-e" d="M562 140 V199 H414" marker-end="url(#fc-a)"/><text class="fc-el" x="570" y="158">added by hand</text><path class="fc-x" d="M412 315 H450" marker-end="url(#fc-ax)"/><g class="fc-out"><rect x="452" y="290" width="220" height="50" rx="3"/><text class="fc-t" x="464" y="312">Not queued</text><text class="fc-s" x="464" y="328">pre-2024, or rated single-agent</text></g><path class="fc-x" d="M412 483 H450" marker-end="url(#fc-ax)"/><g class="fc-out"><rect x="452" y="458" width="220" height="50" rx="3"/><text class="fc-t" x="464" y="480">Out: one agent or none</text><text class="fc-s" x="464" y="496">confirmed by a fuller reading</text></g><path class="fc-x" d="M412 767 H450" marker-end="url(#fc-ax)"/><g class="fc-out"><rect x="452" y="742" width="220" height="50" rx="3"/><text class="fc-t" x="464" y="764">Out or unclear</text><text class="fc-s" x="464" y="780">logged with the reason</text></g><path class="fc-e" d="M112 483 H90 V399 H110" marker-end="url(#fc-a)"/><text class="fc-el" x="86" y="445" text-anchor="end">read more</text><g class="fc-script"><rect x="0" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="30" y="25">script</text><g class="fc-model"><rect x="98" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="128" y="25">model, quotes its source</text><g class="fc-rule"><rect x="322" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="352" y="25">fixed rule</text><g class="fc-person"><rect x="448" y="14" width="22" height="14" rx="2"/></g><text class="fc-lg" x="478" y="25">human analyst</text></svg>
+      <figcaption class="cap"><b>Fig. 5</b> From source to index. Only a human analyst puts an incident in: the rules propose scope, and the two ink boxes decide. A record not yet read deeply enough for a decision goes back to be read further, so nothing is judged on a fact nobody looked for. Curator write-ups enter in scope on the curator's word, and their failure mode and instances are still judged. Detail in <code>0.2/docs/how_it_works.md</code>.</figcaption>
+    </figure>
+  </details></section>
+
+  <section id="dictionary">
+    <details class="fold" open><summary><span class="lab">§6 · Data dictionary</span>
+    <h2>What each code and label means.</h2></summary>
+    <div class="subs" id="defs"></div>
+    <footer class="cap">Built by <code>run.py report</code> from <code>0.2/out/incident_index.csv</code>, the dossiers and <code>0.2/taxonomy/*.csv</code>. Single file, data inlined, opens on file://.</footer>
+  </details></section>
+</div>
+<aside class="panel" id="panel" hidden aria-live="polite" aria-label="Active filter"></aside>

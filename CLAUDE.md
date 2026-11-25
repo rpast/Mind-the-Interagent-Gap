@@ -6,12 +6,16 @@ factors) and an inventory of agent-to-agent incidents.
 Read `docs/project_outline.md` first: it gives the goal and the three layers (ontology,
 detection, mapping).
 
-## Two trees — do not mix them
+## Three trees — do not mix them
 
 - **`poc/` is frozen.** Reference only. It still builds, but it gets no new data and no new
   features. Do not add incidents, columns or files to it. See `poc/README.md`.
-- **`mvp/` is the live build.** Everything new goes here. It was started from zero on
-  2026-11-12 and does not preserve the PoC's structure. See `mvp/README.md`.
+- **`mvp/` is frozen** since 2026-11-25, at commit 61aaa9f. It was copied whole to `0.2/`,
+  which carries its data on. It still runs, but gets no new data and no new features. Do
+  not write to it. See `mvp/README.md`.
+- **`0.2/` is the live build.** Everything new goes here. It continues `mvp/` and is being
+  rebuilt around one ledger and two review sheets: `0.2/docs/plan.md`. Its name matches
+  the report's version. Work on it happens on branch `development/pipeline-0.2`.
 
 Project-level files stay at the root: `resources/` (source documents),
 `docs/project_outline.md`, `docs/sources.txt`, `RESOURCES.md`, `OPEN.md`.
@@ -21,55 +25,55 @@ Project-level files stay at the root: `resources/` (source documents),
 - `resources/` holds the source documents (papers, reports), starting with Hammond et al.
   2025. Ground every classification and incident claim in these files and cite file and page.
 - **Two keys name every incident and every record a person reviews.** `mig_key`, MIG-nnnn,
-  is ours: unique, given once in `mvp/registry/mig_keys.csv` when a record first reaches the
-  decide-scope sheet, kept by its dossier (`mvp/incidents/<mig_key>.md`), never changed or
+  is ours: unique, given once in `0.2/registry/mig_keys.csv` when a record first reaches the
+  decide-scope sheet, kept by its dossier (`0.2/incidents/<mig_key>.md`), never changed or
   reused. `source_key` is the key the source itself uses (AIID's `794`), blank when it has
   none. Never name an incident by its source (no `AIID-nnnn` ids). `record_key`
   (`aiid:794`) is only the pipeline's internal join key on its own files; no sheet, log,
   dossier or report shows it.
-- `mvp/registry/sources.csv` is the source registry: the machine-readable spine the pipeline
+- `0.2/registry/sources.csv` is the source registry: the machine-readable spine the pipeline
   reads. `RESOURCES.md` is the human lead list. `docs/sources.txt` is the per-row audit
   trail. A source may appear in all three, but each note belongs to exactly one.
-- `mvp/taxonomy/` holds risks, the instance repository, FM–RF associations and the evidence
+- `0.2/taxonomy/` holds risks, the instance repository, FM–RF associations and the evidence
   types. The pipeline and the classifiers read it; it is hand-curated.
-- `mvp/raw/<source>/` is verbatim fetch output. Never hand-edit it. `mvp/raw/manual/` holds
+- `0.2/raw/<source>/` is verbatim fetch output. Never hand-edit it. `0.2/raw/manual/` holds
   machine-made copies of the curator's hand write-ups.
-- `mvp/records/<source>.jsonl` is normalised, append-only and content-hashed. Machine-written.
-  `mvp/records/manual.jsonl` holds the incidents added by hand.
-- `mvp/context/<source>.jsonl` is what each source says about the facts the gates need: a
-  reading, with quotes and the depth read. Machine-written. See `mvp/docs/context_layer.md`.
-- `mvp/review/` holds the three sheets a person fills in (`1_decide_scope.xlsx`,
+- `0.2/records/<source>.jsonl` is normalised, append-only and content-hashed. Machine-written.
+  `0.2/records/manual.jsonl` holds the incidents added by hand.
+- `0.2/context/<source>.jsonl` is what each source says about the facts the gates need: a
+  reading, with quotes and the depth read. Machine-written. See `0.2/docs/context_layer.md`.
+- `0.2/review/` holds the three sheets a person fills in (`1_decide_scope.xlsx`,
   `2_promote.xlsx`, `3_edit_dossiers.xlsx`; generated, gitignored) and their logs
   (`scope_decisions_log.csv`, `promote_decisions_log.csv`, `dossier_edits_log.csv`; data, committed,
-  written only by `run.py review` when it reads a filled sheet). See `mvp/review/README.md`.
-- `mvp/incidents/<ID>.md` is the curated record: one dossier per incident a person
-  promotes. Scope decisions that are not promoted live in `mvp/review/scope_decisions_log.csv`.
+  written only by `run.py review` when it reads a filled sheet). See `0.2/review/README.md`.
+- `0.2/incidents/<ID>.md` is the curated record: one dossier per incident a person
+  promotes. Scope decisions that are not promoted live in `0.2/review/scope_decisions_log.csv`.
   Hand-edited, or filled by Claude when the curator asks (see Rules).
-- `mvp/proposals/` holds classifier output. It is never authoritative; a human promotes.
-- `mvp/out/` is generated. Never edit it by hand. `mvp/out/index_report.xlsx` is the index
+- `0.2/proposals/` holds classifier output. It is never authoritative; a human promotes.
+- `0.2/out/` is generated. Never edit it by hand. `0.2/out/index_report.xlsx` is the index
   report: every incident in the index, and every record that is not, with the reason.
-  `mvp/out/index_report.html` is the published report for readers, built by
-  `run.py report` from `mvp/pipeline/report/`.
-- `mvp/testenv/` holds the test run's fixtures: made-up incidents and the stand-ins for
+  `0.2/out/index_report.html` is the published report for readers, built by
+  `run.py report` from `0.2/pipeline/report/`.
+- `0.2/testenv/` holds the test run's fixtures: made-up incidents and the stand-ins for
   skill and human work. `run.py testrun` runs the real steps on them in a temp folder. Never
-  put real incidents there. See `mvp/testenv/README.md`.
+  put real incidents there. See `0.2/testenv/README.md`.
 
 ## Workflow
 
 Where system Python lacks openpyxl (as on the Raspberry Pi host), run every command below
 with `.venv/bin/python` instead of `python`.
 
-1. `python mvp/pipeline/run.py update [--refetch] [--manual DIR] [--discover]`, or start the
-   same run from the page `python mvp/pipeline/run.py serve` puts on 127.0.0.1. Default: the
+1. `python 0.2/pipeline/run.py update [--refetch] [--manual DIR] [--discover]`, or start the
+   same run from the page `python 0.2/pipeline/run.py serve` puts on 127.0.0.1. Default: the
    AIID baseline from the saved snapshot. `--discover` is a placeholder, not built yet.
 2. Run `/classify-incidents` in Claude Code to read the sources and write proposals. It
-   runs `python mvp/pipeline/run.py derive`, which derives the labels by rule
-   (`mvp/pipeline/derive.py`) into `mvp/state/verdicts.jsonl`, and assigns instances to the
-   records `python mvp/pipeline/run.py instances-due` lists.
-3. Decide on the sheets in `mvp/review/` (`python mvp/pipeline/run.py review` writes
+   runs `python 0.2/pipeline/run.py derive`, which derives the labels by rule
+   (`0.2/pipeline/derive.py`) into `0.2/state/verdicts.jsonl`, and assigns instances to the
+   records `python 0.2/pipeline/run.py instances-due` lists.
+3. Decide on the sheets in `0.2/review/` (`python 0.2/pipeline/run.py review` writes
    them): fill `decision` in `1_decide_scope.xlsx` (in, out, unclear), run `review`, then
    fill `promote` in `2_promote.xlsx` (yes makes the blank dossier). Check against
-   `mvp/proposals/` and `mvp/state/verdicts.jsonl`; promote what passes the
+   `0.2/proposals/` and `0.2/state/verdicts.jsonl`; promote what passes the
    inclusion test. Before promoting, check each record against the existing dossiers and
    `OPEN.md` for duplicates: a record that is already an incident is added to that
    dossier's `sources`, not promoted. The dossier keeps its `mig_key`; if AIID becomes
@@ -77,17 +81,17 @@ with `.venv/bin/python` instead of `python`.
 4. Fill each new dossier by hand, or ask Claude to fill it from the readings (see Rules).
    To set or correct a dossier's labels, scope, verification or facts, change the cells
    of `3_edit_dossiers.xlsx` and run `review`: each field changed there is named in the
-   dossier's `set_by_person` and logged in `mvp/review/dossier_edits_log.csv`. Never remove
+   dossier's `set_by_person` and logged in `0.2/review/dossier_edits_log.csv`. Never remove
    a field from `set_by_person`, and never overwrite a field it names without the
    curator's say.
-5. `python mvp/pipeline/run.py check` — must exit 0.
-6. `python mvp/pipeline/run.py index`, `viz`, then `python mvp/pipeline/index_report.py`
-   for `mvp/out/index_report.xlsx`.
-7. When the index is worth reporting: `python mvp/pipeline/run.py report` builds the
-   published report, `mvp/out/index_report.html`. It is a step of its own, never
+5. `python 0.2/pipeline/run.py check` — must exit 0.
+6. `python 0.2/pipeline/run.py index`, `viz`, then `python 0.2/pipeline/index_report.py`
+   for `0.2/out/index_report.xlsx`.
+7. When the index is worth reporting: `python 0.2/pipeline/run.py report` builds the
+   published report, `0.2/out/index_report.html`. It is a step of its own, never
    part of `update`, and so is publishing it to its claude.ai page. See
-   `mvp/pipeline/report/README.md`.
-8. Commit the records, the dossiers and the rebuilt `mvp/out/` together.
+   `0.2/pipeline/report/README.md`.
+8. Commit the records, the dossiers and the rebuilt `0.2/out/` together.
 
 ## Rules
 
@@ -127,10 +131,10 @@ with `.venv/bin/python` instead of `python`.
   `2026-06`, `2026-06-18`). Use the event date, or the publication date for studies.
 - `evidence_type` is one of: `real_world` · `synthetic` · `lab` · `theoretical`.
 - The failure mode comes only from the Gate 2 tree. Instances are descriptive and assigned
-  independently; neither is derived from the other (`mvp/docs/definitions.md` § Instances).
+  independently; neither is derived from the other (`0.2/docs/definitions.md` § Instances).
 - Never infer an FM–RF link from two tags on one row; associations come only from Hammond
   et al., with `basis` recording which.
-- Scoring is parked. No E1–E5 anywhere in `mvp/`.
-- Never read `mvp/pipeline/pipeline_flow.html` whole: it is about 140 KB.
+- Scoring is parked. No E1–E5 anywhere in `0.2/`.
+- Never read `0.2/pipeline/pipeline_flow.html` whole: it is about 140 KB.
   Search it (`grep -n`), or read only the lines you need with an offset
   and limit.

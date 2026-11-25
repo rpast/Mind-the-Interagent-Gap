@@ -1,5 +1,9 @@
 # mvp
 
+> **Frozen on 2026-11-25, at commit 61aaa9f.** This tree was copied whole to `0.2/`, which
+> is the live build and carries its data on. `mvp/` still runs, but gets no new data and no
+> new features; do not write to it. Its docs below describe it as it was.
+
 The current build, started from zero on 2026-11-12. An earlier exploratory pass established the
 ontology and is frozen; this tree carries forward its lessons rather than its structure.
 
